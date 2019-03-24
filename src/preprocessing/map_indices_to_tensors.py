@@ -2,6 +2,16 @@ import argparse
 import torch
 import sys
 import random
+import os
+sys.path.insert(0, sys.path[0]+'/..')
+#sys.path.append("..")
+import utils
+
+#remove the duplicated sentences
+#remove the sentences which are too long
+#remove stop words in target
+#handle the min target filtering (If more than 30 words in output, just do random sampling)
+#padding and store them into tensors, (random shuffle? two sets), store train, val, and test
 
 parser = argparse.ArgumentParser(description='Preprocessing step 2')
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
@@ -23,17 +33,8 @@ parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word
 args = parser.parse_args()
 random.seed(args.seed)
 
-def load_word_dict(f_in):
-    d = {}
-    max_ind = 0
-    for i, line in enumerate(f_in):
-        fields = line.rstrip().split('\t')
-        #d[fields[0]] = [len(d),int(fields[1])]
-        if len(fields) == 2:
-            d[fields[0]] = [i,int(fields[1])]
-            max_ind = i
-
-    return d, max_ind
+if not os.path.exists(args.save):
+    os.makedirs(args.save)
 
 def convert_stop_to_ind(f_in, w_d2_ind_freq):
     stop_word_set = set()
@@ -72,7 +73,7 @@ corpus_input_name = args.data + "corpus_index"
 dictionary_input_name = args.data + "dictionary_index"
 
 with open(dictionary_input_name) as f_in:
-    w_d2_ind_freq, max_ind = load_word_dict(f_in)
+    w_d2_ind_freq, max_ind = utils.load_word_dict(f_in)
 
 if max_ind >= 2147483648:
     print("Will cause overflow")
@@ -117,11 +118,11 @@ print("{} / {} needs to randomly select targets".format(random_selection_num,cor
 
 #print("Finish loading all files")
 
-training_output_name = args.data + "train.pt"
-val_org_output_name = args.data + "val_org.pt"
-test_org_output_name = args.data + "test_org.pt"
-val_shuffled_output_name = args.data + "val_shuffled.pt"
-test_shuffled_output_name = args.data + "test_shuffled.pt"
+training_output_name = args.save + "train.pt"
+val_org_output_name = args.save + "val_org.pt"
+test_org_output_name = args.save + "test_org.pt"
+val_shuffled_output_name = args.save + "val_shuffled.pt"
+test_shuffled_output_name = args.save + "test_shuffled.pt"
 
 testing_size_ratio = 0.05
 testing_size = int(corpus_size * testing_size_ratio)
@@ -131,10 +132,10 @@ def store_tensors(f_out,tensor1,tensor2):
     torch.save([tensor1,tensor2],f_out)
 
 with open(test_org_output_name,'wb') as f_out:
-    store_tensors(f_out,all_features[-testing_size:,:],all_targets[-testing_size:,:])
+    store_tensors(f_out,all_features[-testing_size:,:].clone(),all_targets[-testing_size:,:].clone())
 
 with open(val_org_output_name,'wb') as f_out:
-    store_tensors(f_out,all_features[-2*testing_size:-testing_size,:],all_targets[-2*testing_size:-testing_size,:])
+    store_tensors(f_out,all_features[-2*testing_size:-testing_size,:].clone(),all_targets[-2*testing_size:-testing_size,:].clone())
 
 rest_size = corpus_size - 2*testing_size
 shuffle_ind = list(range(rest_size))

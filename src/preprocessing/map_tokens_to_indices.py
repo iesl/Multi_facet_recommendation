@@ -3,6 +3,13 @@ import gzip
 import os
 import time
 import sys
+sys.path.insert(0, sys.path[0]+'/..')
+from utils import Dictionary
+
+#map words to index (and set the max sentence number), 
+#map low freq words into <unk>
+#add end of sentence tokens (for transformer to generate output embedding), 
+#output dataset, dictionary (start with <null>, <unk>, and <eos>), word frequency,  print total number of words, total number of filtered words
 
 parser = argparse.ArgumentParser(description='Preprocessing step 1')
 parser.add_argument('--data', type=str, default='./data/raw/binary-wackypedia-1-4-ukwac-.gz',
@@ -28,11 +35,10 @@ else:
     my_open = open
     byte_mode = False
 
+
 w_ind_corpus = []
-w_d2_ind = {'[null]': 0, '<unk>': 1, '<eos>': 2}
-ind_l2_w_freq = [ ['[null]',-1], ['<unk>',0], ['<eos>',0] ]
-UNK_IND = 1
-EOS_IND = 2
+        
+dict_c = Dictionary(byte_mode)
 
 total_num_w = 0
 filtered_sent_num = 0
@@ -44,21 +50,11 @@ with my_open(args.data, 'r') as f_in:
             continue
         w_ind_list = []
         for w in w_list_org:
-            if w not in w_d2_ind:
-                w_ind = len(w_d2_ind)
-                w_d2_ind[w] = w_ind
-                if byte_mode:
-                    ind_l2_w_freq.append([w.decode('utf-8'), 1])
-                else:
-                    ind_l2_w_freq.append([w, 1])
-            else:
-                w_ind = w_d2_ind[w]
-                ind_l2_w_freq[w_ind][1] += 1 
+            w_ind = dict_c.dict_check_add(w)
             w_ind_list.append(w_ind)
             total_num_w += 1
-        w_ind_list.append(2) # append <eos>
+        dict_c.append_eos(w_ind_list)
         w_ind_corpus.append(w_ind_list)
-        ind_l2_w_freq[EOS_IND][1] += 1
         if len(w_ind_corpus) % 1000000 == 0:
             print(len(w_ind_corpus))
             sys.stdout.flush()
@@ -69,21 +65,7 @@ print("total number of lines: "+str(len(w_ind_corpus)))
 elapsed = time.time() - start_time
 print("time of loading file: "+str(elapsed)+'s')
 
-vocab_size = len(ind_l2_w_freq)
-unk_ind_list = [False]*vocab_size
-
-total_num_filtering = 0
-total_freq_filtering = 0
-for i, (w, w_freq) in enumerate(ind_l2_w_freq[3:]):
-    if w_freq < args.min_sent_length:
-        unk_ind_list[i] = True
-        ind_l2_w_freq[i].append('unk')
-        total_num_filtering += 1
-        total_freq_filtering += w_freq
-
-ind_l2_w_freq[UNK_IND][1] = total_freq_filtering #update <unk> frequency
-
-print("{}/{} word types are filtered".format(total_num_filtering, vocab_size) )
+compact_mapping, total_freq_filtering = dict_c.densify_index(args.min_sent_length)
 print("{}/{} tokens are filtered".format(total_freq_filtering, total_num_w) )
 
 if not os.path.exists(args.save):
@@ -93,14 +75,11 @@ corpus_output_name = args.save + "corpus_index"
 dictionary_output_name = args.save + "dictionary_index"
 
 with open(dictionary_output_name, 'w') as f_out:
-    for i in range(vocab_size):
-        #print(ind_l2_w_freq[i])
-        ind_l2_w_freq[i][1] = str(ind_l2_w_freq[i][1])
-        f_out.write('\t'.join(ind_l2_w_freq[i])+'\n')
+    dict_c.store_dict(f_out)
 
 with open(corpus_output_name, 'w') as f_out:
     for w_ind_list in w_ind_corpus:
-         f_out.write(' '.join([str(x) if not unk_ind_list[x] else str(UNK_IND) for x in w_ind_list])+'\n')
+         f_out.write(' '.join([str(compact_mapping[x]) for x in w_ind_list])+'\n')
 
 elapsed = time.time() - start_time
 print("time of total word to index: "+str(elapsed)+'s')

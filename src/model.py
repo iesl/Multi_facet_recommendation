@@ -6,16 +6,14 @@ from torch.autograd import Variable
 
 from embed_regularize import embedded_dropout
 from locked_dropout import LockedDropout
-from weight_drop import WeightDrop
+#from weight_drop import WeightDrop
 
-class RNNModel_further(nn.Module):
+class RNNModel_decoder(nn.Module):
 
-    def __init__(self, rnn_type, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropout=0.5):
+    def __init__(self, rnn_type, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5):
         super(RNNModel_further, self).__init__()
-        #self.drop = nn.Dropout(dropout)
-        self.drop = nn.Dropout(0.5)
+        self.drop = nn.Dropout(dropoutp)
         self.n_basis = n_basis
-        #self.batchnorm = nn.BatchNorm1d(outd, affine =False)
         #self.layernorm = nn.InstanceNorm1d(n_basis, affine =False)
         #self.outd_sqrt = math.sqrt(outd)
         self.linear_mapping_dim = linear_mapping_dim
@@ -26,23 +24,15 @@ class RNNModel_further(nn.Module):
                 for i in range(n_basis):
                     #It seems that the LSTM only learns well when bias is larger than weights at the beginning
                     #If setting std in weight to be too large (e.g., 1), the loss might explode
-                    #torch.nn.init.normal_(self.init_linear_arr[i].bias.data,mean=0, std=.5)
-                    #torch.nn.init.normal_(self.init_linear_arr[i].weight.data,mean=0, std=.1)
                     self.init_linear_arr[i].bias.data.uniform_(-.5,.5)
                     self.init_linear_arr[i].weight.data.uniform_(-.1,.1)
             else:
                 position_emb_size = 100
-                #self.poistion_emb = nn.Parameter( torch.randn(n_basis, position_emb_size) )
                 self.poistion_emb = nn.Embedding( n_basis, position_emb_size )
 
-        #self.init_linear = nn.Linear(ninp, nhid)
         self.init_hid_linear_1 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
         self.init_hid_linear_2 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
         for i in range(nlayers):
-            #torch.nn.init.normal_(self.init_hid_linear_1[i].weight.data,mean=0, std=.1)
-            #torch.nn.init.normal_(self.init_hid_linear_1[i].bias.data,mean=0, std=.5)
-            #torch.nn.init.normal_(self.init_hid_linear_2[i].weight.data,mean=0, std=.1)
-            #torch.nn.init.normal_(self.init_hid_linear_2[i].bias.data,mean=0, std=.5)
             self.init_hid_linear_1[i].weight.data.uniform_(-.1,.1)
             self.init_hid_linear_1[i].bias.data.uniform_(-.5,.5)
             self.init_hid_linear_2[i].weight.data.uniform_(-.1,.1)
@@ -54,20 +44,17 @@ class RNNModel_further(nn.Module):
         self.relu_layer = nn.ReLU()
 
         if rnn_type in ['LSTM', 'GRU']:
-            #self.rnn = getattr(nn, rnn_type)(nhid, nhid, nlayers, dropout=dropout)
-            #self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
             if linear_mapping_dim > 0:
-                self.rnn = getattr(nn, rnn_type)(linear_mapping_dim, nhid, nlayers, dropout=dropout)
+                self.rnn = getattr(nn, rnn_type)(linear_mapping_dim, nhid, nlayers, dropout=0)
             else:
-                self.rnn = getattr(nn, rnn_type)(ninp+position_emb_size, nhid, nlayers, dropout=dropout)
+                self.rnn = getattr(nn, rnn_type)(ninp+position_emb_size, nhid, nlayers, dropout=0)
         else:
             try:
                 nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
             except KeyError:
                 raise ValueError( """An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(ninp+position_emb_size, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
-            #self.rnn = nn.RNN(nhid, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
+            self.rnn = nn.RNN(ninp+position_emb_size, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
         
         self.coeff_nlayers = 1
         self.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = self.coeff_nlayers , bidirectional = True)
@@ -80,16 +67,12 @@ class RNNModel_further(nn.Module):
         self.nlayers = nlayers
 
     def init_weights(self):
+        #necessary?
         initrange = 0.1
-        #self.init_linear.bias.data.zero_()
-        #self.init_linear.weight.data.uniform_(-initrange, initrange)
         self.out_linear.bias.data.zero_()
         self.out_linear.weight.data.uniform_(-initrange, initrange)
 
-    #def forward(self, input, hidden):
     def forward(self, input, input_init, predict_coeff_sum = False):
-        #emb = self.drop( self.init_linear(input) )
-        #emb = self.drop( input )
         
         hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
         hidden_2 = torch.cat( [self.init_hid_linear_2[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
@@ -104,20 +87,15 @@ class RNNModel_further(nn.Module):
                 emb = self.drop(emb_raw)
             else:
                 batch_size = input.size(1)
-                #input_2nd_RNN = input_squeezed.expand(n_basis, input_squeezed.size(0), input_squeezed.size(1) )
-                #poistion_emb = self.poistion_emb.weight.data
-                #poistion_emb_input = poistion_emb.expand(batch_size, poistion_emb.size(0), poistion_emb.size(1)).permute(1,0,2)
                 input_pos = torch.arange(self.n_basis,dtype=torch.long,device = input.get_device()).expand(batch_size,self.n_basis).permute(1,0)
 
                 poistion_emb_input = self.poistion_emb(input_pos)
                 poistion_emb_input = self.drop(poistion_emb_input)
                 emb = torch.cat( ( poistion_emb_input,input), dim = 2  )
 
-        #emb = self.init_linear(input)
         output, hidden = self.rnn(emb, hidden)
         #output = self.drop(output)
         #output = self.out_linear(self.relu_layer(output))
-        #output = self.batchnorm(output.permute(1,2,0)).permute(2,0,1)
         #output = self.layernorm(output.permute(1,0,2)).permute(1,0,2)
         #output /= self.outd_sqrt
         output = self.out_linear(output)
@@ -147,52 +125,48 @@ class RNNModel_further(nn.Module):
 class RNNModel_simple(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout=0.5, tie_weights=False):
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute):
         super(RNNModel, self).__init__()
-        self.drop = nn.Dropout(dropout)
+        #self.drop = nn.Dropout(dropout)
+        self.lockdrop = LockedDropout()
         self.encoder = nn.Embedding(ntoken, ninp)
+        self.use_dropout = True
         if rnn_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=dropout)
+            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=0)
         else:
             try:
                 nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
             except KeyError:
                 raise ValueError( """An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout)
-        self.decoder = nn.Linear(nhid, ntoken)
+            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
 
-        # Optionally tie weights as in:
-        # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
-        # https://arxiv.org/abs/1608.05859
-        # and
-        # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
-        # https://arxiv.org/abs/1611.01462
-        if tie_weights:
-            if nhid != ninp:
-                raise ValueError('When using the tied flag, nhid must be equal to emsize')
-            self.decoder.weight = self.encoder.weight
-
-        self.init_weights(tie_weights)
+        self.init_weights()
 
         self.rnn_type = rnn_type
         self.nhid = nhid
         self.nlayers = nlayers
+        self.dropout = dropout
+        self.dropoute = dropoute
+        self.dropouti = dropouti
 
-    def init_weights(self, tie_weights):
+    def init_weights(self):
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.encoder.weight.data[0,:] = 0
         self.decoder.bias.data.zero_()
-        if not tie_weights:
-            self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, input, hidden):
-        emb = self.drop(self.encoder(input))
+    def forward(self, input):
+        
+        bsz = input.size(1)
+        hidden = self.init_hidden(bsz)
+        emb = embedded_dropout(self.encoder, input, dropout=self.dropoute if self.use_dropout else 0)
+        emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)       
+        #emb = self.drop(self.encoder(input))
         output_org, hidden = self.rnn(emb, hidden)
-        output = self.drop(output_org)
-        decoded = self.decoder(output.view(output.size(0)*output.size(1), output.size(2)))
-        return decoded.view(output.size(0), output.size(1), decoded.size(1)), hidden, output
+        #output = self.drop(output_org)
+        output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
+        return output, hidden
 
     def init_hidden(self, bsz):
         weight = next(self.parameters())
