@@ -5,6 +5,8 @@ import math
 import numpy as np
 import torch
 import torch.nn as nn
+#from torch.utils.data import Dataset, DataLoader
+import torch.utils.data
 import torch.nn.functional as F
 import torch.cuda as cutorch
 
@@ -19,11 +21,12 @@ from utils import create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 #path
-parser.add_argument('--data', type=str, default='./data/processed/wackypedia/tensors/',
+parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
 parser.add_argument('--save', type=str,  default='./models/Wacky',
                     help='path to save the final model')
-parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
+#parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
+parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d_filtered_wac_bookp1.txt',
                     help='path to the file of a word embedding file')
 #parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
 #                    help='path to the file of a stop word list')
@@ -33,13 +36,13 @@ parser.add_argument('--en_model', type=str, default='LSTM',
                     help='type of encoder model (LSTM)')
 parser.add_argument('--emsize', type=int, default=300,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=1150,
+parser.add_argument('--nhid', type=int, default=600,
                     help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=2,
+parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--dropout', type=float, default=0.2,
+parser.add_argument('--dropout', type=float, default=0.4,
                     help='dropout applied to the output layer (0 = no dropout)')
-parser.add_argument('--dropouti', type=float, default=0.2,
+parser.add_argument('--dropouti', type=float, default=0.4,
                     help='dropout for input embedding layers (0 = no dropout)')
 parser.add_argument('--dropoute', type=float, default=0.1,
                     help='dropout to remove words from embedding layer (0 = no dropout)')
@@ -53,15 +56,15 @@ parser.add_argument('--dropoute', type=float, default=0.1,
 #                    help='amount of weight dropout to apply to the RNN hidden to hidden matrix')
 
 #training
-parser.add_argument('--lr', type=float, default=15,
+parser.add_argument('--lr', type=float, default=1,
                     help='initial learning rate')
-parser.add_argument('--lr2_divide', type=float, default=20.0,
+parser.add_argument('--lr2_divide', type=float, default=1.0,
                     help='drop this ratio for the learning rate of the second LSTM')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                     help='batch size')
 parser.add_argument('--small_batch_size', type=int, default=-1,
                     help='the batch size for computation. batch_size should be divisible by small_batch_size.\
@@ -83,6 +86,8 @@ parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
 parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
+parser.add_argument('--continue_train', action='store_true',
+                    help='continue train from a checkpoint')
 
 #decoder
 parser.add_argument('--de_model', type=str, default='LSTM',
@@ -110,8 +115,6 @@ args = parser.parse_args()
 print("Set up environment")
 ########################
 
-if args.nhidlast < 0:
-    args.nhidlast = args.emsize
 if args.nhidlast2 < 0:
     args.nhidlast2 = args.emsize
 #if args.dropoutl < 0:
@@ -123,7 +126,7 @@ assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisib
 
 if not args.continue_train:
     args.save = '{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
-    create_exp_dir(args.save, scripts_to_save=['main.py', 'model.py', 'nsd_loss.py'])
+    create_exp_dir(args.save, scripts_to_save=['./src/main.py', './src/model.py', './src/nsd_loss.py'])
 
 def logging(s, print_=True, log_=True):
     if print_:
@@ -147,45 +150,56 @@ if torch.cuda.is_available():
 print("Loading data")
 ########################
 
-train_corpus_name = args.data + "train.pt"
-val_org_corpus_name = args.data +"val_org.pt"
-val_shuffled_corpus_name = args.save + "val_shuffled.pt"
+train_corpus_name = args.data + "/tensors/train.pt"
+val_org_corpus_name = args.data +"/tensors/val_org.pt"
+val_shuffled_corpus_name = args.data + "/tensors/val_shuffled.pt"
 dictionary_input_name = args.data + "dictionary_index"
 
 with open(dictionary_input_name) as f_in:
     idx2word_freq = load_idx2word_freq(f_in)
 
 
-class F2SetDataset(Dataset):
+class F2SetDataset(torch.utils.data.Dataset):
 #will need to handle the partial data loading if the dataset size is larger than cpu memory
 #We could also use this class to put all sentences with the same length together
-    def __init__(self, feature, target):
+    def __init__(self, feature, target, device):
         self.feature = feature
         self.target = target
+        self.output_device = device
 
     def __len__(self):
         return self.feature.size(0)
         
     def __getitem__(self, idx):
-        return [self.feature[idx, :], self.target[idx, :]]
+        feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
+        target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
+        return [feature, target]
+        #return [self.feature[idx, :], self.target[idx, :]]
         
 
-def create_data_loader(f_in, bsz, use_cuda):
+def create_data_loader(f_in, bsz, device):
     feature, target = torch.load(f_in)
-    dataset = F2SetDataset(feature, target)
+    #print(feature)
+    #print(target)
+    dataset = F2SetDataset(feature, target, device)
+    use_cuda = False
+    if device == 'cude':
+        use_cuda = True
     return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
     
 
-with open(train_corpus_name) as f_in:
-    dataloader_train = create_data_loader(f_in, args.batch_size, args.cuda)
+device = torch.device("cuda" if args.cuda else "cpu")
+
+with open(train_corpus_name,'rb') as f_in:
+    dataloader_train = create_data_loader(f_in, args.batch_size, device)
 
 eval_bsz = args.batch_size
 
-with open(val_org_corpus_name) as f_in:
-    dataloader_val = create_data_loader(f_in, eval_bsz, args.cuda)
+with open(val_org_corpus_name,'rb') as f_in:
+    dataloader_val = create_data_loader(f_in, eval_bsz, device)
 
-with open(val_shuffled_corpus_name) as f_in:
-    dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, args.cuda)
+with open(val_shuffled_corpus_name,'rb') as f_in:
+    dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
 
 def counter_to_tensor(idx2word_freq,device):
     total = len(idx2word_freq)
@@ -197,14 +211,13 @@ def counter_to_tensor(idx2word_freq,device):
     w_freq[0] = -1
     return w_freq
 
-device = torch.device("cuda" if args.cuda else "cpu")
 
 external_emb = torch.tensor(0.)
 if len(args.emb_file) > 0:
     #with torch.no_grad():
     external_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
     external_emb = external_emb / (0.000000000001 + external_emb.norm(dim = 1, keepdim=True))
-    external_emb.requires_grad = update_target_emb
+    external_emb.requires_grad = args.update_target_emb
 else:
     output_emb_size = args.emsize
 
@@ -221,9 +234,9 @@ if args.en_model == "LSTM":
     #               args.tied, args.dropoutl, args.n_experts)
     
     encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-                   args.dropout, args.dropouti, args.dropoute)
+                   args.dropout, args.dropouti, args.dropoute, external_emb)
 
-    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
+    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
 
 #if args.continue_train:
 #    encoder.load_state_dict(torch.load(os.path.join(args.save, 'encoder.pt')))
@@ -266,14 +279,13 @@ def evaluate(dataloader, external_emb):
         for i_batch, sample_batched in enumerate(dataloader):
             feature, target = sample_batched
             
-            output_emb, hidden = parallel_encoder(feature)
+            output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
             if len(args.emb_file) > 0:
                 input_emb = external_emb
             else:
                 input_emb = encoder.encoder.weight.detach()
             compute_target_grad = False
-            n_set = target.size(1)
-            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb, parallel_decoder, input_emb, target, args.n_basis, n_set, args.L1_losss_B, device, w_freq, args.coeff_opt, compute_target_grad)
+            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, args.coeff_opt, compute_target_grad)
             loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
             batch_size = feature.size(0)
             total_loss += loss * batch_size
@@ -288,7 +300,7 @@ def evaluate(dataloader, external_emb):
            total_loss_set_reg.item() / len(dataloader), total_loss_set_div.item() / len(dataloader)
 
 
-def train_one_epoch(dataloader_train, external_emb):
+def train_one_epoch(dataloader_train, external_emb, lr):
     start_time = time.time()
     total_loss = 0.
     total_loss_set = 0.
@@ -302,19 +314,20 @@ def train_one_epoch(dataloader_train, external_emb):
     decoder.train()
     for i_batch, sample_batched in enumerate(dataloader_train):
         feature, target = sample_batched
+        #print(feature.size())
+        #print(target.size())
         optimizer_e.zero_grad()
         optimizer_d.zero_grad()
         #encoder.zero_grad()
         #decoder.zero_grad()
-        output_emb, hidden = parallel_encoder(feature)
+        output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
         if len(args.emb_file) > 0:
             input_emb = external_emb
             compute_target_grad = args.update_target_emb
         else:
             input_emb = encoder.encoder.weight.detach()
             compute_target_grad = False
-        n_set = target.size(1)
-        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb, parallel_decoder, input_emb, target, args.n_basis, n_set, args.L1_losss_B, device, w_freq, args.coeff_opt, compute_target_grad)
+        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, args.coeff_opt, compute_target_grad)
         total_loss_set += loss_set.item() * args.small_batch_size / args.batch_size
         total_loss_set_reg += loss_set_reg.item() * args.small_batch_size / args.batch_size
         total_loss_set_div += loss_set_div.item() * args.small_batch_size / args.batch_size
@@ -322,6 +335,8 @@ def train_one_epoch(dataloader_train, external_emb):
         total_loss_coeff_pred += loss_coeff_pred.item() * args.small_batch_size / args.batch_size
         
         loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        #loss = loss_set + 0.5 * loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         
         loss *= args.small_batch_size / args.batch_size
         total_loss += loss.item()
@@ -337,7 +352,7 @@ def train_one_epoch(dataloader_train, external_emb):
         optimizer_d.step()
 
         if args.update_target_emb:
-            external_emb.data -= lr_adjusted/args.lr2_divide/10.0 * external_emb.grad.data
+            external_emb.data -= lr/args.lr2_divide/10.0 * external_emb.grad.data
             external_emb.grad.data.zero_()
 
         if i_batch % args.log_interval == 0 and i_batch > 0:
@@ -349,8 +364,8 @@ def train_one_epoch(dataloader_train, external_emb):
             cur_loss_coeff_pred = total_loss_coeff_pred / args.log_interval
             elapsed = time.time() - start_time
             logging('| e {:3d} | {:5d}/{:5d} b | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'l {:5.2f} | l_f {:5.2f} + {:5.2f} | l_coeff {:5.3f} | reg {:5.2f} | div {:5.2f} '.format(
-                epoch, batch, len(train_data) // args.bptt, optimizer.param_groups[0]['lr'],
+                    'l {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.3f} | reg {:5.2f} | div {:5.2f} '.format(
+                epoch, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set, cur_loss_set_neg, cur_loss_coeff_pred, cur_loss_set_reg, cur_loss_set_div))
             total_loss = 0.
             total_loss_set = 0.
@@ -362,7 +377,7 @@ def train_one_epoch(dataloader_train, external_emb):
 
 
 optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
-optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
+optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
 
 lr = args.lr
 best_val_loss = None
@@ -370,11 +385,11 @@ nonmono_count = 0
 
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
-    train(epoch, dataloader_train, external_emb)
+    train_one_epoch(dataloader_train, external_emb, lr)
 
     val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, external_emb)
     logging('-' * 89)
-    logging('| end of epoch {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.2f} + {:5.2f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+    logging('| end of epoch {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
             .format(epoch, (time.time() - epoch_start_time), lr,
                                        val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
     logging('-' * 89)
@@ -394,4 +409,4 @@ for epoch in range(1, args.epochs+1):
         for param_group in optimizer_e.param_groups:
             param_group['lr'] = lr
         for param_group in optimizer_d.param_groups:
-            param_group['lr'] = lr
+            param_group['lr'] = lr/args.lr2_divide

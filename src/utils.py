@@ -91,11 +91,14 @@ def load_emb_file(emb_file, device, idx2word_freq):
         word2emb = {}
         for line in f_in:
             word_val = line.rstrip().split(' ')
+            if len(word_val) < 3:
+                continue
             word = word_val[0]
             val = [float(x) for x in  word_val[1:]]
             word2emb[word] = val
             emb_size = len(val)
     num_w = len(idx2word_freq)
+    #emb_size = len(word2emb.values()[0])
     #external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = update_target_emb)
     external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = False)
     for i in range(num_w):
@@ -106,7 +109,7 @@ def load_emb_file(emb_file, device, idx2word_freq):
             external_emb[i,:] = val
         else:
             external_emb[i,:] = 0
-    return external_emb
+    return external_emb, emb_size
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):

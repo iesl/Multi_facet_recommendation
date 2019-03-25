@@ -11,7 +11,7 @@ from locked_dropout import LockedDropout
 class RNNModel_decoder(nn.Module):
 
     def __init__(self, rnn_type, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5):
-        super(RNNModel_further, self).__init__()
+        super(RNNModel_decoder, self).__init__()
         self.drop = nn.Dropout(dropoutp)
         self.n_basis = n_basis
         #self.layernorm = nn.InstanceNorm1d(n_basis, affine =False)
@@ -72,12 +72,13 @@ class RNNModel_decoder(nn.Module):
         self.out_linear.bias.data.zero_()
         self.out_linear.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, input, input_init, predict_coeff_sum = False):
+    def forward(self, input_init, predict_coeff_sum = False):
         
         hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
         hidden_2 = torch.cat( [self.init_hid_linear_2[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
         hidden = (hidden_1, hidden_2)
 
+        input = input_init.expand(self.n_basis, input_init.size(0), input_init.size(1) )
         if self.n_basis == 0:
             emb = input
         else:
@@ -125,14 +126,18 @@ class RNNModel_decoder(nn.Module):
 class RNNModel_simple(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute):
-        super(RNNModel, self).__init__()
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, external_emb):
+        super(RNNModel_simple, self).__init__()
         #self.drop = nn.Dropout(dropout)
         self.lockdrop = LockedDropout()
-        self.encoder = nn.Embedding(ntoken, ninp)
+        if len(external_emb) > 1:
+            self.encoder = nn.Embedding.from_pretrained(external_emb, freeze = False)
+            ntoken, ninp = external_emb.size()
+        else:
+            self.encoder = nn.Embedding(ntoken, ninp)
         self.use_dropout = True
         if rnn_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=0)
+            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=0, bidirectional = True)
         else:
             try:
                 nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
@@ -141,7 +146,7 @@ class RNNModel_simple(nn.Module):
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
             self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
 
-        self.init_weights()
+        #self.init_weights()
 
         self.rnn_type = rnn_type
         self.nhid = nhid
@@ -150,29 +155,37 @@ class RNNModel_simple(nn.Module):
         self.dropoute = dropoute
         self.dropouti = dropouti
 
-    def init_weights(self):
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.encoder.weight.data[0,:] = 0
-        self.decoder.bias.data.zero_()
+    #def init_weights(self):
+    #    initrange = 0.1
+    #    self.encoder.weight.data.uniform_(-initrange, initrange)
+    #    self.encoder.weight.data[0,:] = 0
+    #    self.decoder.bias.data.zero_()
 
     def forward(self, input):
         
         bsz = input.size(1)
         hidden = self.init_hidden(bsz)
+
+        #weight = next(self.parameters())
+        #input_long = weight.new_tensor(input,dtype = torch.long)
+
         emb = embedded_dropout(self.encoder, input, dropout=self.dropoute if self.use_dropout else 0)
         emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)       
         #emb = self.drop(self.encoder(input))
         output_org, hidden = self.rnn(emb, hidden)
         #output = self.drop(output_org)
         output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
-        return output, hidden
+        output_unpacked = output.view(output.size(0), bsz, 2, self.nhid)
+        #output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 2).view(bsz,2*self.nhid)
+        output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 1)
+        #print(output_last.size())
+        return output, hidden, output_last
 
     def init_hidden(self, bsz):
         weight = next(self.parameters())
         if self.rnn_type == 'LSTM':
-            return (weight.new_zeros(self.nlayers, bsz, self.nhid),
-                    weight.new_zeros(self.nlayers, bsz, self.nhid))
+            return (weight.new_zeros(self.nlayers*2, bsz, self.nhid),
+                    weight.new_zeros(self.nlayers*2, bsz, self.nhid))
         else:
             return weight.new_zeros(self.nlayers, bsz, self.nhid)
 

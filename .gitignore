@@ -3,7 +3,7 @@ gen_log/*
 *.swp
 *.pt
 *.pyc
-model/*
+models/*
 log/*
 data/*
 old/*
