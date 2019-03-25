@@ -8,7 +8,7 @@ def predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = False):
     if predict_coeff_sum:
         basis_pred, hidden_no_use, coeff_pred =  model_set(output_emb, predict_coeff_sum = True)
         #basis_pred should have dimension ( n_basis, n_batch, n_emb_size)
-        #coeff_pred should have dimension ( n_basis, n_batch, n_emb_size)
+        #coeff_pred should have dimension ( n_basis, n_batch, 2)
 
         basis_pred = basis_pred.permute(1,0,2)
         coeff_pred = coeff_pred.permute(1,0,2)

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 #from torch.utils.data import Dataset, DataLoader
-import torch.utils.data
+#import torch.utils.data
 import torch.nn.functional as F
 import torch.cuda as cutorch
 
@@ -17,10 +17,11 @@ import random
 import model as model_code
 import nsd_loss
 
-from utils import create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file
+from utils import create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
-#path
+
+###path
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
 parser.add_argument('--save', type=str,  default='./models/Wacky',
@@ -31,7 +32,7 @@ parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d
 #parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
 #                    help='path to the file of a stop word list')
 
-#encoder
+###encoder
 parser.add_argument('--en_model', type=str, default='LSTM',
                     help='type of encoder model (LSTM)')
 parser.add_argument('--emsize', type=int, default=300,
@@ -55,7 +56,24 @@ parser.add_argument('--dropoute', type=float, default=0.1,
 #parser.add_argument('--wdrop', type=float, default=0.5,
 #                    help='amount of weight dropout to apply to the RNN hidden to hidden matrix')
 
-#training
+###decoder
+parser.add_argument('--de_model', type=str, default='LSTM',
+                    help='type of decoder model (LSTM)')
+parser.add_argument('--nhidlast2', type=int, default=-1,
+                    help='hidden embedding size of the second LSTM')
+parser.add_argument('--n_basis', type=int, default=10,
+                    help='number of basis we want to predict')
+parser.add_argument('--w_loss_coeff', type=float, default=0.1,
+                    help='weights for coefficient prediction loss')
+parser.add_argument('--L1_losss_B', type=float, default=0.2,
+                    help='L1 loss for the coefficient matrix')
+parser.add_argument('--update_target_emb', default=False, action='store_true',
+                    help='Whether to update target embedding')
+#parser.add_argument('--coeff_opt', type=str, default='max',
+parser.add_argument('--coeff_opt', type=str, default='lc',
+                    help='Could be max or lc')
+
+###training
 parser.add_argument('--lr', type=float, default=1,
                     help='initial learning rate')
 parser.add_argument('--lr2_divide', type=float, default=1.0,
@@ -77,10 +95,10 @@ parser.add_argument('--nonmono', type=int, default=1,
 #parser.add_argument('--continue_train', action='store_true',
 #                    help='continue train from a checkpoint')
 
-#system
+###system
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', action='store_false',
+parser.add_argument('--cuda', default=True, action='store_false',
                     help='use CUDA')
 parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
@@ -88,24 +106,6 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--continue_train', action='store_true',
                     help='continue train from a checkpoint')
-
-#decoder
-parser.add_argument('--de_model', type=str, default='LSTM',
-                    help='type of decoder model (LSTM)')
-parser.add_argument('--nhidlast2', type=int, default=-1,
-                    help='hidden embedding size of the second LSTM')
-parser.add_argument('--n_basis', type=int, default=10,
-                    help='number of basis we want to predict')
-parser.add_argument('--w_loss_coeff', type=float, default=0.1,
-                    help='weights for coefficient prediction loss')
-parser.add_argument('--L1_losss_B', type=float, default=0.2,
-                    help='L1 loss for the coefficient matrix')
-parser.add_argument('--update_target_emb', default=False, action='store_true',
-                    help='Whether to update target embedding')
-#parser.add_argument('--coeff_opt', type=str, default='max',
-parser.add_argument('--coeff_opt', type=str, default='lc',
-                    help='Could be max or lc')
-
 
 
 
@@ -150,56 +150,10 @@ if torch.cuda.is_available():
 print("Loading data")
 ########################
 
-train_corpus_name = args.data + "/tensors/train.pt"
-val_org_corpus_name = args.data +"/tensors/val_org.pt"
-val_shuffled_corpus_name = args.data + "/tensors/val_shuffled.pt"
-dictionary_input_name = args.data + "dictionary_index"
-
-with open(dictionary_input_name) as f_in:
-    idx2word_freq = load_idx2word_freq(f_in)
-
-
-class F2SetDataset(torch.utils.data.Dataset):
-#will need to handle the partial data loading if the dataset size is larger than cpu memory
-#We could also use this class to put all sentences with the same length together
-    def __init__(self, feature, target, device):
-        self.feature = feature
-        self.target = target
-        self.output_device = device
-
-    def __len__(self):
-        return self.feature.size(0)
-        
-    def __getitem__(self, idx):
-        feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
-        target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
-        return [feature, target]
-        #return [self.feature[idx, :], self.target[idx, :]]
-        
-
-def create_data_loader(f_in, bsz, device):
-    feature, target = torch.load(f_in)
-    #print(feature)
-    #print(target)
-    dataset = F2SetDataset(feature, target, device)
-    use_cuda = False
-    if device == 'cude':
-        use_cuda = True
-    return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
-    
-
 device = torch.device("cuda" if args.cuda else "cpu")
 
-with open(train_corpus_name,'rb') as f_in:
-    dataloader_train = create_data_loader(f_in, args.batch_size, device)
+idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device)
 
-eval_bsz = args.batch_size
-
-with open(val_org_corpus_name,'rb') as f_in:
-    dataloader_val = create_data_loader(f_in, eval_bsz, device)
-
-with open(val_shuffled_corpus_name,'rb') as f_in:
-    dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
 
 def counter_to_tensor(idx2word_freq,device):
     total = len(idx2word_freq)
@@ -212,7 +166,7 @@ def counter_to_tensor(idx2word_freq,device):
     return w_freq
 
 
-external_emb = torch.tensor(0.)
+external_emb = torch.tensor([0.])
 if len(args.emb_file) > 0:
     #with torch.no_grad():
     external_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
@@ -224,7 +178,7 @@ else:
 w_freq = counter_to_tensor(idx2word_freq,device)
 
 ########################
-print("Building Models")
+print("Building models")
 ########################
 
 ntokens = len(idx2word_freq)
@@ -295,9 +249,9 @@ def evaluate(dataloader, external_emb):
             total_loss_set_neg += loss_set_neg * batch_size
             total_loss_coeff_pred += loss_coeff_pred * batch_size
 
-    return total_loss.item() / len(dataloader), total_loss_set.item() / len(dataloader), \
-           total_loss_set_neg.item() / len(dataloader), total_loss_coeff_pred.item() / len(dataloader), \
-           total_loss_set_reg.item() / len(dataloader), total_loss_set_div.item() / len(dataloader)
+    return total_loss.item() / len(dataloader.dataset), total_loss_set.item() / len(dataloader.dataset), \
+           total_loss_set_neg.item() / len(dataloader.dataset), total_loss_coeff_pred.item() / len(dataloader.dataset), \
+           total_loss_set_reg.item() / len(dataloader.dataset), total_loss_set_div.item() / len(dataloader.dataset)
 
 
 def train_one_epoch(dataloader_train, external_emb, lr):
@@ -394,11 +348,17 @@ for epoch in range(1, args.epochs+1):
                                        val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
     logging('-' * 89)
     #dataloader_val_shuffled?
+    val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val_shuffled, external_emb)
+    logging('-' * 89)
+    logging('| Shuffled | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+            .format((time.time() - epoch_start_time), lr,
+                                       val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+    logging('-' * 89)
     
     if not best_val_loss or val_loss_all < best_val_loss:
         save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, external_emb, args.save)
         best_val_loss = val_loss_all
-        logging('Saving Models')
+        logging('Models Saved')
     else:
         nonmono_count += 1
     
