@@ -197,6 +197,18 @@ if args.en_model == "LSTM":
 
     decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
 
+import torch.nn.init as weight_init
+def initialize_weights(net, normal_std):
+    for name, param in net.named_parameters(): 
+        if 'bias' in name or 'rnn' not in name:
+            #print("skip "+name)
+            continue
+        print("normal init "+name+" with std"+str(normal_std) )
+        weight_init.normal_(param, std = normal_std)
+
+#initialize_weights(encoder, 0.01)
+#initialize_weights(decoder, 0.01)
+
 #if args.continue_train:
 #    encoder.load_state_dict(torch.load(os.path.join(args.save, 'encoder.pt')))
 #    decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
@@ -293,8 +305,10 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         total_loss_set_neg += loss_set_neg.item() * args.small_batch_size / args.batch_size
         total_loss_coeff_pred += loss_coeff_pred.item() * args.small_batch_size / args.batch_size
         
-        loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
-        #loss = loss_set + 0.5 * loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        #BT_nonneg = torch.max( torch.tensor([0.0], device=device), BT )
+        #loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        loss = 9 * torch.max( torch.tensor([0.6], device=device), loss_set) +  loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        #loss = loss_set + 0.9 * loss_set_neg + args.w_loss_coeff* loss_coeff_pred
         #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         
         loss *= args.small_batch_size / args.batch_size
@@ -311,7 +325,8 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         optimizer_d.step()
 
         if args.update_target_emb:
-            external_emb.data -= lr/args.lr2_divide/10.0 * external_emb.grad.data
+            #external_emb.data -= lr/args.lr2_divide/10.0 * external_emb.grad.data
+            external_emb.data -= 0.1/args.lr2_divide/10.0 * external_emb.grad.data
             external_emb.grad.data.zero_()
 
         if i_batch % args.log_interval == 0 and i_batch > 0:
@@ -338,8 +353,10 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
             start_time = time.time()
 
 
-optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
-optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
+#optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
+#optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
+optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
+optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
 
 lr = args.lr
 best_val_loss = None

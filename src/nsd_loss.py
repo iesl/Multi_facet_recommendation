@@ -94,8 +94,8 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device):
     #max_iter = 150
     max_iter = 100
     #diff_prev = 10
-    #lr = 0.05
-    lr = 0.2
+    lr = 0.05
+    #lr = 0.2
     #lr = 0.02
     #lr = 0.1
     for i in range(max_iter):
