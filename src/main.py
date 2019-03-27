@@ -71,7 +71,7 @@ parser.add_argument('--update_target_emb', default=False, action='store_true',
                     help='Whether to update target embedding')
 #parser.add_argument('--coeff_opt', type=str, default='max',
 parser.add_argument('--coeff_opt', type=str, default='lc',
-                    help='Could be max or lc')
+                    help='Could be max, lc, maxlc')
 
 ###training
 parser.add_argument('--lr', type=float, default=1,
@@ -88,7 +88,7 @@ parser.add_argument('--small_batch_size', type=int, default=-1,
                     help='the batch size for computation. batch_size should be divisible by small_batch_size.\
                      In our implementation, we compute gradients with small_batch_size multiple times, and accumulate the gradients\
                      until batch_size is reached. An update step is then performed.')
-parser.add_argument('--wdecay', type=float, default=1.2e-6,
+parser.add_argument('--wdecay', type=float, default=1e-6,
                     help='weight decay applied to all weights')
 parser.add_argument('--nonmono', type=int, default=1,
                     help='decay learning rate after seeing how many validation performance drop')
@@ -114,6 +114,11 @@ args = parser.parse_args()
 ########################
 print("Set up environment")
 ########################
+
+if args.coeff_opt == 'maxlc':
+    current_coeff_opt = 'max'
+else:
+    current_coeff_opt = args.coeff_opt
 
 if args.nhidlast2 < 0:
     args.nhidlast2 = args.emsize
@@ -254,7 +259,7 @@ def evaluate(dataloader, external_emb):
            total_loss_set_reg.item() / len(dataloader.dataset), total_loss_set_div.item() / len(dataloader.dataset)
 
 
-def train_one_epoch(dataloader_train, external_emb, lr):
+def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
     start_time = time.time()
     total_loss = 0.
     total_loss_set = 0.
@@ -281,7 +286,7 @@ def train_one_epoch(dataloader_train, external_emb, lr):
         else:
             input_emb = encoder.encoder.weight.detach()
             compute_target_grad = False
-        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, args.coeff_opt, compute_target_grad)
+        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
         total_loss_set += loss_set.item() * args.small_batch_size / args.batch_size
         total_loss_set_reg += loss_set_reg.item() * args.small_batch_size / args.batch_size
         total_loss_set_div += loss_set_div.item() * args.small_batch_size / args.batch_size
@@ -321,6 +326,9 @@ def train_one_epoch(dataloader_train, external_emb, lr):
                     'l {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.3f} | reg {:5.2f} | div {:5.2f} '.format(
                 epoch, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set, cur_loss_set_neg, cur_loss_coeff_pred, cur_loss_set_reg, cur_loss_set_div))
+            if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.01:
+                current_coeff_opt = 'lc'
+                print("switch to lc")
             total_loss = 0.
             total_loss_set = 0.
             total_loss_set_reg = 0.
@@ -339,7 +347,7 @@ nonmono_count = 0
 
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
-    train_one_epoch(dataloader_train, external_emb, lr)
+    train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt)
 
     val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, external_emb)
     logging('-' * 89)

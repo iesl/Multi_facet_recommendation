@@ -162,7 +162,7 @@ def load_emb_file(emb_file, device, idx2word_freq):
         else:
             external_emb[i,:] = 0
             OOV_num += 1
-    print("OOV percentage: {}".format( OOV_num/float(num_w) ))
+    print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
     return external_emb, emb_size
 
 def create_exp_dir(path, scripts_to_save=None):
