@@ -182,6 +182,14 @@ def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L
     loss_coeff_pred = torch.mean( torch.pow( coeff_sum_basis/coeff_mean - coeff_pred[:,:,0].view_as(coeff_sum_basis), 2 ) )
     loss_coeff_pred += torch.mean( torch.pow( coeff_sum_basis_neg/coeff_mean - coeff_pred[:,:,1].view_as(coeff_sum_basis_neg), 2 ) )
     
+    #if random.randint(0,n_batch) == 1:
+    #    print("coeff_sum_basis/coeff_mean", coeff_sum_basis/coeff_mean )
+    #    print("coeff_sum_basis", coeff_sum_basis[0,:] )
+    #    #print("target_freq_inv_norm", target_freq_inv_norm )
+    #    print("pred_embeddings", pred_embeddings[0,:,:] )
+    #    print("target_embeddings", target_embeddings[0,:,:] )
+    #    print("target_set", target_set[0,:])
+
     with torch.no_grad():
         basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
         pred_mean = basis_pred_norm.mean(dim = 0, keepdim = True)

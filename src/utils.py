@@ -104,6 +104,7 @@ class F2SetDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
         target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
+        #debug target[-1] = idx
         return [feature, target]
         #return [self.feature[idx, :], self.target[idx, :]]
 
@@ -162,7 +163,7 @@ def load_emb_file(emb_file, device, idx2word_freq):
         else:
             external_emb[i,:] = 0
             OOV_num += 1
-    print("OOV percentage: {}".format( OOV_num/float(num_w) ))
+    print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
     return external_emb, emb_size
 
 def create_exp_dir(path, scripts_to_save=None):
