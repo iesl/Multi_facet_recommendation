@@ -104,6 +104,7 @@ class F2SetDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
         target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
+        #debug target[-1] = idx
         return [feature, target]
         #return [self.feature[idx, :], self.target[idx, :]]
 

@@ -131,7 +131,7 @@ class RNNModel_simple(nn.Module):
         #self.drop = nn.Dropout(dropout)
         self.lockdrop = LockedDropout()
         if len(external_emb) > 1:
-            self.encoder = nn.Embedding.from_pretrained(external_emb, freeze = False)
+            self.encoder = nn.Embedding.from_pretrained(external_emb.clone(), freeze = False)
             ntoken, ninp = external_emb.size()
         else:
             self.encoder = nn.Embedding(ntoken, ninp)

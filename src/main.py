@@ -285,6 +285,7 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
     decoder.train()
     for i_batch, sample_batched in enumerate(dataloader_train):
         feature, target = sample_batched
+        #print(target)
         #print(feature.size())
         #print(target.size())
         optimizer_e.zero_grad()
@@ -307,7 +308,7 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         
         #BT_nonneg = torch.max( torch.tensor([0.0], device=device), BT )
         #loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
-        loss = 9 * torch.max( torch.tensor([0.6], device=device), loss_set) +  loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        loss = 9 * torch.max( torch.tensor([0.7], device=device), loss_set) +  loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
         #loss = loss_set + 0.9 * loss_set_neg + args.w_loss_coeff* loss_coeff_pred
         #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         
