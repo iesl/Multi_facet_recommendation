@@ -88,7 +88,7 @@ with open(corpus_input_name) as f_in:
     w_ind_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
 
 corpus_size = len(w_ind_corpus)-2
-args.max_target_num+args.max_sent_len
+#args.max_target_num+args.max_sent_len
 print("Allocating {} bytes".format( corpus_size*(args.max_target_num+args.max_sent_len)*4 ) )
 all_features = torch.zeros(corpus_size,args.max_sent_len,dtype = store_type)
 all_targets = torch.zeros(corpus_size,args.max_target_num,dtype = store_type)

@@ -157,7 +157,7 @@ idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled = load_
 
 def counter_to_tensor(idx2word_freq,device):
     total = len(idx2word_freq)
-    w_freq = torch.zeros(total, dtype=torch.float, device = device)
+    w_freq = torch.zeros(total, dtype=torch.float, device = device, requires_grad = False)
     for i in range(total):
         w_freq[i] = 1
         #w_freq[i] = math.sqrt(idx2word_freq[x][1])
@@ -302,7 +302,7 @@ def train_one_epoch(dataloader_train, external_emb, lr):
         
         #BT_nonneg = torch.max( torch.tensor([0.0], device=device), BT )
         #loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
-        loss = 9 * torch.max( torch.tensor([0.6], device=device), loss_set) +  loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
+        loss = 9 * torch.max( torch.tensor([0.7], device=device), loss_set) +  loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
         #loss = loss_set + 0.9 * loss_set_neg + args.w_loss_coeff* loss_coeff_pred
         #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         
