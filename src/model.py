@@ -177,10 +177,10 @@ class RNNModel_simple(nn.Module):
         output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
         output_unpacked = output.view(output.size(0), bsz, 2, self.nhid)
         output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 1)
-        #output_last = output_last / (0.000000000001 + output_last.norm(dim = 1, keepdim=True) )
         #forward_mean = torch.mean(output_unpacked[:,:,0,:], dim = 0)
         #backward_mean = torch.mean(output_unpacked[:,:,1,:], dim = 0)
         #output_last = torch.cat( (forward_mean, backward_mean), dim = 1 )
+        #output_last = output_last / (0.000000000001 + output_last.norm(dim = 1, keepdim=True) )
         return output, hidden, output_last
 
     def init_hidden(self, bsz):

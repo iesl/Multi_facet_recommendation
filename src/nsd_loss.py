@@ -93,8 +93,10 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device):
     #max_iter = 50
     #max_iter = 150
     max_iter = 100
+    #max_iter = 200
     #diff_prev = 10
     lr = 0.05
+    #lr = 0.02
     #lr = 0.2
     #lr = 0.02
     #lr = 0.1
@@ -110,7 +112,7 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device):
         #if diff < converge_threshold:
         #    break
         #diff_prev = diff
-        #coeff_mat_prev = coeff_mat
+        coeff_mat_prev = coeff_mat
     #print(diff,lr,i)
     #coeff_mat should have dimension (n_batch,n_set,n_basis)
     return coeff_mat
@@ -190,12 +192,12 @@ def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L
     #    print("target_embeddings", target_embeddings[0,:,:] )
     #    print("target_set", target_set[0,:])
 
+    basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
     with torch.no_grad():
-        basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
         pred_mean = basis_pred_norm.mean(dim = 0, keepdim = True)
         loss_set_reg = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
     
-        pred_mean = basis_pred_norm.mean(dim = 1, keepdim = True)
-        loss_set_div = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
+    pred_mean = basis_pred_norm.mean(dim = 1, keepdim = True)
+    loss_set_div = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
 
     return loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred
