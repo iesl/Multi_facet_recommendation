@@ -1,5 +1,6 @@
 resources/*
 gen_log/*
+dataset_testing/*
 *.swp
 *.pt
 *.pyc

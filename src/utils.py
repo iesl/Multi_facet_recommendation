@@ -1,16 +1,21 @@
 import os, shutil
 import torch
 import torch.utils.data
+import model as model_code
+import torch.nn as nn
+import numpy as np
+import random
 
-
+UNK_IND = 1
+EOS_IND = 2
 
 class Dictionary(object):
     def __init__(self, byte_mode=False):
         self.w_d2_ind = {'[null]': 0, '<unk>': 1, '<eos>': 2}
         self.ind_l2_w_freq = [ ['[null]',-1,0], ['<unk>',0,1], ['<eos>',0,2] ]
         self.num_special_token = len(self.ind_l2_w_freq)
-        self.UNK_IND = 1
-        self.EOS_IND = 2
+        self.UNK_IND = UNK_IND
+        self.EOS_IND = EOS_IND
         self.byte_mode = byte_mode
 
     def dict_check_add(self,w):
@@ -33,8 +38,10 @@ class Dictionary(object):
     def densify_index(self,min_sent_length):
         vocab_size = len(self.ind_l2_w_freq)
         compact_mapping = [0]*vocab_size
-        compact_mapping[1] = 1
-        compact_mapping[2] = 2
+        for i in range(self.num_special_token):
+            compact_mapping[i] = i
+        #compact_mapping[1] = 1
+        #compact_mapping[2] = 2
 
         #total_num_filtering = 0
         total_freq_filtering = 0
@@ -103,7 +110,10 @@ class F2SetDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
-        target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
+        if self.target is None:
+            target = []
+        else:
+            target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
         #debug target[-1] = idx
         return [feature, target]
         #return [self.feature[idx, :], self.target[idx, :]]
@@ -117,6 +127,54 @@ def create_data_loader(f_in, bsz, device):
     if device == 'cude':
         use_cuda = True
     return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
+
+def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
+    store_type = torch.int32
+    
+    num_sent = len(proc_sent_list)
+    feature_tensor = torch.zeros( num_sent, max_sent_len, dtype = store_type)
+    truncate_num = 0
+    for output_i, proc_sent in enumerate(proc_sent_list):
+        w_ind_list = []
+        w_list = proc_sent.split()
+        sent_len = min(len(w_list)+1, max_sent_len)
+        if len(w_list) > max_sent_len-1:
+            truncate_num += 1
+        for w in w_list[:sent_len-1]:
+            if w in word2idx:
+                w_ind_list.append(word2idx[w][0])
+            else:
+                w_ind_list.append(UNK_IND)
+        w_ind_list.append(0) #buggy preprocessing
+        #w_ind_list.append(EOS_IND)
+        #print(w_ind_list)
+        feature_tensor[output_i,-sent_len:] = torch.tensor(w_ind_list, dtype = store_type)
+    print("Truncation rate: ", truncate_num/float(len(proc_sent_list)) )
+    return feature_tensor
+
+def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
+    with open(dict_path) as f_in:
+        idx2word_freq = load_idx2word_freq(f_in)
+
+    with open(dict_path) as f_in:
+        word2idx, max_idx = load_word_dict(f_in)
+
+    org_sent_list = []
+    proc_sent_list = []
+    with open(input_path) as f_in:
+        for line in f_in:
+            org_sent, proc_sent = line.rstrip().split('\t')
+            org_sent_list.append(org_sent)
+            proc_sent_list.append(proc_sent)
+    
+    feature_tensor = convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx)
+    dataset = F2SetDataset(feature_tensor, None, device)
+    use_cuda = False
+    if device == 'cude':
+        use_cuda = True
+    dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
+
+    return dataloader_test, org_sent_list, idx2word_freq
 
 def load_corpus(data_path, train_bsz, eval_bsz, device):
     train_corpus_name = data_path + "/tensors/train.pt"
@@ -165,6 +223,57 @@ def load_emb_file(emb_file, device, idx2word_freq):
             OOV_num += 1
     print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
     return external_emb, emb_size
+
+def loading_all_models(args, idx2word_freq, device):
+
+    if len(args.emb_file) > 0:
+        if args.emb_file[-3:] == '.pt':
+            word_emb = torch.load( args.emb_file )
+            output_emb_size = word_emb.size(1)
+        else:
+            word_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
+    else:
+        output_emb_size = args.emsize
+
+    ntokens = len(idx2word_freq)
+    if args.en_model == "LSTM":
+        external_emb = torch.tensor([0.])
+        encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
+                       args.dropout, args.dropouti, args.dropoute, external_emb)
+
+        decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+
+    encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt')))
+    decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt')))
+
+    if len(args.emb_file) == 0:
+        word_emb = encoder.encoder.weight.detach()
+
+    word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
+    word_norm_emb[0,:] = 0
+
+    if args.cuda:
+        if args.single_gpu:
+            parallel_encoder = encoder.cuda()
+            parallel_decoder = decoder.cuda()
+        else:
+            parallel_encoder = nn.DataParallel(encoder, dim=1).cuda()
+            parallel_decoder = decoder.cuda()
+    else:
+        parallel_encoder = encoder
+        parallel_decoder = decoder
+
+    return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb
+
+def seed_all_randomness(seed,use_cuda):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        if not use_cuda:
+            print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+        else:
+            torch.cuda.manual_seed(seed)
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):

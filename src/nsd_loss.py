@@ -192,6 +192,13 @@ def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L
     #    print("target_embeddings", target_embeddings[0,:,:] )
     #    print("target_set", target_set[0,:])
 
+    if torch.isnan(loss_set):
+        print("output_embeddings", output_emb.norm(dim = 1))
+        print("basis_pred", basis_pred.norm(dim = 2))
+        print("coeff_sum_basis", coeff_sum_basis)
+        print("pred_embeddings", pred_embeddings.norm(dim = 2) )
+        print("target_embeddings", target_embeddings.norm(dim = 2) )
+
     basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
     with torch.no_grad():
         pred_mean = basis_pred_norm.mean(dim = 0, keepdim = True)
