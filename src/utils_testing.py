@@ -2,7 +2,7 @@ import torch
 import nsd_loss
 import numpy as np
 import gc
-
+import sys
 
 def add_model_arguments(parser):
     ###encoder
@@ -109,14 +109,17 @@ def dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order
         basis_json.append(output_dict)
         #basis_json.append([current_idx, org_sent, ' '.join(proc_sent)])
 
-def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, n_basis):
+def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, n_basis, outf_vis):
     basis_json = []
     top_k = 5
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
+            if i_batch % 100 == 0:
+                sys.stdout.write('b'+str(i_batch)+' ')
+                sys.stdout.flush()
             feature, target = sample_batched
-
             basis_norm_pred, coeff_order, coeff_sum, top_value, top_index = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
+            print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf_vis)
             dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list)
     return basis_json
 

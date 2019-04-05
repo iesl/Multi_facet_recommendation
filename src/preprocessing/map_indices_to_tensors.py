@@ -16,10 +16,15 @@ import utils
 parser = argparse.ArgumentParser(description='Preprocessing step 2')
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
-parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors/',
+#parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors/',
+parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors_multi150/',
                     help='path to save the output data')
-parser.add_argument('--max_sent_len', type=int, default=50,
+#parser.add_argument('--max_sent_len', type=int, default=50,
+parser.add_argument('--max_sent_len', type=int, default=150,
                     help='max sentence length for input features')
+#parser.add_argument('--multi_sent', default=False, action='store_true',
+parser.add_argument('--multi_sent', default=True, 
+                    help='Whether do we want to cram multiple sentences into one input feature')
 parser.add_argument('--max_target_num', type=int, default=30,
                     help='max word number for output prediction w/o stop words (including above and below sentences)')
 parser.add_argument('--max_sent_num', type=int, default='100000000000',
@@ -97,11 +102,29 @@ random_selection_num = 0
 
 for i in range(1,len(w_ind_corpus)-1):
     output_i = i - 1
-    w_ind_list = w_ind_corpus[i]
-    sent_len = len(w_ind_list)
-    all_features[output_i,-sent_len:] = torch.tensor(w_ind_list,dtype = store_type)
+    if args.multi_sent:
+        current_len = 0
+        feature_list = []
+        for j in range(i,len(w_ind_corpus)-1):
+            w_ind_list = w_ind_corpus[j][:-1] #excluding <eos>
+            sent_len = len(w_ind_list)
+            current_len_prev = current_len
+            current_len += sent_len
+            if current_len > args.max_sent_len - 1:
+                break
+            feature_list += w_ind_list
+        if current_len > args.max_sent_len - 1:
+            current_len = current_len_prev
+        feature_list.append(w_ind_corpus[j-1][-1])
+        next_sent_ind = j
+    else:
+        feature_list = w_ind_corpus[i]
+        current_len = len(feature_list) - 1
+        next_sent_ind = i + 1
+
+    all_features[output_i,-(current_len+1):] = torch.tensor(feature_list,dtype = store_type)
     prev_w_ind_list = w_ind_corpus[i-1]
-    next_w_ind_list = w_ind_corpus[i+1]
+    next_w_ind_list = w_ind_corpus[next_sent_ind]
     target_w_list = []
     for w in prev_w_ind_list+next_w_ind_list:
         if w not in stop_ind_set:
@@ -111,6 +134,23 @@ for i in range(1,len(w_ind_corpus)-1):
     else:
         all_targets[output_i,:] = torch.tensor( random.sample(target_w_list, args.max_target_num), dtype = store_type)
         random_selection_num += 1
+    
+#for i in range(1,len(w_ind_corpus)-1):
+#    output_i = i - 1
+#    w_ind_list = w_ind_corpus[i]
+#    sent_len = len(w_ind_list)
+#    all_features[output_i,-sent_len:] = torch.tensor(w_ind_list,dtype = store_type)
+#    prev_w_ind_list = w_ind_corpus[i-1]
+#    next_w_ind_list = w_ind_corpus[i+1]
+#    target_w_list = []
+#    for w in prev_w_ind_list+next_w_ind_list:
+#        if w not in stop_ind_set:
+#            target_w_list.append(w)
+#    if len(target_w_list) <= args.max_target_num:
+#        all_targets[output_i, :len(target_w_list) ] = torch.tensor(target_w_list, dtype = store_type)
+#    else:
+#        all_targets[output_i,:] = torch.tensor( random.sample(target_w_list, args.max_target_num), dtype = store_type)
+#        random_selection_num += 1
 
 del w_ind_corpus
 

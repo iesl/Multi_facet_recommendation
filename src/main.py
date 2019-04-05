@@ -24,6 +24,8 @@ parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sen
 ###path
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
+parser.add_argument('--tensor_folder', type=str, default='tensors_multi150',
+                    help='location of the data corpus')
 parser.add_argument('--save', type=str,  default='./models/Wacky',
                     help='path to save the final model')
 #parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
@@ -84,7 +86,7 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=100,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=100, metavar='N',
+parser.add_argument('--batch_size', type=int, default=200, metavar='N',
                     help='batch size')
 parser.add_argument('--small_batch_size', type=int, default=-1,
                     help='the batch size for computation. batch_size should be divisible by small_batch_size.\
@@ -152,7 +154,7 @@ print("Loading data")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
-idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device)
+idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder)
 
 
 def counter_to_tensor(idx2word_freq,device):

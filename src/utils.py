@@ -176,10 +176,10 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
 
     return dataloader_test, org_sent_list, idx2word_freq
 
-def load_corpus(data_path, train_bsz, eval_bsz, device):
-    train_corpus_name = data_path + "/tensors/train.pt"
-    val_org_corpus_name = data_path +"/tensors/val_org.pt"
-    val_shuffled_corpus_name = data_path + "/tensors/val_shuffled.pt"
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors"):
+    train_corpus_name = data_path + "/"+tensor_folder+"/train.pt"
+    val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
+    val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
     dictionary_input_name = data_path + "dictionary_index"
 
     with open(dictionary_input_name) as f_in:
@@ -224,7 +224,7 @@ def load_emb_file(emb_file, device, idx2word_freq):
     print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
     return external_emb, emb_size
 
-def loading_all_models(args, idx2word_freq, device):
+def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
 
     if len(args.emb_file) > 0:
         if args.emb_file[-3:] == '.pt':
@@ -240,8 +240,10 @@ def loading_all_models(args, idx2word_freq, device):
         external_emb = torch.tensor([0.])
         encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
                        args.dropout, args.dropouti, args.dropoute, external_emb)
-
-        decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+        if use_position_emb:
+            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
+        else:
+            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
     encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt')))
     decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt')))

@@ -28,6 +28,8 @@ parser.add_argument('--emb_file', type=str, default='target_emb.pt',
                     help='path to the file of a word embedding file')
 parser.add_argument('--outf', type=str, default='gen_log/generated.json',
                     help='output file for generated text')
+parser.add_argument('--outf_vis', type=str, default='gen_log/generated.txt',
+                    help='output file for generated text')
 
 ###system
 parser.add_argument('--seed', type=int, default=1111,
@@ -48,6 +50,7 @@ parser.add_argument('--max_sent_len', type=int, default=50,
 utils_testing.add_model_arguments(parser)
 
 args = parser.parse_args()
+print(args)
 
 if args.emb_file == "target_emb.pt":
     args.emb_file =  os.path.join(args.checkpoint,"target_emb.pt")
@@ -70,12 +73,14 @@ dataloader_test, org_sent_list, idx2word_freq = load_testing_sent(args.dict, arg
 print("Loading Models")
 ########################
 
-parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device)
+parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = True)
+#parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = False)
 
 encoder.eval()
 decoder.eval()
 
-basis_json = utils_testing.output_sent_basis(dataloader_test, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, args.n_basis)
+with open(args.outf_vis, 'w') as outf_vis:
+    basis_json = utils_testing.output_sent_basis(dataloader_test, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, args.n_basis, outf_vis)
 with open(args.outf, 'w') as outf:
     json.dump(basis_json, outf, indent = 1)
 
