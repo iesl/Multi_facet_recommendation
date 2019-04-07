@@ -63,6 +63,8 @@ parser.add_argument('--de_model', type=str, default='LSTM',
                     help='type of decoder model (LSTM)')
 parser.add_argument('--nhidlast2', type=int, default=-1,
                     help='hidden embedding size of the second LSTM')
+parser.add_argument('--linear_mapping_dim', type=int, default=0,
+                    help='map the input embedding by linear transformation')
 parser.add_argument('--n_basis', type=int, default=10,
                     help='number of basis we want to predict')
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
@@ -124,6 +126,8 @@ if args.coeff_opt == 'maxlc':
 else:
     current_coeff_opt = args.coeff_opt
 
+if args.linear_mapping_dim < 0:
+    args.linear_mapping_dim = args.nhid
 if args.nhidlast2 < 0:
     args.nhidlast2 = args.emsize
 #if args.dropoutl < 0:
@@ -192,8 +196,8 @@ if args.en_model == "LSTM":
     encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
                    args.dropout, args.dropouti, args.dropoute, external_emb)
 
-    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
-    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
+    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
 import torch.nn.init as weight_init
 def initialize_weights(net, normal_std):

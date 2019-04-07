@@ -17,7 +17,7 @@ with open(ratings_file) as f_in:
         fields = line.rstrip().split('\t')
         w1 = fields[1]
         w2 = fields[3]
-        rating = float(fields[-1])
+        rating = float(fields[-11])
         try:
             global_emb1 = w2v.wv[w1]
             global_emb2 = w2v.wv[w2]
