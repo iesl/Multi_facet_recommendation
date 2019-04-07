@@ -50,6 +50,17 @@ def estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred, device):
     return coeff_mat_trans.permute(0,2,1)
     #torch.gather(coeff_mat_trans , dim=1, index = max_i)
 
+def estimate_coeff_mat_batch_max_cos(target_embeddings, basis_pred, device):
+    batch_size = target_embeddings.size(0)
+    C = target_embeddings.permute(0,2,1)
+
+    basis_pred_norm = basis_pred.norm(dim = 2, keepdim=True)
+    XX = basis_pred_norm * basis_pred_norm
+    XY = torch.bmm(basis_pred, C)
+    coeff = XY / XX
+    #coeff should have dimension ( n_batch, n_basis, n_set)
+    max_v, max_i = torch.max(coeff, dim = 1)
+    return max_v, max_i
 
 def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device):
     batch_size = target_embeddings.size(0)
@@ -69,7 +80,7 @@ def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device):
 
 
 
-def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device):
+def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device, max_iter = 100):
     def compute_matrix_magnitude(M_diff):
         return torch.mean( torch.abs(M_diff) )
 
@@ -92,7 +103,7 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device):
     #coeff_mat_prev = torch.zeros_like(coeff_mat)
     #max_iter = 50
     #max_iter = 150
-    max_iter = 100
+    #max_iter = 100
     #max_iter = 200
     #diff_prev = 10
     lr = 0.05
