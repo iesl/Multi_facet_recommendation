@@ -16,14 +16,14 @@ import utils
 parser = argparse.ArgumentParser(description='Preprocessing step 2')
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
-#parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors/',
-parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors_multi150/',
+parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors/',
+#parser.add_argument('--save', type=str, default='./data/processed/wackypedia/tensors_multi150/',
                     help='path to save the output data')
-#parser.add_argument('--max_sent_len', type=int, default=50,
-parser.add_argument('--max_sent_len', type=int, default=150,
+parser.add_argument('--max_sent_len', type=int, default=50,
+#parser.add_argument('--max_sent_len', type=int, default=150,
                     help='max sentence length for input features')
 #parser.add_argument('--multi_sent', default=False, action='store_true',
-parser.add_argument('--multi_sent', default=True, 
+parser.add_argument('--multi_sent', default=False, 
                     help='Whether do we want to cram multiple sentences into one input feature')
 parser.add_argument('--max_target_num', type=int, default=30,
                     help='max word number for output prediction w/o stop words (including above and below sentences)')
@@ -36,6 +36,9 @@ parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word
                     help='path to the file of a stop word list')
 
 args = parser.parse_args()
+
+print(args)
+
 random.seed(args.seed)
 
 if not os.path.exists(args.save):
@@ -47,6 +50,17 @@ def convert_stop_to_ind(f_in, w_d2_ind_freq):
         w = line.rstrip()
         if w in w_d2_ind_freq:
             stop_word_set.add(w_d2_ind_freq[w][0])
+    return stop_word_set
+
+def convert_stop_to_ind_lower(f_in, idx2word_freq):
+    stop_word_org_set = set()
+    for line in f_in:
+        w = line.rstrip()
+        stop_word_org_set.add(w)
+    stop_word_set = set()
+    for idx, (w, freq) in enumerate(idx2word_freq):
+        if w.lower() in stop_word_org_set:
+            stop_word_set.add(idx)
     return stop_word_set
         
 def load_w_ind(f_in, max_sent_num, max_sent_len):
@@ -77,8 +91,13 @@ def load_w_ind(f_in, max_sent_num, max_sent_len):
 corpus_input_name = args.data + "corpus_index"
 dictionary_input_name = args.data + "dictionary_index"
 
+#with open(dictionary_input_name) as f_in:
+#    w_d2_ind_freq, max_ind = utils.load_word_dict(f_in)
+
 with open(dictionary_input_name) as f_in:
-    w_d2_ind_freq, max_ind = utils.load_word_dict(f_in)
+    idx2word_freq = utils.load_idx2word_freq(f_in)
+
+max_ind = len(idx2word_freq)
 
 if max_ind >= 2147483648:
     print("Will cause overflow")
@@ -87,7 +106,8 @@ if max_ind >= 2147483648:
 store_type = torch.int32
 
 with open(args.stop_word_file) as f_in:
-    stop_ind_set = convert_stop_to_ind(f_in, w_d2_ind_freq)
+    #stop_ind_set = convert_stop_to_ind(f_in, w_d2_ind_freq)
+    stop_ind_set = convert_stop_to_ind_lower(f_in, idx2word_freq)
 
 with open(corpus_input_name) as f_in:
     w_ind_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)

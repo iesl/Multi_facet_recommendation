@@ -45,7 +45,7 @@ filtered_sent_num = 0
 with my_open(args.data, 'r') as f_in:
     for line in f_in:
         w_list_org = line.rstrip().split()
-        if len(w_list_org) < args.min_sent_length:
+        if len(w_list_org) > 0 and len(w_list_org) < args.min_sent_length:
             filtered_sent_num += 1
             continue
         w_ind_list = []

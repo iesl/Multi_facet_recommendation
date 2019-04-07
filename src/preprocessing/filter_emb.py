@@ -3,15 +3,43 @@
 #data_path_1 = "./data/wikitext-2"
 #data_path_1 = "./data/wikitext-103"
 #data_path_1 = "./data/raw/binary-wackypedia-1-4-ukwac-.gz"
-data_path_1 = "data/processed/wackypedia/dictionary_index"
+#data_path_1 = "data/processed/wackypedia/dictionary_index"
+#data_path_1 = "data/processed/wiki2016/dictionary_index"
 #data_path_2 = "./data/penn"
 #data_path_2 = "./data/penn"
 #data_path_2 = "/iesl/canvas/xiangl/data/bookcorpus/books_large_p1.txt"
-data_path_2 = "data/processed/bookp1/dictionary_index"
-#emb_file_in_path = "/iesl/canvas/hschang/glove.840B.300d.txt"
+#data_path_2 = "data/processed/bookp1/dictionary_index"
+data_path_2 = ""
+#emb_file_in_path = "/iesl/data/word_embedding/glove.840B.300d.txt"
 #emb_file_out_path = "resources/glove.840B.300d_filtered_wac_bookp1.txt"
-emb_file_in_path = "/iesl/canvas/hschang/GoogleNews-vectors-negative300.txt"
-emb_file_out_path = "resources/Google-vec-neg300_filtered_wac_bookp1.txt"
+#emb_file_out_path = "resources/glove.840B.300d_filtered_wiki2016.txt"
+#emb_file_in_path = "/iesl/data/word_embedding/GoogleNews-vectors-negative300.txt"
+#emb_file_out_path = "resources/Google-vec-neg300_filtered_wac_bookp1.txt"
+#emb_file_out_path = "resources/Google-vec-neg300_filtered_wiki2016.txt"
+
+import sys
+import getopt
+
+help_msg = '-f <dict_file_path> -s <second_dict_path> -e <embedding_file_path> -o <output_file_path>'
+
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "f:s:e:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-f"):
+        data_path_1 = arg
+    elif opt in ("-s"):
+        data_path_2 = arg
+    elif opt in ("-e"):
+        emb_file_in_path = arg
+    elif opt in ("-o"):
+        emb_file_out_path = arg
 
 #def find_word_dict(data_path):
 #    corpus = data.Corpus(data_path)
@@ -22,14 +50,15 @@ def load_word_dict(data_path):
     with open(data_path) as f_in:
         for line in f_in:
             fields = line.rstrip().split('\t')
-            if len(fields) == 2:
+            if len(fields) == 3:
                 d.add(fields[0])
     return d
 
 d1 = load_word_dict(data_path_1)
-d2 = load_word_dict(data_path_2)
 
-d1.update(d2)
+if len(data_path_2) > 0:
+    d2 = load_word_dict(data_path_2)
+    d1.update(d2)
 
 def load_emb_file(emb_file):
     with open(emb_file) as f_in:

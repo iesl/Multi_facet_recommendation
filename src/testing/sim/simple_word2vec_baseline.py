@@ -3,7 +3,7 @@ from scipy.spatial import distance
 from scipy.stats import spearmanr
 
 #emb_file_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/resources/Google-vec-neg300_filtered_wac_bookp1.txt"
-emb_file_path = ""
+emb_file_path = "/iesl/data/word_embedding/GoogleNews-vectors-negative300.txt"
 ratings_file = "dataset_testing/SCWS/ratings.txt"
 
 w2v = gensim.models.KeyedVectors.load_word2vec_format(emb_file_path, binary=False)
