@@ -176,8 +176,8 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
 
     return dataloader_test, org_sent_list, idx2word_freq
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors"):
-    train_corpus_name = data_path + "/"+tensor_folder+"/train.pt"
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt"):
+    train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
     val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
     val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
     dictionary_input_name = data_path + "dictionary_index"
@@ -212,8 +212,11 @@ def load_emb_file(emb_file, device, idx2word_freq):
     #external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = update_target_emb)
     external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = False)
     OOV_num = 0
+    OOV_freq = 0
+    total_freq = 0
     for i in range(num_w):
         w = idx2word_freq[i][0]
+        total_freq += idx2word_freq[i][1]
         if w in word2emb:
             val = torch.tensor(word2emb[w], device = device, requires_grad = False)
             #val = np.array(word2emb[w])
@@ -221,10 +224,27 @@ def load_emb_file(emb_file, device, idx2word_freq):
         else:
             external_emb[i,:] = 0
             OOV_num += 1
-    print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
+            OOV_freq += idx2word_freq[i][1]
+
+    print("OOV word type percentage: {}%".format( OOV_num/float(num_w)*100 ))
+    print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
     return external_emb, emb_size
 
-def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
+def output_parallel_models(use_cuda, single_gpu, encoder, decoder):
+    if use_cuda:
+        if single_gpu:
+            parallel_encoder = encoder.cuda()
+            parallel_decoder = decoder.cuda()
+        else:
+            parallel_encoder = nn.DataParallel(encoder, dim=0).cuda()
+            parallel_decoder = nn.DataParallel(decoder, dim=0).cuda()
+            #parallel_decoder = decoder.cuda()
+    else:
+        parallel_encoder = encoder
+        parallel_decoder = decoder
+    return parallel_encoder, parallel_decoder
+
+def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
 
     if len(args.emb_file) > 0:
         if args.emb_file[-3:] == '.pt':
@@ -240,10 +260,11 @@ def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
         external_emb = torch.tensor([0.])
         encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
                        args.dropout, args.dropouti, args.dropoute, external_emb)
-        if use_position_emb:
-            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
-        else:
-            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+        decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
+        #if use_position_emb:
+        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
+        #else:
+        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
     encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt')))
     decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt')))
@@ -254,16 +275,7 @@ def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
     word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     word_norm_emb[0,:] = 0
 
-    if args.cuda:
-        if args.single_gpu:
-            parallel_encoder = encoder.cuda()
-            parallel_decoder = decoder.cuda()
-        else:
-            parallel_encoder = nn.DataParallel(encoder, dim=1).cuda()
-            parallel_decoder = decoder.cuda()
-    else:
-        parallel_encoder = encoder
-        parallel_decoder = decoder
+    parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
     return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb
 

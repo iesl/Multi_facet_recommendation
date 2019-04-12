@@ -6,17 +6,17 @@ def predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = False):
     #output_emb should have dimension ( n_batch, n_emb_size)
 
     if predict_coeff_sum:
-        basis_pred, hidden_no_use, coeff_pred =  model_set(output_emb, predict_coeff_sum = True)
+        basis_pred, coeff_pred =  model_set(output_emb, predict_coeff_sum = True)
         #basis_pred should have dimension ( n_basis, n_batch, n_emb_size)
         #coeff_pred should have dimension ( n_basis, n_batch, 2)
 
-        basis_pred = basis_pred.permute(1,0,2)
-        coeff_pred = coeff_pred.permute(1,0,2)
+        #basis_pred = basis_pred.permute(1,0,2)
+        #coeff_pred = coeff_pred.permute(1,0,2)
         #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
         return basis_pred, coeff_pred
     else:
-        basis_pred, hidden_no_use =  model_set(output_emb, predict_coeff_sum = False)
-        basis_pred = basis_pred.permute(1,0,2)
+        basis_pred =  model_set(output_emb, predict_coeff_sum = False)
+        #basis_pred = basis_pred.permute(1,0,2)
         return basis_pred
 
 def estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred, device):

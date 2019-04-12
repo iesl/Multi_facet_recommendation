@@ -3,6 +3,8 @@ import nsd_loss
 import numpy as np
 import gc
 import sys
+import torch.utils.data
+import json
 
 def add_model_arguments(parser):
     ###encoder
@@ -28,9 +30,12 @@ def add_model_arguments(parser):
                         help='hidden embedding size of the second LSTM')
     parser.add_argument('--n_basis', type=int, default=10,
                         help='number of basis we want to predict')
+    parser.add_argument('--linear_mapping_dim', type=int, default=0,
+                        help='map the input embedding by linear transformation')
 
 def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
-    output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
+    #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
+    output_emb_last = parallel_encoder(feature)
     basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
 
     coeff_sum = coeff_pred.cpu().numpy()
@@ -113,7 +118,7 @@ def load_prediction_from_json(f_in):
     sent_d2_topics = {}
     input_json= json.load(f_in)
     for input_dict in input_json:
-        org_sent = input_dict['org_idx']
+        org_sent = input_dict['org_sent']
         topic_list = []
         topic_weight_list = []
         for topic in input_dict['topics']:
@@ -176,7 +181,7 @@ def build_loader_from_pairs(testing_list, sent_d2_topics, bsz, device):
         topic_w_tensor[i_pairs, :] = torch.tensor(topic_w, device = device)
     
     corpus_size = len(testing_list)
-    first_topic = sent_d2_topics.values()[0]
+    first_topic = list(sent_d2_topics.values())[0][0]
     n_basis = len(first_topic)
     emb_size = len(first_topic[0])
     topic_v_tensor_1 = torch.empty(corpus_size, n_basis, emb_size, device = device)
@@ -190,6 +195,7 @@ def build_loader_from_pairs(testing_list, sent_d2_topics, bsz, device):
         store_topics(sent_2, sent_d2_topics, topic_v_tensor_2, topic_w_tensor_2, i_pairs, device)
 
     dataset = Set2SetDataset(topic_v_tensor_1, topic_w_tensor_1, topic_v_tensor_2, topic_w_tensor_2)
+    use_cuda = False
     if device == 'cude':
         use_cuda = True
     testing_pair_loader = torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
@@ -205,20 +211,20 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device):
 
     def weighted_average(cosine_sim, weight):
         #assume that weight are normalized
-        return (cosine_sim * weight).mean()
+        return (cosine_sim * weight).mean(dim = 1)
 
     def max_cosine_sim(target, source, target_w, device):
         cosine_sim_s_to_t, nn_source_idx = nsd_loss.estimate_coeff_mat_batch_max_cos(target, source, device)
         #cosine_sim should have dimension (n_batch,n_set)
-        sim_avg_st = cosine_sim_s_to_t.mean()
+        sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
         sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
         return sim_avg_st, sim_w_avg_st
     
     def lc_pred_dist(target, source, target_w, L1_losss_B, device):
-        coeff_mat_s_to_t = estimate_coeff_mat_batch(target, source, L1_losss_B, device, max_iter = 1000)
+        coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch(target, source, L1_losss_B, device, max_iter = 1000)
         pred_embeddings = torch.bmm(coeff_mat_s_to_t, source)
-        dist_st = torch.pow( torch.norm( pred_embeddings - target_w, dim = 2 ), 2)
-        dist_avg_st = dist_st.mean()
+        dist_st = torch.pow( torch.norm( pred_embeddings - target, dim = 2 ), 2)
+        dist_avg_st = dist_st.mean(dim = 1)
         dist_w_avg_st = weighted_average(dist_st, target_w)
         return dist_avg_st, dist_w_avg_st
 
@@ -229,17 +235,17 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device):
         target_w = safe_normalization(target_w)
         
         #Kmeans loss
-        sim_avg_st, sim_w_avg_st = max_cosine_sim(target, source, target_w, device):
-        sim_avg_ts, sim_w_avg_ts = max_cosine_sim(source, target, source_w, device):
-        sim_avg = (sim_avg_st.item() + sim_avg_ts.item())/2
-        sim_w_avg = (sim_w_avg_st.item() + sim_w_avg_ts.item())/2
+        sim_avg_st, sim_w_avg_st = max_cosine_sim(target, source, target_w, device)
+        sim_avg_ts, sim_w_avg_ts = max_cosine_sim(source, target, source_w, device)
+        sim_avg = (sim_avg_st + sim_avg_ts)/2
+        sim_w_avg = (sim_w_avg_st + sim_w_avg_ts)/2
 
         dist_avg_st, dist_w_avg_st = lc_pred_dist(target, source, target_w, L1_losss_B, device)
         dist_avg_ts, dist_w_avg_ts = lc_pred_dist(source, target, source_w, L1_losss_B, device)
-        dist_avg = (dist_avg_st.item() + dist_avg_ts.item())/2
-        dist_w_avg = (dist_w_avg_st.item() + dist_w_avg_ts.item())/2
+        dist_avg = (dist_avg_st + dist_avg_ts)/2
+        dist_w_avg = (dist_w_avg_st + dist_w_avg_ts)/2
 
-
+        for i in range(sim_avg.size(0)):
         #coeff_mat should have dimension (n_batch,n_set,n_basis)
-        pred_scores.append([sim_avg, sim_w_avg, dist_avg, dist_w_avg ])
+            pred_scores.append([sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item() ])
     return pred_scores

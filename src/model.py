@@ -74,6 +74,7 @@ class RNNModel_decoder(nn.Module):
 
     def forward(self, input_init, predict_coeff_sum = False):
         
+        #print(input_init.size())
         hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
         hidden_2 = torch.cat( [self.init_hid_linear_2[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
         hidden = (hidden_1, hidden_2)
@@ -101,10 +102,11 @@ class RNNModel_decoder(nn.Module):
         #output /= self.outd_sqrt
         output = self.out_linear(output)
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
+        output_batch_first = output.permute(1,0,2)
 
         if not predict_coeff_sum:
             #output has dimension (n_seq_len, n_batch, n_emb_size)
-            return output, hidden
+            return output_batch_first
         else:
             #bsz = input.size(1)
             #weight = next(self.parameters()) # we use this just to let the tensor have the same type and device as the first weight in this class
@@ -113,7 +115,8 @@ class RNNModel_decoder(nn.Module):
             #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
             coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
             coeff_pred = self.coeff_out_linear(coeff_output)
-            return output, hidden, coeff_pred
+            coeff_pred_batch_first = coeff_pred.permute(1,0,2)
+            return output_batch_first, coeff_pred_batch_first
 
     def init_hidden(self, bsz):
         weight = next(self.parameters())
@@ -130,7 +133,7 @@ class RNNModel_simple(nn.Module):
         super(RNNModel_simple, self).__init__()
         #self.drop = nn.Dropout(dropout)
         self.lockdrop = LockedDropout()
-        if len(external_emb) > 1:
+        if len(external_emb) > 1 and ninp == 0:
             self.encoder = nn.Embedding.from_pretrained(external_emb.clone(), freeze = False)
             ntoken, ninp = external_emb.size()
         else:
@@ -163,25 +166,30 @@ class RNNModel_simple(nn.Module):
 
     def forward(self, input):
         
-        bsz = input.size(1)
+        #bsz = input.size(1)
+        bsz = input.size(0)
+        #print(input.size())
         hidden = self.init_hidden(bsz)
 
         #weight = next(self.parameters())
         #input_long = weight.new_tensor(input,dtype = torch.long)
 
-        emb = embedded_dropout(self.encoder, input, dropout=self.dropoute if self.use_dropout else 0)
+        emb = embedded_dropout(self.encoder, input.t(), dropout=self.dropoute if self.use_dropout else 0)
         emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)       
         #emb = self.drop(self.encoder(input))
         output_org, hidden = self.rnn(emb, hidden)
         #output = self.drop(output_org)
         output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
         output_unpacked = output.view(output.size(0), bsz, 2, self.nhid)
+        #print(output_unpacked.size())
         output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 1)
+        #print(output_last.size())
         #forward_mean = torch.mean(output_unpacked[:,:,0,:], dim = 0)
         #backward_mean = torch.mean(output_unpacked[:,:,1,:], dim = 0)
         #output_last = torch.cat( (forward_mean, backward_mean), dim = 1 )
         #output_last = output_last / (0.000000000001 + output_last.norm(dim = 1, keepdim=True) )
-        return output, hidden, output_last
+        #return output, hidden, output_last #If we want to output output, hidden, we need to shift the batch dimension to the first dim in order to use nn.DataParallel correctly
+        return output_last
 
     def init_hidden(self, bsz):
         weight = next(self.parameters())
