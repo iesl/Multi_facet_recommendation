@@ -58,7 +58,11 @@ class RNNModel_decoder(nn.Module):
         
         self.coeff_nlayers = 1
         self.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = self.coeff_nlayers , bidirectional = True)
-        self.coeff_out_linear = nn.Linear(nhid*2, 2)
+        #self.coeff_out_linear = nn.Linear(nhid*2, 2)
+
+        self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
+        self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
+        self.coeff_out_linear_3 = nn.Linear(nhid, 2)
 
         self.init_weights()
 
@@ -114,7 +118,10 @@ class RNNModel_decoder(nn.Module):
             coeff_input= torch.cat( (input, output), dim = 2)
             #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
             coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
-            coeff_pred = self.coeff_out_linear(coeff_output)
+            #coeff_pred = self.coeff_out_linear(coeff_output)
+            coeff_pred_1 = F.relu(self.coeff_out_linear_1(coeff_output))
+            coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))
+            coeff_pred = self.coeff_out_linear_3(coeff_pred_2)
             coeff_pred_batch_first = coeff_pred.permute(1,0,2)
             return output_batch_first, coeff_pred_batch_first
 

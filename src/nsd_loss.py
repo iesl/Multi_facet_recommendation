@@ -142,9 +142,10 @@ def target_emb_preparation(target_index, w_embeddings, n_batch, n_set, rotate_sh
     #return target_embeddings, target_emb_neg
     return target_embeddings, target_embeddings_rotate
 
-def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
+#def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
+def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
 
-    basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
+    #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
     #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
     #print( basis_pred.size() )
     #print( target_set.size() )
