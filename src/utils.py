@@ -35,7 +35,7 @@ class Dictionary(object):
         w_ind_list.append(self.EOS_IND) # append <eos>
         self.ind_l2_w_freq[self.EOS_IND][1] += 1
 
-    def densify_index(self,min_sent_length):
+    def densify_index(self,min_freq):
         vocab_size = len(self.ind_l2_w_freq)
         compact_mapping = [0]*vocab_size
         for i in range(self.num_special_token):
@@ -50,7 +50,7 @@ class Dictionary(object):
         #for i, (w, w_freq, w_ind_org) in enumerate(self.ind_l2_w_freq[self.num_special_token:]):
         for i in range(self.num_special_token,vocab_size):
             w, w_freq, w_ind_org = self.ind_l2_w_freq[i]
-            if w_freq < min_sent_length:
+            if w_freq < min_freq:
                 compact_mapping[i] = self.UNK_IND
                 self.ind_l2_w_freq[i][-1] = self.UNK_IND
                 self.ind_l2_w_freq[i].append('unk')

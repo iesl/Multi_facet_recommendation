@@ -24,7 +24,8 @@ parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sen
 ###path
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
-parser.add_argument('--tensor_folder', type=str, default='tensors_multi150',
+#parser.add_argument('--tensor_folder', type=str, default='tensors_multi150',
+parser.add_argument('--tensor_folder', type=str, default='tensors',
                     help='location of the data corpus')
 parser.add_argument('--save', type=str,  default='./models/Wacky',
                     help='path to save the final model')

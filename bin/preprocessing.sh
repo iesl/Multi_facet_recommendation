@@ -1,6 +1,8 @@
 #!/bin/bash
+MIN_FREQ=$1
+echo $MIN_FREQ
 INPUT_FILE="./data/raw/wiki2016.txt"
-DATA_NAME="wiki2016"
+DATA_NAME="wiki2016_min$MIN_FREQ"
 OUTPUT_DIR="./data/processed/$DATA_NAME/"
 
 GLOVE_IN="/iesl/data/word_embedding/glove.840B.300d.txt"
@@ -14,7 +16,7 @@ MULTI_SENT="False"
 
 
 echo "convert words to indices"
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR --min_freq 10
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR --min_freq $MIN_FREQ
 
 echo "filter word embedding"
 ~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT

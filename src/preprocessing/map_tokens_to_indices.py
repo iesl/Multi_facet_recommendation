@@ -65,7 +65,7 @@ print("total number of lines: "+str(len(w_ind_corpus)))
 elapsed = time.time() - start_time
 print("time of loading file: "+str(elapsed)+'s')
 
-compact_mapping, total_freq_filtering = dict_c.densify_index(args.min_sent_length)
+compact_mapping, total_freq_filtering = dict_c.densify_index(args.min_freq)
 print("{}/{} tokens are filtered".format(total_freq_filtering, total_num_w) )
 
 if not os.path.exists(args.save):
