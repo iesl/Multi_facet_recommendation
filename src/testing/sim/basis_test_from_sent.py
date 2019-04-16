@@ -57,6 +57,8 @@ if args.emb_file == "target_emb.pt":
 
 if args.nhidlast2 < 0:
     args.nhidlast2 = args.emsize
+if args.linear_mapping_dim < 0:
+    args.linear_mapping_dim = args.nhid
 
 # Set the random seed manually for reproducibility.
 seed_all_randomness(args.seed, args.cuda)
@@ -73,8 +75,9 @@ dataloader_test, org_sent_list, idx2word_freq = load_testing_sent(args.dict, arg
 print("Loading Models")
 ########################
 
-parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = True)
+#parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = True)
 #parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = False)
+parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.linear_mapping_dim)
 
 encoder.eval()
 decoder.eval()

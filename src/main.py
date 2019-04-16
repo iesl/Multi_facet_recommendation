@@ -17,7 +17,7 @@ import random
 import model as model_code
 import nsd_loss
 
-from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus
+from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus, output_parallel_models
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -27,10 +27,13 @@ parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
 #parser.add_argument('--tensor_folder', type=str, default='tensors_multi150',
 parser.add_argument('--tensor_folder', type=str, default='tensors',
                     help='location of the data corpus')
+parser.add_argument('--training_file', type=str, default='train.pt',
+                    help='location of training file')
 parser.add_argument('--save', type=str,  default='./models/Wacky',
                     help='path to save the final model')
 #parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
-parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d_filtered_wac_bookp1.txt',
+#parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d_filtered_wac_bookp1.txt',
+parser.add_argument('--emb_file', type=str, default='',
                     help='path to the file of a word embedding file')
 #parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
 #                    help='path to the file of a stop word list')
@@ -38,7 +41,7 @@ parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d
 ###encoder
 parser.add_argument('--en_model', type=str, default='LSTM',
                     help='type of encoder model (LSTM)')
-parser.add_argument('--emsize', type=int, default=300,
+parser.add_argument('--emsize', type=int, default=0,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=600,
                     help='number of hidden units per layer')
@@ -72,11 +75,13 @@ parser.add_argument('--w_loss_coeff', type=float, default=0.1,
                     help='weights for coefficient prediction loss')
 parser.add_argument('--L1_losss_B', type=float, default=0.2,
                     help='L1 loss for the coefficient matrix')
-parser.add_argument('--update_target_emb', default=False, action='store_true',
-                    help='Whether to update target embedding')
 #parser.add_argument('--coeff_opt', type=str, default='max',
 parser.add_argument('--coeff_opt', type=str, default='lc',
                     help='Could be max, lc, maxlc')
+parser.add_argument('--update_target_emb', default=False, action='store_true',
+                    help='Whether to update target embedding')
+parser.add_argument('--target_emb_source', type=str, default='ext',
+                    help='Could be ext (external), rand or ewe (encode word embedding)')
 
 ###training
 parser.add_argument('--optimizer', type=str, default="SGD",
@@ -99,13 +104,17 @@ parser.add_argument('--wdecay', type=float, default=1e-6,
                     help='weight decay applied to all weights')
 parser.add_argument('--nonmono', type=int, default=1,
                     help='decay learning rate after seeing how many validation performance drop')
+parser.add_argument('--training_split_num', type=int, default=2,
+                    help='We want to split training corpus into how many subsets. Splitting training dataset seems to make pytorch run much faster and we can store and eval the model more frequently')
+parser.add_argument('--copy_training', type=bool, default=True, 
+                    help='turn off this option to save some cpu memory when loading training data')
 #parser.add_argument('--continue_train', action='store_true',
 #                    help='continue train from a checkpoint')
 
 ###system
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', default=True, action='store_false',
+parser.add_argument('--cuda', type=bool, default=True, 
                     help='use CUDA')
 parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
@@ -129,8 +138,6 @@ else:
 
 if args.linear_mapping_dim < 0:
     args.linear_mapping_dim = args.nhid
-if args.nhidlast2 < 0:
-    args.nhidlast2 = args.emsize
 #if args.dropoutl < 0:
 #    args.dropoutl = args.dropouth
 if args.small_batch_size < 0:
@@ -153,13 +160,15 @@ def logging(s, print_=True, log_=True):
 # Set the random seed manually for reproducibility.
 seed_all_randomness(args.seed,args.cuda)
 
+logging('Args: {}'.format(args))
+
 ########################
 print("Loading data")
 ########################
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
-idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder)
+idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder, args.training_file, args.training_split_num, args.copy_training)
 
 
 def counter_to_tensor(idx2word_freq,device):
@@ -179,8 +188,23 @@ if len(args.emb_file) > 0:
     external_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
     external_emb = external_emb / (0.000000000001 + external_emb.norm(dim = 1, keepdim=True))
     external_emb.requires_grad = args.update_target_emb
+    print("loading ", args.emb_file)
 else:
-    output_emb_size = args.emsize
+    if args.target_emb_source == 'ewe':
+        output_emb_size = args.emsize
+        print("Using word embedding from encoder")
+    elif args.target_emb_source == 'rand' and args.update_target_emb == True:
+        output_emb_size = args.emsize
+        external_emb = torch.randn(len(idx2word_freq), output_emb_size, device = device, requires_grad = False)
+        external_emb = external_emb / (0.000000000001 + external_emb.norm(dim = 1, keepdim=True))
+        external_emb.requires_grad = True
+        print("Initialize target embedding randomly")
+    else:
+        print("we don't support such target_emb_source " + args.target_emb_source + ", update_target_emb ", args.update_target_emb, ", and emb_file "+ args.emb_file)
+        sys.exit(1)
+
+if args.nhidlast2 < 0:
+    args.nhidlast2 = output_emb_size
 
 w_freq = counter_to_tensor(idx2word_freq,device)
 
@@ -217,18 +241,8 @@ def initialize_weights(net, normal_std):
 #    decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
 #load optimizers
 
-if args.cuda:
-    if args.single_gpu:
-        parallel_encoder = encoder.cuda()
-        parallel_decoder = decoder.cuda()
-    else:
-        parallel_encoder = nn.DataParallel(encoder, dim=1).cuda()
-        parallel_decoder = decoder.cuda()
-else:
-    parallel_encoder = encoder
-    parallel_decoder = decoder
+parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
-logging('Args: {}'.format(args))
 total_params = sum(x.data.nelement() for x in encoder.parameters())
 logging('Encoder total parameters: {}'.format(total_params))
 total_params = sum(x.data.nelement() for x in decoder.parameters())
@@ -253,13 +267,17 @@ def evaluate(dataloader, external_emb, current_coeff_opt):
         for i_batch, sample_batched in enumerate(dataloader):
             feature, target = sample_batched
             
-            output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-            if len(args.emb_file) > 0:
+            #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
+            output_emb_last = parallel_encoder(feature)
+            basis_pred, coeff_pred =  parallel_decoder(output_emb_last, predict_coeff_sum = True)
+            if len(args.emb_file) > 0 or args.target_emb_source == 'rand':
                 input_emb = external_emb
-            else:
+            elif args.target_emb_source == 'ewe':
                 input_emb = encoder.encoder.weight.detach()
+
             compute_target_grad = False
-            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+            #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
             loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
             batch_size = feature.size(0)
             total_loss += loss * batch_size
@@ -295,14 +313,20 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         optimizer_d.zero_grad()
         #encoder.zero_grad()
         #decoder.zero_grad()
-        output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-        if len(args.emb_file) > 0:
+        #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
+        #output_emb, hidden, output_emb_last = parallel_encoder(feature)
+        output_emb_last = parallel_encoder(feature)
+        basis_pred, coeff_pred =  parallel_decoder(output_emb_last, predict_coeff_sum = True)
+        if len(args.emb_file) > 0  or args.target_emb_source == 'rand':
             input_emb = external_emb
-            compute_target_grad = args.update_target_emb
-        else:
+        elif args.target_emb_source == 'ewe':
             input_emb = encoder.encoder.weight.detach()
-            compute_target_grad = False
-        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+            #compute_target_grad = False
+        compute_target_grad = args.update_target_emb
+        #print(compute_target_grad)
+        #print(input_emb.requires_grad)
+        #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
         if torch.isnan(loss_set):
             sys.stdout.write('nan, ')
             continue
@@ -334,15 +358,21 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         torch.nn.utils.clip_grad_norm_(encoder.parameters(), args.clip)
         torch.nn.utils.clip_grad_norm_(decoder.parameters(), args.clip)
         optimizer_e.step()
-        if len(args.emb_file) == 0:
+        if len(args.emb_file) == 0 and args.target_emb_source == 'ewe':
             encoder.encoder.weight.data[0,:] = 0
+            
         optimizer_d.step()
 
         if args.update_target_emb:
+            #print(external_emb.requires_grad)
+            #print(external_emb.grad)
             if args.optimizer == 'SGD':
                 external_emb.data -= lr/args.lr2_divide/10.0 * external_emb.grad.data
             else:
-                external_emb.data -= 0.1/args.lr2_divide/10.0 * external_emb.grad.data
+                #external_emb.data -= 0.1/args.lr2_divide/10.0 * external_emb.grad.data
+                external_emb.data -= 10/args.lr2_divide/10.0 * external_emb.grad.data
+            if args.target_emb_source != 'ewe':
+                external_emb.data[0,:] = 0
             external_emb.grad.data.zero_()
 
         if i_batch % args.log_interval == 0 and i_batch > 0:
@@ -358,7 +388,7 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
                 epoch, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set, cur_loss_set_neg, cur_loss_coeff_pred, cur_loss_set_reg, cur_loss_set_div))
             #if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
-            if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.015:
+            if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
                 current_coeff_opt = 'lc'
                 print("switch to lc")
             total_loss = 0.
@@ -383,34 +413,35 @@ nonmono_count = 0
 
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
-    current_coeff_opt = train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt)
+    for i in range(len(dataloader_train_arr)):
+        current_coeff_opt = train_one_epoch(dataloader_train_arr[i], external_emb, lr, current_coeff_opt)
 
-    val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, external_emb, current_coeff_opt)
-    logging('-' * 89)
-    logging('| end of epoch {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
-            .format(epoch, (time.time() - epoch_start_time), lr,
-                                       val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
-    logging('-' * 89)
-    #dataloader_val_shuffled?
-    val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val_shuffled, external_emb, current_coeff_opt)
-    logging('-' * 89)
-    logging('| Shuffled | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
-            .format((time.time() - epoch_start_time), lr,
-                                       val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
-    logging('-' * 89)
-    
-    if not best_val_loss or val_loss_all < best_val_loss:
-        save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, external_emb, args.save)
-        best_val_loss = val_loss_all
-        logging('Models Saved')
-    else:
-        nonmono_count += 1
-    
-    if nonmono_count >= args.nonmono:
-        # Anneal the learning rate if no improvement has been seen in the validation dataset.
-        nonmono_count = 0
-        lr /= 4.0
-        for param_group in optimizer_e.param_groups:
-            param_group['lr'] = lr
-        for param_group in optimizer_d.param_groups:
-            param_group['lr'] = lr/args.lr2_divide
+        val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, external_emb, current_coeff_opt)
+        logging('-' * 89)
+        logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+                .format(epoch, i, (time.time() - epoch_start_time), lr,
+                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+        logging('-' * 89)
+        #dataloader_val_shuffled?
+        val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val_shuffled, external_emb, current_coeff_opt)
+        logging('-' * 89)
+        logging('| Shuffled | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+                .format((time.time() - epoch_start_time), lr,
+                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+        logging('-' * 89)
+        
+        if not best_val_loss or val_loss_all < best_val_loss:
+            save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, external_emb, args.save)
+            best_val_loss = val_loss_all
+            logging('Models Saved')
+        else:
+            nonmono_count += 1
+        
+        if nonmono_count >= args.nonmono:
+            # Anneal the learning rate if no improvement has been seen in the validation dataset.
+            nonmono_count = 0
+            lr /= 4.0
+            for param_group in optimizer_e.param_groups:
+                param_group['lr'] = lr
+            for param_group in optimizer_d.param_groups:
+                param_group['lr'] = lr/args.lr2_divide

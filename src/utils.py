@@ -118,11 +118,36 @@ class F2SetDataset(torch.utils.data.Dataset):
         return [feature, target]
         #return [self.feature[idx, :], self.target[idx, :]]
 
+def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
+    feature, target = torch.load(f_in, map_location='cpu')
+    if copy_training:
+        #idx_arr= np.random.permutation(feature.size(0)).reshape(split_num,-1)
+        idx_arr= np.random.permutation(feature.size(0))
+        split_size = int(feature.size(0) / split_num)
+        dataset_arr = []
+        for i in range(split_num):
+            start = i * split_size
+            if i == split_num - 1:
+                end = feature.size(0)
+            else:
+                end = (i+1) * split_size
+            dataset_arr.append(  F2SetDataset(feature[start:end],target[start:end], device ) )
+        #dataset_arr = [ F2SetDataset(feature[idx_arr[i,:],:], target[idx_arr[i,:],:], device) for i in range(split_num)]
+    else:
+        dataset_arr = [ F2SetDataset(feature[i:feature.size(0):split_num,:], target[i:target.size(0):split_num,:], device) for i in range(split_num)]
+
+    use_cuda = False
+    if device == 'cude':
+        use_cuda = True
+    dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
+    return dataloader_arr
+
 def create_data_loader(f_in, bsz, device):
-    feature, target = torch.load(f_in)
+    feature, target = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
     dataset = F2SetDataset(feature, target, device)
+    #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
     if device == 'cude':
         use_cuda = True
@@ -145,8 +170,8 @@ def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
                 w_ind_list.append(word2idx[w][0])
             else:
                 w_ind_list.append(UNK_IND)
-        w_ind_list.append(0) #buggy preprocessing
-        #w_ind_list.append(EOS_IND)
+        #w_ind_list.append(0) #buggy preprocessing
+        w_ind_list.append(EOS_IND)
         #print(w_ind_list)
         feature_tensor[output_i,-sent_len:] = torch.tensor(w_ind_list, dtype = store_type)
     print("Truncation rate: ", truncate_num/float(len(proc_sent_list)) )
@@ -176,8 +201,8 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
 
     return dataloader_test, org_sent_list, idx2word_freq
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors"):
-    train_corpus_name = data_path + "/"+tensor_folder+"/train.pt"
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False):
+    train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
     val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
     val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
     dictionary_input_name = data_path + "dictionary_index"
@@ -186,7 +211,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
         idx2word_freq = load_idx2word_freq(f_in)
 
     with open(train_corpus_name,'rb') as f_in:
-        dataloader_train = create_data_loader(f_in, train_bsz, device)
+        dataloader_train_arr = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
 
     with open(val_org_corpus_name,'rb') as f_in:
         dataloader_val = create_data_loader(f_in, eval_bsz, device)
@@ -194,7 +219,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
     with open(val_shuffled_corpus_name,'rb') as f_in:
         dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
 
-    return idx2word_freq, dataloader_train, dataloader_val, dataloader_val_shuffled
+    return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled
 
 def load_emb_file(emb_file, device, idx2word_freq):
     with open(emb_file) as f_in:
@@ -212,8 +237,11 @@ def load_emb_file(emb_file, device, idx2word_freq):
     #external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = update_target_emb)
     external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = False)
     OOV_num = 0
+    OOV_freq = 0
+    total_freq = 0
     for i in range(num_w):
         w = idx2word_freq[i][0]
+        total_freq += idx2word_freq[i][1]
         if w in word2emb:
             val = torch.tensor(word2emb[w], device = device, requires_grad = False)
             #val = np.array(word2emb[w])
@@ -221,14 +249,31 @@ def load_emb_file(emb_file, device, idx2word_freq):
         else:
             external_emb[i,:] = 0
             OOV_num += 1
-    print("OOV percentage: {}%".format( OOV_num/float(num_w)*100 ))
+            OOV_freq += idx2word_freq[i][1]
+
+    print("OOV word type percentage: {}%".format( OOV_num/float(num_w)*100 ))
+    print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
     return external_emb, emb_size
 
-def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
+def output_parallel_models(use_cuda, single_gpu, encoder, decoder):
+    if use_cuda:
+        if single_gpu:
+            parallel_encoder = encoder.cuda()
+            parallel_decoder = decoder.cuda()
+        else:
+            parallel_encoder = nn.DataParallel(encoder, dim=0).cuda()
+            parallel_decoder = nn.DataParallel(decoder, dim=0).cuda()
+            #parallel_decoder = decoder.cuda()
+    else:
+        parallel_encoder = encoder
+        parallel_decoder = decoder
+    return parallel_encoder, parallel_decoder
+
+def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
 
     if len(args.emb_file) > 0:
         if args.emb_file[-3:] == '.pt':
-            word_emb = torch.load( args.emb_file )
+            word_emb = torch.load( args.emb_file, map_location=device )
             output_emb_size = word_emb.size(1)
         else:
             word_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
@@ -240,13 +285,14 @@ def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
         external_emb = torch.tensor([0.])
         encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
                        args.dropout, args.dropouti, args.dropoute, external_emb)
-        if use_position_emb:
-            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
-        else:
-            decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+        decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
+        #if use_position_emb:
+        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
+        #else:
+        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
-    encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt')))
-    decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt')))
+    encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt'), map_location=device))
+    decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt'), map_location=device))
 
     if len(args.emb_file) == 0:
         word_emb = encoder.encoder.weight.detach()
@@ -254,16 +300,7 @@ def loading_all_models(args, idx2word_freq, device, use_position_emb = False):
     word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     word_norm_emb[0,:] = 0
 
-    if args.cuda:
-        if args.single_gpu:
-            parallel_encoder = encoder.cuda()
-            parallel_decoder = decoder.cuda()
-        else:
-            parallel_encoder = nn.DataParallel(encoder, dim=1).cuda()
-            parallel_decoder = decoder.cuda()
-    else:
-        parallel_encoder = encoder
-        parallel_decoder = decoder
+    parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
     return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb
 

@@ -6,17 +6,17 @@ def predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = False):
     #output_emb should have dimension ( n_batch, n_emb_size)
 
     if predict_coeff_sum:
-        basis_pred, hidden_no_use, coeff_pred =  model_set(output_emb, predict_coeff_sum = True)
+        basis_pred, coeff_pred =  model_set(output_emb, predict_coeff_sum = True)
         #basis_pred should have dimension ( n_basis, n_batch, n_emb_size)
         #coeff_pred should have dimension ( n_basis, n_batch, 2)
 
-        basis_pred = basis_pred.permute(1,0,2)
-        coeff_pred = coeff_pred.permute(1,0,2)
+        #basis_pred = basis_pred.permute(1,0,2)
+        #coeff_pred = coeff_pred.permute(1,0,2)
         #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
         return basis_pred, coeff_pred
     else:
-        basis_pred, hidden_no_use =  model_set(output_emb, predict_coeff_sum = False)
-        basis_pred = basis_pred.permute(1,0,2)
+        basis_pred =  model_set(output_emb, predict_coeff_sum = False)
+        #basis_pred = basis_pred.permute(1,0,2)
         return basis_pred
 
 def estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred, device):
@@ -142,9 +142,10 @@ def target_emb_preparation(target_index, w_embeddings, n_batch, n_set, rotate_sh
     #return target_embeddings, target_emb_neg
     return target_embeddings, target_embeddings_rotate
 
-def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
+#def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
+def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
 
-    basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
+    #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
     #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
     #print( basis_pred.size() )
     #print( target_set.size() )
