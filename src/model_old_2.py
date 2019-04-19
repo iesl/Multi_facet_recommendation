@@ -6,8 +6,6 @@ from torch.autograd import Variable
 
 from embed_regularize import embedded_dropout
 from locked_dropout import LockedDropout
-import model_trans
-import sys
 #from weight_drop import WeightDrop
 
 class RNN_decoder(nn.Module):
@@ -37,7 +35,6 @@ class RNN_decoder(nn.Module):
                 self.init_hid_linear_2[i].weight.data.uniform_(-.1,.1)
                 self.init_hid_linear_2[i].bias.data.uniform_(-.5,.5)
         self.nlayers = nlayers
-        self.model_type = model_type
 
     def forward(self, input_init, emb):
         hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
@@ -57,41 +54,18 @@ class RNN_decoder(nn.Module):
     
 
 class ext_emb_to_seq(nn.Module):
-    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers):
+    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers):
         super(ext_emb_to_seq, self).__init__()
-        self.decoder_array = nn.ModuleList()
-        input_dim = emb_dim
-        for model_type in model_type_list:
-            if model_type == 'LSTM':
-                model = RNN_decoder(model_type, input_dim, ninp, nhid, nlayers)
-                input_dim = nhid
-                output_dim = nhid
-            elif model_type == 'TRANS':
-                model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers)
-                output_dim = input_dim
-            else:
-                print("model type must be either LSTM or TRANS")
-                sys.exit(1)
-            self.decoder_array.append( model )
-        self.output_dim = output_dim
+        self.decoder = RNN_decoder(model_type_list, emb_dim, ninp, nhid, nlayers)
 
     def forward(self, input_init, emb):
-        hidden_states = emb
-        for model in self.decoder_array:
-            model_type = model.model_type
-            if model_type == 'LSTM':
-                hidden_states = model(input_init, hidden_states)
-            elif model_type == 'TRANS':
-                #If we want to use transformer by default at the end, we will want to reconsider reducing the number of permutes
-                hidden_states = hidden_states.permute(1,0,2)
-                hidden_states = model(hidden_states)
-                hidden_states = hidden_states[0].permute(1,0,2)
-        return hidden_states
+        output = self.decoder(input_init, emb)
+        return output
 
 #class RNNModel_decoder(nn.Module):
 class EMB2SEQ(nn.Module):
 
-    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2):
+    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -112,16 +86,15 @@ class EMB2SEQ(nn.Module):
                 position_emb_size = 100
                 self.poistion_emb = nn.Embedding( n_basis, position_emb_size )
 
+        #self.out_linear = nn.Linear(nhid, outd, bias=False)
+        self.out_linear = nn.Linear(nhid, outd)
         #self.relu_layer = nn.ReLU()
         
         if linear_mapping_dim > 0:
-            self.dep_learner = ext_emb_to_seq(model_type_list, linear_mapping_dim, ninp, nhid, nlayers, n_basis, trans_layers)
+            self.dep_learner = ext_emb_to_seq(model_type_list, linear_mapping_dim, ninp, nhid, nlayers)
         else:
-            self.dep_learner = ext_emb_to_seq(model_type_list, ninp+position_emb_size, ninp, nhid, nlayers, n_basis, trans_layers)
+            self.dep_learner = ext_emb_to_seq(model_type_list, ninp+position_emb_size, ninp, nhid, nlayers)
         
-        #self.out_linear = nn.Linear(nhid, outd, bias=False)
-        self.out_linear = nn.Linear(self.dep_learner.output_dim, outd)
-
         self.coeff_nlayers = 1
         self.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = self.coeff_nlayers , bidirectional = True)
         #self.coeff_out_linear = nn.Linear(nhid*2, 2)

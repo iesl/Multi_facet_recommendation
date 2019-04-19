@@ -5,6 +5,7 @@ import gc
 import sys
 import torch.utils.data
 import json
+import torch.nn.functional as F
 
 def add_model_arguments(parser):
     ###encoder
@@ -52,7 +53,7 @@ def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_
     #sim_pairwise should have dimension (n_batch, ntokens, emb_size)
     top_value, top_index= torch.topk(sim_pairwise, top_k, dim = 1, sorted=True)
 
-    return basis_norm_pred, coeff_order, coeff_sum, top_value, top_index
+    return basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, output_emb_last
 
 def convert_feature_to_text(feature, idx2word_freq):
     feature_list = feature.tolist()
@@ -83,7 +84,7 @@ def print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, 
             outf.write('\n')
         outf.write('\n')
 
-def dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list):
+def dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list, encoded_emb):
     n_basis = coeff_order.shape[1]
     top_k = top_index.size(1)
     feature_text = convert_feature_to_text(feature, idx2word_freq)
@@ -109,6 +110,7 @@ def dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order
         output_dict = {}
         output_dict['idx'] = str(current_idx)
         output_dict['org_sent'] = org_sent
+        output_dict['sent_emb'] = [str(x) for x in encoded_emb[i_sent,:].tolist()]
         output_dict['proc_sent'] = ' '.join(proc_sent)
         output_dict['topics'] = topic_list
         basis_json.append(output_dict)
@@ -121,12 +123,13 @@ def load_prediction_from_json(f_in):
         org_sent = input_dict['org_sent']
         topic_list = []
         topic_weight_list = []
+        sent_emb = [float(x) for x in input_dict['sent_emb']]
         for topic in input_dict['topics']:
             weight = max( 0, float(topic['coeff_pos']) - float(topic['coeff_neg']))
             vector = [float(x) for x in topic['v']]
             topic_weight_list.append(weight)
             topic_list.append(vector)
-        sent_d2_topics[org_sent] = [topic_list, topic_weight_list]
+        sent_d2_topics[org_sent] = [topic_list, topic_weight_list, sent_emb]
     return sent_d2_topics
 
 def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, n_basis, outf_vis):
@@ -138,9 +141,9 @@ def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_deco
                 sys.stdout.write('b'+str(i_batch)+' ')
                 sys.stdout.flush()
             feature, target = sample_batched
-            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
+            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, encoded_emb = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
             print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf_vis)
-            dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list)
+            dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list, encoded_emb)
     return basis_json
 
 def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, n_basis, max_batch_num):
@@ -150,18 +153,20 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
         for i_batch, sample_batched in enumerate(dataloader):
             feature, target = sample_batched
 
-            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
+            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, encoded_emb = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
             print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf)
 
             if i_batch >= max_batch_num:
                 break
 
 class Set2SetDataset(torch.utils.data.Dataset):
-    def __init__(self, source, source_w, target, target_w):
+    def __init__(self, source, source_w, source_sent_emb, target, target_w, target_sent_emb):
         self.source = source
         self.source_w = source_w
+        self.source_sent_emb = source_sent_emb
         self.target = target
         self.target_w = target_w
+        self.target_sent_emb = target_sent_emb
 
     def __len__(self):
         return self.source.size(0)
@@ -169,32 +174,41 @@ class Set2SetDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         source = self.source[idx, :, :]
         source_w = self.source_w[idx, :]
+        source_sent_emb = self.source_sent_emb[idx, :]
         target = self.target[idx, :, :]
         target_w = self.target_w[idx, :]
+        target_sent_emb = self.target_sent_emb[idx, :]
         #debug target[-1] = idx
-        return [source, source_w, target, target_w]
+        return [source, source_w, source_sent_emb, target, target_w, target_sent_emb]
 
 def build_loader_from_pairs(testing_list, sent_d2_topics, bsz, device):
-    def store_topics(sent, sent_d2_topics, topic_v_tensor, topic_w_tensor, i_pairs, device):
-        topic_v, topic_w = sent_d2_topics[sent]
+    def store_topics(sent, sent_d2_topics, topic_v_tensor, topic_w_tensor, sent_emb_tensor, i_pairs, device):
+        topic_v, topic_w, sent_emb = sent_d2_topics[sent]
         topic_v_tensor[i_pairs, :, :] = torch.tensor(topic_v, device = device)
         topic_w_tensor[i_pairs, :] = torch.tensor(topic_w, device = device)
+        sent_emb_tensor[i_pairs, :] = torch.tensor(sent_emb, device = device)
     
     corpus_size = len(testing_list)
-    first_topic = list(sent_d2_topics.values())[0][0]
+    first_sent_info = list(sent_d2_topics.values())[0]
+    first_topic = first_sent_info[0]
     n_basis = len(first_topic)
     emb_size = len(first_topic[0])
+    first_sent_emb = first_sent_info[2]
+    encoder_emsize= len(first_sent_emb)
+
     topic_v_tensor_1 = torch.empty(corpus_size, n_basis, emb_size, device = device)
     topic_w_tensor_1 = torch.empty(corpus_size, n_basis, device = device)
+    sent_emb_tensor_1 = torch.empty(corpus_size, encoder_emsize, device = device)
     topic_v_tensor_2 = torch.empty(corpus_size, n_basis, emb_size, device = device)
     topic_w_tensor_2 = torch.empty(corpus_size, n_basis, device = device)
+    sent_emb_tensor_2 = torch.empty(corpus_size, encoder_emsize, device = device)
     for i_pairs, fields in enumerate(testing_list):
         sent_1 = fields[0]
         sent_2 = fields[1]
-        store_topics(sent_1, sent_d2_topics, topic_v_tensor_1, topic_w_tensor_1, i_pairs, device)
-        store_topics(sent_2, sent_d2_topics, topic_v_tensor_2, topic_w_tensor_2, i_pairs, device)
+        store_topics(sent_1, sent_d2_topics, topic_v_tensor_1, topic_w_tensor_1, sent_emb_tensor_1, i_pairs, device)
+        store_topics(sent_2, sent_d2_topics, topic_v_tensor_2, topic_w_tensor_2, sent_emb_tensor_2, i_pairs, device)
 
-    dataset = Set2SetDataset(topic_v_tensor_1, topic_w_tensor_1, topic_v_tensor_2, topic_w_tensor_2)
+    dataset = Set2SetDataset(topic_v_tensor_1, topic_w_tensor_1, sent_emb_tensor_1, topic_v_tensor_2, topic_w_tensor_2, sent_emb_tensor_2)
     use_cuda = False
     if device == 'cude':
         use_cuda = True
@@ -229,7 +243,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device):
         return dist_avg_st, dist_w_avg_st
 
     pred_scores = []
-    for source, source_w, target, target_w in testing_pair_loader:
+    for source, source_w, source_sent_emb, target, target_w, target_sent_emb in testing_pair_loader:
         #normalize w
         source_w = safe_normalization(source_w)
         target_w = safe_normalization(target_w)
@@ -245,7 +259,9 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device):
         dist_avg = (dist_avg_st + dist_avg_ts)/2
         dist_w_avg = (dist_w_avg_st + dist_w_avg_ts)/2
 
+        cosine_sim = F.cosine_similarity(source_sent_emb, target_sent_emb, dim = 1)
+
         for i in range(sim_avg.size(0)):
         #coeff_mat should have dimension (n_batch,n_set,n_basis)
-            pred_scores.append([sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item() ])
+            pred_scores.append([sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item(), cosine_sim[i].item() ])
     return pred_scores

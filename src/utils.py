@@ -1,7 +1,8 @@
 import os, shutil
 import torch
 import torch.utils.data
-import model as model_code
+#import model as model_code
+import model_old_1 as model_code
 import torch.nn as nn
 import numpy as np
 import random
@@ -9,11 +10,15 @@ import random
 UNK_IND = 1
 EOS_IND = 2
 
+w_d2_ind_init = {'[null]': 0, '<unk>': 1, '<eos>': 2}
+ind_l2_w_freq_init = [ ['[null]',-1,0], ['<unk>',0,1], ['<eos>',0,2] ]
+num_special_token = len(w_d2_ind_init)
+
 class Dictionary(object):
     def __init__(self, byte_mode=False):
-        self.w_d2_ind = {'[null]': 0, '<unk>': 1, '<eos>': 2}
-        self.ind_l2_w_freq = [ ['[null]',-1,0], ['<unk>',0,1], ['<eos>',0,2] ]
-        self.num_special_token = len(self.ind_l2_w_freq)
+        self.w_d2_ind = w_d2_ind_init
+        self.ind_l2_w_freq = ind_l2_w_freq_init
+        self.num_special_token = num_special_token
         self.UNK_IND = UNK_IND
         self.EOS_IND = EOS_IND
         self.byte_mode = byte_mode
@@ -236,10 +241,11 @@ def load_emb_file(emb_file, device, idx2word_freq):
     #emb_size = len(word2emb.values()[0])
     #external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = update_target_emb)
     external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = False)
-    OOV_num = 0
+    #OOV_num = 0
     OOV_freq = 0
     total_freq = 0
-    for i in range(num_w):
+    oov_list = []
+    for i in range(num_special_token, num_w):
         w = idx2word_freq[i][0]
         total_freq += idx2word_freq[i][1]
         if w in word2emb:
@@ -247,13 +253,14 @@ def load_emb_file(emb_file, device, idx2word_freq):
             #val = np.array(word2emb[w])
             external_emb[i,:] = val
         else:
+            oov_list.append(i)
             external_emb[i,:] = 0
-            OOV_num += 1
+            #OOV_num += 1
             OOV_freq += idx2word_freq[i][1]
 
-    print("OOV word type percentage: {}%".format( OOV_num/float(num_w)*100 ))
+    print("OOV word type percentage: {}%".format( len(oov_list)/float(num_w)*100 ))
     print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
-    return external_emb, emb_size
+    return external_emb, emb_size, oov_list
 
 def output_parallel_models(use_cuda, single_gpu, encoder, decoder):
     if use_cuda:
@@ -276,7 +283,7 @@ def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
             word_emb = torch.load( args.emb_file, map_location=device )
             output_emb_size = word_emb.size(1)
         else:
-            word_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
+            word_emb, output_emb_size, oov_list = load_emb_file(args.emb_file,device,idx2word_freq)
     else:
         output_emb_size = args.emsize
 
@@ -284,7 +291,9 @@ def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
     if args.en_model == "LSTM":
         external_emb = torch.tensor([0.])
         encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
+        #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
                        args.dropout, args.dropouti, args.dropoute, external_emb)
+        #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
         decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
         #if use_position_emb:
         #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
