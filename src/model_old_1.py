@@ -6,94 +6,12 @@ from torch.autograd import Variable
 
 from embed_regularize import embedded_dropout
 from locked_dropout import LockedDropout
-import model_trans
-import sys
 #from weight_drop import WeightDrop
 
-class RNN_decoder(nn.Module):
-    def __init__(self, model_type, emb_dim, ninp, nhid, nlayers):
-        super(RNN_decoder, self).__init__()
-        if model_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, model_type)(emb_dim, nhid, nlayers, dropout=0)
-            #if linear_mapping_dim > 0:
-            #    self.rnn = getattr(nn, model_type)(linear_mapping_dim, nhid, nlayers, dropout=0)
-            #else:
-            #    self.rnn = getattr(nn, model_type)(ninp+position_emb_size, nhid, nlayers, dropout=0)
-        else:
-            try:
-                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[model_type]
-            except KeyError:
-                raise ValueError( """An invalid option for `--model` was supplied,
-                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            #self.rnn = nn.RNN(ninp+position_emb_size, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
-            self.rnn = nn.RNN(emb_dim, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
-        
-        if model_type == 'LSTM':
-            self.init_hid_linear_1 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
-            self.init_hid_linear_2 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
-            for i in range(nlayers):
-                self.init_hid_linear_1[i].weight.data.uniform_(-.1,.1)
-                self.init_hid_linear_1[i].bias.data.uniform_(-.5,.5)
-                self.init_hid_linear_2[i].weight.data.uniform_(-.1,.1)
-                self.init_hid_linear_2[i].bias.data.uniform_(-.5,.5)
-        self.nlayers = nlayers
-        self.model_type = model_type
+class RNNModel_decoder(nn.Module):
 
-    def forward(self, input_init, emb):
-        hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
-        hidden_2 = torch.cat( [self.init_hid_linear_2[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
-        hidden = (hidden_1, hidden_2)
-        
-        output, hidden = self.rnn(emb, hidden)
-        return output
-
-    #def init_hidden(self, bsz):
-    #    weight = next(self.parameters())
-    #    if self.model_type == 'LSTM':
-    #        return (weight.new_zeros(self.nlayers, bsz, self.nhid),
-    #                weight.new_zeros(self.nlayers, bsz, self.nhid))
-    #    else:
-    #        return weight.new_zeros(self.nlayers, bsz, self.nhid)
-    
-
-class ext_emb_to_seq(nn.Module):
-    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers):
-        super(ext_emb_to_seq, self).__init__()
-        self.decoder_array = nn.ModuleList()
-        input_dim = emb_dim
-        for model_type in model_type_list:
-            if model_type == 'LSTM':
-                model = RNN_decoder(model_type, input_dim, ninp, nhid, nlayers)
-                input_dim = nhid
-                output_dim = nhid
-            elif model_type == 'TRANS':
-                model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers)
-                output_dim = input_dim
-            else:
-                print("model type must be either LSTM or TRANS")
-                sys.exit(1)
-            self.decoder_array.append( model )
-        self.output_dim = output_dim
-
-    def forward(self, input_init, emb):
-        hidden_states = emb
-        for model in self.decoder_array:
-            model_type = model.model_type
-            if model_type == 'LSTM':
-                hidden_states = model(input_init, hidden_states)
-            elif model_type == 'TRANS':
-                #If we want to use transformer by default at the end, we will want to reconsider reducing the number of permutes
-                hidden_states = hidden_states.permute(1,0,2)
-                hidden_states = model(hidden_states)
-                hidden_states = hidden_states[0].permute(1,0,2)
-        return hidden_states
-
-#class RNNModel_decoder(nn.Module):
-class EMB2SEQ(nn.Module):
-
-    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2):
-        #super(RNNModel_decoder, self).__init__()
-        super(EMB2SEQ, self).__init__()
+    def __init__(self, rnn_type, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5):
+        super(RNNModel_decoder, self).__init__()
         self.drop = nn.Dropout(dropoutp)
         self.n_basis = n_basis
         #self.layernorm = nn.InstanceNorm1d(n_basis, affine =False)
@@ -112,16 +30,32 @@ class EMB2SEQ(nn.Module):
                 position_emb_size = 100
                 self.poistion_emb = nn.Embedding( n_basis, position_emb_size )
 
-        #self.relu_layer = nn.ReLU()
-        
-        if linear_mapping_dim > 0:
-            self.dep_learner = ext_emb_to_seq(model_type_list, linear_mapping_dim, ninp, nhid, nlayers, n_basis, trans_layers)
-        else:
-            self.dep_learner = ext_emb_to_seq(model_type_list, ninp+position_emb_size, ninp, nhid, nlayers, n_basis, trans_layers)
-        
-        #self.out_linear = nn.Linear(nhid, outd, bias=False)
-        self.out_linear = nn.Linear(self.dep_learner.output_dim, outd)
+        self.init_hid_linear_1 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
+        self.init_hid_linear_2 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
+        for i in range(nlayers):
+            self.init_hid_linear_1[i].weight.data.uniform_(-.1,.1)
+            self.init_hid_linear_1[i].bias.data.uniform_(-.5,.5)
+            self.init_hid_linear_2[i].weight.data.uniform_(-.1,.1)
+            self.init_hid_linear_2[i].bias.data.uniform_(-.5,.5)
 
+
+        #self.out_linear = nn.Linear(nhid, outd, bias=False)
+        self.out_linear = nn.Linear(nhid, outd)
+        self.relu_layer = nn.ReLU()
+
+        if rnn_type in ['LSTM', 'GRU']:
+            if linear_mapping_dim > 0:
+                self.rnn = getattr(nn, rnn_type)(linear_mapping_dim, nhid, nlayers, dropout=0)
+            else:
+                self.rnn = getattr(nn, rnn_type)(ninp+position_emb_size, nhid, nlayers, dropout=0)
+        else:
+            try:
+                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
+            except KeyError:
+                raise ValueError( """An invalid option for `--model` was supplied,
+                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
+            self.rnn = nn.RNN(ninp+position_emb_size, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
+        
         self.coeff_nlayers = 1
         self.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = self.coeff_nlayers , bidirectional = True)
         #self.coeff_out_linear = nn.Linear(nhid*2, 2)
@@ -132,8 +66,9 @@ class EMB2SEQ(nn.Module):
 
         self.init_weights()
 
-        #self.model_type = model_type
-        #self.nhid = nhid
+        self.rnn_type = rnn_type
+        self.nhid = nhid
+        self.nlayers = nlayers
 
     def init_weights(self):
         #necessary?
@@ -144,6 +79,9 @@ class EMB2SEQ(nn.Module):
     def forward(self, input_init, predict_coeff_sum = False):
         
         #print(input_init.size())
+        hidden_1 = torch.cat( [self.init_hid_linear_1[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
+        hidden_2 = torch.cat( [self.init_hid_linear_2[i](input_init).unsqueeze(dim = 0) for i in range(self.nlayers)], dim = 0 )
+        hidden = (hidden_1, hidden_2)
 
         input = input_init.expand(self.n_basis, input_init.size(0), input_init.size(1) )
         if self.n_basis == 0:
@@ -160,8 +98,8 @@ class EMB2SEQ(nn.Module):
                 poistion_emb_input = self.poistion_emb(input_pos)
                 poistion_emb_input = self.drop(poistion_emb_input)
                 emb = torch.cat( ( poistion_emb_input,input), dim = 2  )
-        
-        output = self.dep_learner(input_init, emb)
+
+        output, hidden = self.rnn(emb, hidden)
         #output = self.drop(output)
         #output = self.out_linear(self.relu_layer(output))
         #output = self.layernorm(output.permute(1,0,2)).permute(1,0,2)
@@ -187,37 +125,32 @@ class EMB2SEQ(nn.Module):
             coeff_pred_batch_first = coeff_pred.permute(1,0,2)
             return output_batch_first, coeff_pred_batch_first
 
+    def init_hidden(self, bsz):
+        weight = next(self.parameters())
+        if self.rnn_type == 'LSTM':
+            return (weight.new_zeros(self.nlayers, bsz, self.nhid),
+                    weight.new_zeros(self.nlayers, bsz, self.nhid))
+        else:
+            return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
-
-
-#class RNNModel_simple(nn.Module):
-class SEQ2EMB(nn.Module):
+class RNNModel_simple(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, model_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, external_emb, init_idx = []):
-        #super(RNNModel_simple, self).__init__()
-        super(SEQ2EMB, self).__init__()
+    def __init__(self, rnn_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, external_emb):
+        super(RNNModel_simple, self).__init__()
         #self.drop = nn.Dropout(dropout)
         self.lockdrop = LockedDropout()
         if len(external_emb) > 1 and ninp == 0:
+            self.encoder = nn.Embedding.from_pretrained(external_emb.clone(), freeze = False)
             ntoken, ninp = external_emb.size()
-            scale_factor = math.sqrt(ninp)
-            self.encoder = nn.Embedding.from_pretrained(external_emb.clone() * scale_factor, freeze = False)
-            #self.encoder = nn.Embedding.from_pretrained(external_emb.clone(), freeze = False)
-            if len(init_idx) > 0:
-                print("Randomly initializes embedding for ", len(init_idx), " words")
-                device = self.encoder.weight.data.get_device()
-                extra_init_emb = torch.randn(len(init_idx), ninp, requires_grad = False, device = device)
-                #extra_init_emb = extra_init_emb / (0.000000000001 + extra_init_emb.norm(dim = 1, keepdim=True))
-                self.encoder.weight.data[init_idx, :] = extra_init_emb
         else:
             self.encoder = nn.Embedding(ntoken, ninp)
         self.use_dropout = True
-        if model_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, model_type)(ninp, nhid, nlayers, dropout=0, bidirectional = True)
+        if rnn_type in ['LSTM', 'GRU']:
+            self.rnn = getattr(nn, rnn_type)(ninp, nhid, nlayers, dropout=0, bidirectional = True)
         else:
             try:
-                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[model_type]
+                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[rnn_type]
             except KeyError:
                 raise ValueError( """An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
@@ -225,7 +158,7 @@ class SEQ2EMB(nn.Module):
 
         #self.init_weights()
 
-        self.model_type = model_type
+        self.rnn_type = rnn_type
         self.nhid = nhid
         self.nlayers = nlayers
         self.dropout = dropout
@@ -267,7 +200,7 @@ class SEQ2EMB(nn.Module):
 
     def init_hidden(self, bsz):
         weight = next(self.parameters())
-        if self.model_type == 'LSTM':
+        if self.rnn_type == 'LSTM':
             return (weight.new_zeros(self.nlayers*2, bsz, self.nhid),
                     weight.new_zeros(self.nlayers*2, bsz, self.nhid))
         else:

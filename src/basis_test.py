@@ -63,7 +63,7 @@ print("Loading Models")
 ########################
 
 
-parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device)
+parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.linear_mapping_dim)
 
 encoder.eval()
 decoder.eval()

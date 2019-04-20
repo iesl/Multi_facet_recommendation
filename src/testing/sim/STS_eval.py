@@ -6,10 +6,11 @@ import numpy as np
 import torch
 #import utils
 
-topic_file_name = "./gen_log/STS_dev_updated_glove_lc_elayer2_bsz200_ep5_linear.json"
-#topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_linear.json"
-#topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_posi.json"
+#topic_file_name = "./gen_log/STS_dev_updated_glove_lc_elayer2_bsz200_ep6_linear_cosine.json"
+#topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_linear_cosine.json"
+#topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_posi_cosine.json"
 #topic_file_name = "./gen_log/STS_dev_word2vec_lc_elayer1_bsz200_ep4.json"
+topic_file_name = "./gen_log/STS_dev_word2vec_lc_elayer1_bsz200_ep7_linear_cosine.json"
 
 print(topic_file_name)
 

@@ -40,7 +40,7 @@ parser.add_argument('--emb_file', type=str, default='',
 
 ###encoder
 parser.add_argument('--en_model', type=str, default='LSTM',
-                    help='type of encoder model (LSTM)')
+                    help='type of encoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
 parser.add_argument('--emsize', type=int, default=0,
                     help='size of word embeddings')
 parser.add_argument('--nhid', type=int, default=600,
@@ -64,7 +64,9 @@ parser.add_argument('--dropoute', type=float, default=0.1,
 
 ###decoder
 parser.add_argument('--de_model', type=str, default='LSTM',
-                    help='type of decoder model (LSTM)')
+                    help='type of decoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
+parser.add_argument('--trans_layers', type=int, default=2,
+                    help='How many layers we have in transfer. Do not have effect if de_model is LSTM')
 parser.add_argument('--nhidlast2', type=int, default=-1,
                     help='hidden embedding size of the second LSTM')
 parser.add_argument('--linear_mapping_dim', type=int, default=0,
@@ -183,9 +185,10 @@ def counter_to_tensor(idx2word_freq,device):
 
 
 external_emb = torch.tensor([0.])
+extra_init_idx = []
 if len(args.emb_file) > 0:
     #with torch.no_grad():
-    external_emb, output_emb_size = load_emb_file(args.emb_file,device,idx2word_freq)
+    external_emb, output_emb_size, extra_init_idx = load_emb_file(args.emb_file, device, idx2word_freq)
     external_emb = external_emb / (0.000000000001 + external_emb.norm(dim = 1, keepdim=True))
     external_emb.requires_grad = args.update_target_emb
     print("loading ", args.emb_file)
@@ -218,10 +221,12 @@ if args.en_model == "LSTM":
     #               args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop,
     #               args.tied, args.dropoutl, args.n_experts)
     
-    encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-                   args.dropout, args.dropouti, args.dropoute, external_emb)
+    #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
+    encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
+                   args.dropout, args.dropouti, args.dropoute, external_emb, extra_init_idx)
 
-    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
+    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5, trans_layers = args.trans_layers)
+    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
     #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
 import torch.nn.init as weight_init
