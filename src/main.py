@@ -39,20 +39,27 @@ parser.add_argument('--emb_file', type=str, default='',
 #                    help='path to the file of a stop word list')
 
 ###encoder
+#both
 parser.add_argument('--en_model', type=str, default='LSTM',
                     help='type of encoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
 parser.add_argument('--emsize', type=int, default=0,
                     help='size of word embeddings')
-parser.add_argument('--nhid', type=int, default=600,
-                    help='number of hidden units per layer')
-parser.add_argument('--nlayers', type=int, default=1,
-                    help='number of layers')
-parser.add_argument('--dropout', type=float, default=0.4,
-                    help='dropout applied to the output layer (0 = no dropout)')
 parser.add_argument('--dropouti', type=float, default=0.4,
                     help='dropout for input embedding layers (0 = no dropout)')
 parser.add_argument('--dropoute', type=float, default=0.1,
                     help='dropout to remove words from embedding layer (0 = no dropout)')
+#LSTM only
+parser.add_argument('--nhid', type=int, default=600,
+                    help='number of hidden units per layer in LSTM')
+parser.add_argument('--nlayers', type=int, default=1,
+                    help='number of layers')
+parser.add_argument('--dropout', type=float, default=0.4,
+                    help='dropout applied to the output layer (0 = no dropout)')
+#TRANS only
+parser.add_argument('--encode_trans_layers', type=int, default=2,
+                    help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
+parser.add_argument('--trans_nhid', type=int, default=-1,
+                    help='number of hidden units per layer in transformer')
 #parser.add_argument('--nhidlast', type=int, default=-1,
 #                    help='number of hidden units for the last rnn layer')
 #parser.add_argument('--dropouth', type=float, default=0.3,
@@ -63,16 +70,26 @@ parser.add_argument('--dropoute', type=float, default=0.1,
 #                    help='amount of weight dropout to apply to the RNN hidden to hidden matrix')
 
 ###decoder
+#both
 parser.add_argument('--de_model', type=str, default='LSTM',
                     help='type of decoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
-parser.add_argument('--trans_layers', type=int, default=2,
-                    help='How many layers we have in transfer. Do not have effect if de_model is LSTM')
-parser.add_argument('--nhidlast2', type=int, default=-1,
-                    help='hidden embedding size of the second LSTM')
-parser.add_argument('--linear_mapping_dim', type=int, default=0,
-                    help='map the input embedding by linear transformation')
 parser.add_argument('--n_basis', type=int, default=10,
                     help='number of basis we want to predict')
+#parser.add_argument('--linear_mapping_dim', type=int, default=0,
+#                    help='map the input embedding by linear transformation')
+parser.add_argument('--postional_option', type=str, default='linear',
+                    help='options of encode positional embedding into models (linear, cat, add)')
+parser.add_argument('--dropoutp', type=float, default=0.5,
+                    help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
+#LSTM only
+parser.add_argument('--nhidlast2', type=int, default=-1,
+                    help='hidden embedding size of the second LSTM')
+#TRANS only
+parser.add_argument('--trans_layers', type=int, default=2,
+                    help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
+parser.add_argument('--de_en_connection', type=bool, default=True, 
+                    help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
+#coeff
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
                     help='weights for coefficient prediction loss')
 parser.add_argument('--L1_losss_B', type=float, default=0.2,
@@ -80,6 +97,7 @@ parser.add_argument('--L1_losss_B', type=float, default=0.2,
 #parser.add_argument('--coeff_opt', type=str, default='max',
 parser.add_argument('--coeff_opt', type=str, default='lc',
                     help='Could be max, lc, maxlc')
+#target emb
 parser.add_argument('--update_target_emb', default=False, action='store_true',
                     help='Whether to update target embedding')
 parser.add_argument('--target_emb_source', type=str, default='ext',
@@ -138,12 +156,13 @@ if args.coeff_opt == 'maxlc':
 else:
     current_coeff_opt = args.coeff_opt
 
-if args.linear_mapping_dim < 0:
-    args.linear_mapping_dim = args.nhid
 #if args.dropoutl < 0:
 #    args.dropoutl = args.dropouth
 if args.small_batch_size < 0:
     args.small_batch_size = args.batch_size
+
+if args.trans_nhid < 0:
+    args.trans_nhid = args.emsize
 
 assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisible by small_batch_size'
 
@@ -170,7 +189,7 @@ print("Loading data")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
-idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder, args.training_file, args.training_split_num, args.copy_training)
+idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder, args.training_file, args.training_split_num, args.copy_training)
 
 
 def counter_to_tensor(idx2word_freq,device):
@@ -206,8 +225,6 @@ else:
         print("we don't support such target_emb_source " + args.target_emb_source + ", update_target_emb ", args.update_target_emb, ", and emb_file "+ args.emb_file)
         sys.exit(1)
 
-if args.nhidlast2 < 0:
-    args.nhidlast2 = output_emb_size
 
 w_freq = counter_to_tensor(idx2word_freq,device)
 
@@ -216,18 +233,29 @@ print("Building models")
 ########################
 
 ntokens = len(idx2word_freq)
-if args.en_model == "LSTM":
-    #encoder = model_code.RNNModel(args.en_model, ntokens, args.emsize, args.nhid, args.nhidlast, args.nlayers,
-    #               args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop,
-    #               args.tied, args.dropoutl, args.n_experts)
-    
-    #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-    encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-                   args.dropout, args.dropouti, args.dropoute, external_emb, extra_init_idx)
+#if args.en_model == "LSTM":
+#encoder = model_code.RNNModel(args.en_model, ntokens, args.emsize, args.nhid, args.nhidlast, args.nlayers,
+#               args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop,
+#               args.tied, args.dropoutl, args.n_experts)
 
-    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5, trans_layers = args.trans_layers)
-    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
-    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+#encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
+encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.emsize, args.nhid, args.nlayers,
+               args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, extra_init_idx, args.encode_trans_layers, args.trans_nhid)
+
+if args.nhidlast2 < 0:
+    #args.nhidlast2 = output_emb_size
+    args.nhidlast2 = encoder.output_dim
+#if args.linear_mapping_dim < 0:
+#    args.linear_mapping_dim = encoder.output_dim
+
+decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, postional_option = args.postional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
+#decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
+#decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
+#decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+
+if args.de_en_connection and decoder.trans_dim is not None and encoder.output_dim != decoder.trans_dim:
+    print("dimension mismatch. The encoder output dimension is ", encoder.output_dim, " and the transformer dimension in decoder is ", decoder.trans_dim)
+    sys.exit(1)
 
 import torch.nn.init as weight_init
 def initialize_weights(net, normal_std):
@@ -273,8 +301,8 @@ def evaluate(dataloader, external_emb, current_coeff_opt):
             feature, target = sample_batched
             
             #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-            output_emb_last = parallel_encoder(feature)
-            basis_pred, coeff_pred =  parallel_decoder(output_emb_last, predict_coeff_sum = True)
+            output_emb_last, output_emb = parallel_encoder(feature)
+            basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
             if len(args.emb_file) > 0 or args.target_emb_source == 'rand':
                 input_emb = external_emb
             elif args.target_emb_source == 'ewe':
@@ -320,8 +348,8 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         #decoder.zero_grad()
         #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
         #output_emb, hidden, output_emb_last = parallel_encoder(feature)
-        output_emb_last = parallel_encoder(feature)
-        basis_pred, coeff_pred =  parallel_decoder(output_emb_last, predict_coeff_sum = True)
+        output_emb_last, output_emb = parallel_encoder(feature)
+        basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
         if len(args.emb_file) > 0  or args.target_emb_source == 'rand':
             input_emb = external_emb
         elif args.target_emb_source == 'ewe':
@@ -426,6 +454,9 @@ for epoch in range(1, args.epochs+1):
         logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
                 .format(epoch, i, (time.time() - epoch_start_time), lr,
                                            val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+        
+        val_loss_important = val_loss_set + val_loss_set_neg
+        
         logging('-' * 89)
         #dataloader_val_shuffled?
         val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val_shuffled, external_emb, current_coeff_opt)
@@ -435,9 +466,9 @@ for epoch in range(1, args.epochs+1):
                                            val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
         logging('-' * 89)
         
-        if not best_val_loss or val_loss_all < best_val_loss:
+        if not best_val_loss or val_loss_important < best_val_loss:
             save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, external_emb, args.save)
-            best_val_loss = val_loss_all
+            best_val_loss = val_loss_important
             logging('Models Saved')
         else:
             nonmono_count += 1

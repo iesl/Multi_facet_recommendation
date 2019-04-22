@@ -125,6 +125,7 @@ class F2SetDataset(torch.utils.data.Dataset):
 
 def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     feature, target = torch.load(f_in, map_location='cpu')
+    max_sent_len = feature.size(1)
     if copy_training:
         #idx_arr= np.random.permutation(feature.size(0)).reshape(split_num,-1)
         idx_arr= np.random.permutation(feature.size(0))
@@ -145,7 +146,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     if device == 'cude':
         use_cuda = True
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
-    return dataloader_arr
+    return dataloader_arr, max_sent_len
 
 def create_data_loader(f_in, bsz, device):
     feature, target = torch.load(f_in, map_location='cpu')
@@ -173,6 +174,8 @@ def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
         for w in w_list[:sent_len-1]:
             if w in word2idx:
                 w_ind_list.append(word2idx[w][0])
+            #elif w.lower() in word2idx:
+            #    w_ind_list.append(word2idx[w.lower()][0])
             else:
                 w_ind_list.append(UNK_IND)
         #w_ind_list.append(0) #buggy preprocessing
@@ -216,7 +219,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
         idx2word_freq = load_idx2word_freq(f_in)
 
     with open(train_corpus_name,'rb') as f_in:
-        dataloader_train_arr = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
+        dataloader_train_arr, max_sent_len = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
 
     with open(val_org_corpus_name,'rb') as f_in:
         dataloader_val = create_data_loader(f_in, eval_bsz, device)
@@ -224,7 +227,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
     with open(val_shuffled_corpus_name,'rb') as f_in:
         dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
 
-    return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled
+    return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len
 
 def load_emb_file(emb_file, device, idx2word_freq):
     with open(emb_file) as f_in:
@@ -276,7 +279,7 @@ def output_parallel_models(use_cuda, single_gpu, encoder, decoder):
         parallel_decoder = decoder
     return parallel_encoder, parallel_decoder
 
-def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
+def loading_all_models(args, idx2word_freq, device, max_sent_len):
 
     if len(args.emb_file) > 0:
         if args.emb_file[-3:] == '.pt':
@@ -288,17 +291,21 @@ def loading_all_models(args, idx2word_freq, device, linear_mapping_dim):
         output_emb_size = args.emsize
 
     ntokens = len(idx2word_freq)
-    if args.en_model == "LSTM":
-        external_emb = torch.tensor([0.])
-        encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-        #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers,
-                       args.dropout, args.dropouti, args.dropoute, external_emb)
-        #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
-        decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = linear_mapping_dim, dropoutp= 0.5)
-        #if use_position_emb:
-        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
-        #else:
-        #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
+    external_emb = torch.tensor([0.])
+    encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_1
+    #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_2, model_old_3
+                   args.dropout, args.dropouti, args.dropoute, external_emb)
+    #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer) #model_old_4
+    #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer, trans_nhid = args.trans_nhid) 
+
+    #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_2
+    #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layer = args.trans_layer) #model_old_3, model_old_4
+    #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, postional_option = args.postional_option, dropoutp= args.dropoutp, trans_layer = args.trans_layer, using_memory = args.de_en_connection) #model_old_5
+    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
+    #if use_position_emb:
+    #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
+    #else:
+    #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
 
     encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt'), map_location=device))
     decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt'), map_location=device))

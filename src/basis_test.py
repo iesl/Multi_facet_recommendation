@@ -57,7 +57,7 @@ print("Loading data")
 
 device = torch.device("cuda" if args.cuda else "cpu")
 
-idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled = load_corpus(args.data, args.batch_size, args.batch_size, device )
+idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 dataloader_train = dataloader_train_arr[0]
 
 ########################
@@ -65,7 +65,7 @@ print("Loading Models")
 ########################
 
 
-parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.linear_mapping_dim)
+parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, max_sent_len)
 
 encoder.eval()
 decoder.eval()

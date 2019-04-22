@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 from embed_regularize import embedded_dropout
 from locked_dropout import LockedDropout
-import model_trans_old_3
+import model_trans_old_4
 import sys
 #from weight_drop import WeightDrop
 
@@ -65,15 +65,15 @@ class ext_emb_to_seq(nn.Module):
             if model_type == 'LSTM':
                 model = RNN_decoder(model_type, input_dim, ninp, nhid, nlayers)
                 input_dim = nhid
-                output_dim = nhid
+                #output_dim = nhid
             elif model_type == 'TRANS':
                 model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers)
-                output_dim = input_dim
+                #output_dim = input_dim
             else:
                 print("model type must be either LSTM or TRANS")
                 sys.exit(1)
             self.decoder_array.append( model )
-        self.output_dim = output_dim
+        self.output_dim = input_dim
 
     def forward(self, input_init, emb):
         hidden_states = emb
@@ -188,13 +188,124 @@ class EMB2SEQ(nn.Module):
             return output_batch_first, coeff_pred_batch_first
 
 
+class RNN_encoder(nn.Module):
+    def __init__(self, model_type, ninp, nhid, nlayers, dropout):
+        super(RNN_encoder, self).__init__()
+        if model_type in ['LSTM', 'GRU']:
+            self.rnn = getattr(nn, model_type)(ninp, nhid, nlayers, dropout=0, bidirectional = True)
+        else:
+            try:
+                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[model_type]
+            except KeyError:
+                raise ValueError( """An invalid option for `--model` was supplied,
+                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
+            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
+        
+        self.use_dropout = True
+        self.dropout = dropout
+        self.lockdrop = LockedDropout()
+        self.nlayers = nlayers
+        self.model_type = model_type
+    
+    def forward(self, emb):
+        #output_org, hidden = self.rnn(emb, hidden)
+        output_org, hidden = self.rnn(emb)
+        #output = self.drop(output_org)
+        output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
+        return output
+    
+    #def init_hidden(self, bsz):
+    #    weight = next(self.parameters())
+    #    if self.model_type == 'LSTM':
+    #        return (weight.new_zeros(self.nlayers*2, bsz, self.nhid),
+    #                weight.new_zeros(self.nlayers*2, bsz, self.nhid))
+    #    else:
+    #        return weight.new_zeros(self.nlayers, bsz, self.nhid)
+    
+class RNN_pooler(nn.Module):
+    def __init__(self, nhid):
+        super(RNN_pooler, self).__init__()
+        self.nhid = nhid
 
+    def forward(self, output, bsz):
+        output_unpacked = output.view(output.size(0), bsz, 2, self.nhid)
+        #print(output_unpacked.size())
+        output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 1)
+        #print(output_last.size())
+        #forward_mean = torch.mean(output_unpacked[:,:,0,:], dim = 0)
+        #backward_mean = torch.mean(output_unpacked[:,:,1,:], dim = 0)
+        #output_last = torch.cat( (forward_mean, backward_mean), dim = 1 )
+        #output_last = output_last / (0.000000000001 + output_last.norm(dim = 1, keepdim=True) )
+        return output_last
+
+class TRANS_pooler(nn.Module):
+    def __init__(self, method = 'last'):
+        super(TRANS_pooler, self).__init__()
+        self.method = method
+
+    def forward(self, output):
+        if self.method == 'last':
+            output_last = output[-1,:,:]
+        elif self.method == 'avg':
+            output_last = torch.mean(output, dim = 0)
+        return output_last
+
+
+class seq_to_emb(nn.Module):
+    def __init__(self, model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers):
+        super(seq_to_emb, self).__init__()
+        self.encoder_array = nn.ModuleList()
+        input_dim = ninp
+        for i, model_type in enumerate(model_type_list):
+            if model_type == 'LSTM':
+                model = RNN_encoder(model_type, input_dim, nhid, nlayers, dropout)
+                input_dim = nhid * 2
+            elif model_type == 'TRANS':
+                if i == 0:
+                    add_position_emb = True
+                else:
+                    add_position_emb = False
+                model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
+            else:
+                print("model type must be either LSTM or TRANS")
+                sys.exit(1)
+            self.encoder_array.append( model )
+        if model_type_list[-1] == 'LSTM':
+            self.pooler = RNN_pooler(nhid)
+        else:
+            self.pooler = TRANS_pooler(method = 'last')
+        
+        self.model_type_list = model_type_list
+        self.dim_adjuster = None
+        #if input_dim != nhid * 2:
+        #    self.dim_adjuster = nn.Linear(input_dim, nhid * 2)
+        self.output_dim = input_dim
+
+    def forward(self, emb):
+        bsz = emb.size(1)
+        hidden_states = emb
+        for model in self.encoder_array:
+            model_type = model.model_type
+            if model_type == 'LSTM':
+                hidden_states = model(hidden_states)
+            elif model_type == 'TRANS':
+                #If we want to use transformer by default at the end, we will want to reconsider reducing the number of permutes
+                hidden_states = hidden_states.permute(1,0,2)
+                hidden_states = model(hidden_states)
+                hidden_states = hidden_states[0].permute(1,0,2)
+        if self.model_type_list[-1] == 'LSTM':
+            output_emb = self.pooler(hidden_states, bsz)
+        else:
+            output_emb = self.pooler(hidden_states)
+        if self.dim_adjuster is not None:
+            output_emb = self.dim_adjuster(output_emb)
+        return output_emb
 
 #class RNNModel_simple(nn.Module):
 class SEQ2EMB(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, model_type, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, external_emb, init_idx = []):
+    def __init__(self, model_type_list, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, max_sent_len, external_emb, init_idx = [], trans_layers=2):
         #super(RNNModel_simple, self).__init__()
         super(SEQ2EMB, self).__init__()
         #self.drop = nn.Dropout(dropout)
@@ -213,22 +324,15 @@ class SEQ2EMB(nn.Module):
         else:
             self.encoder = nn.Embedding(ntoken, ninp)
         self.use_dropout = True
-        if model_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, model_type)(ninp, nhid, nlayers, dropout=0, bidirectional = True)
-        else:
-            try:
-                nonlinearity = {'RNN_TANH': 'tanh', 'RNN_RELU': 'relu'}[model_type]
-            except KeyError:
-                raise ValueError( """An invalid option for `--model` was supplied,
-                                 options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
-            self.rnn = nn.RNN(ninp, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
 
         #self.init_weights()
+        self.seq_summarizer =  seq_to_emb(model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers)
+        self.output_dim = self.seq_summarizer.output_dim
 
-        self.model_type = model_type
-        self.nhid = nhid
-        self.nlayers = nlayers
-        self.dropout = dropout
+        #self.model_type = model_type
+        #self.nhid = nhid
+        #self.nlayers = nlayers
+        #self.dropout = dropout
         self.dropoute = dropoute
         self.dropouti = dropouti
 
@@ -243,35 +347,19 @@ class SEQ2EMB(nn.Module):
         #bsz = input.size(1)
         bsz = input.size(0)
         #print(input.size())
-        hidden = self.init_hidden(bsz)
+        #hidden = self.init_hidden(bsz)
 
         #weight = next(self.parameters())
         #input_long = weight.new_tensor(input,dtype = torch.long)
 
         emb = embedded_dropout(self.encoder, input.t(), dropout=self.dropoute if self.use_dropout else 0)
-        emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)       
+        emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)
         #emb = self.drop(self.encoder(input))
-        output_org, hidden = self.rnn(emb, hidden)
-        #output = self.drop(output_org)
-        output = self.lockdrop(output_org, self.dropout if self.use_dropout else 0)
-        output_unpacked = output.view(output.size(0), bsz, 2, self.nhid)
-        #print(output_unpacked.size())
-        output_last = torch.cat( (output_unpacked[-1,:,0,:], output_unpacked[0,:,1,:]) , dim = 1)
-        #print(output_last.size())
-        #forward_mean = torch.mean(output_unpacked[:,:,0,:], dim = 0)
-        #backward_mean = torch.mean(output_unpacked[:,:,1,:], dim = 0)
-        #output_last = torch.cat( (forward_mean, backward_mean), dim = 1 )
-        #output_last = output_last / (0.000000000001 + output_last.norm(dim = 1, keepdim=True) )
+        
+        output_last = self.seq_summarizer(emb)
         #return output, hidden, output_last #If we want to output output, hidden, we need to shift the batch dimension to the first dim in order to use nn.DataParallel correctly
         return output_last
 
-    def init_hidden(self, bsz):
-        weight = next(self.parameters())
-        if self.model_type == 'LSTM':
-            return (weight.new_zeros(self.nlayers*2, bsz, self.nhid),
-                    weight.new_zeros(self.nlayers*2, bsz, self.nhid))
-        else:
-            return weight.new_zeros(self.nlayers, bsz, self.nhid)
 
 class RNNModel(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""

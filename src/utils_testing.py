@@ -17,6 +17,10 @@ def add_model_arguments(parser):
                         help='number of hidden units per layer')
     parser.add_argument('--nlayers', type=int, default=1,
                         help='number of layers')
+    parser.add_argument('--encode_trans_layers', type=int, default=2,
+                        help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
+    parser.add_argument('--trans_nhid', type=int, default=-1,
+                        help='number of hidden units per layer in transformer')
     parser.add_argument('--dropout', type=float, default=0.4,
                         help='dropout applied to the output layer (0 = no dropout)')
     parser.add_argument('--dropouti', type=float, default=0.4,
@@ -27,12 +31,20 @@ def add_model_arguments(parser):
     ###decoder
     parser.add_argument('--de_model', type=str, default='LSTM',
                         help='type of decoder model (LSTM)')
+    parser.add_argument('--trans_layers', type=int, default=2,
+                        help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
+    parser.add_argument('--de_en_connection', type=bool, default=True,
+                        help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
     parser.add_argument('--nhidlast2', type=int, default=-1,
                         help='hidden embedding size of the second LSTM')
     parser.add_argument('--n_basis', type=int, default=10,
                         help='number of basis we want to predict')
     parser.add_argument('--linear_mapping_dim', type=int, default=0,
                         help='map the input embedding by linear transformation')
+    #parser.add_argument('--postional_option', type=str, default='linear',
+    #                help='options of encode positional embedding into models (linear, cat, add)')
+    parser.add_argument('--dropoutp', type=float, default=0.5,
+                        help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
 
 def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
