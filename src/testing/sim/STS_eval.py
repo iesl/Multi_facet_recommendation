@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, sys.path[0]+'/../..')
 import utils_testing
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, pearsonr
 import numpy as np
 import torch
 #import utils
@@ -10,7 +10,11 @@ import torch
 #topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_linear_cosine.json"
 #topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_posi_cosine.json"
 #topic_file_name = "./gen_log/STS_dev_word2vec_lc_elayer1_bsz200_ep4.json"
-topic_file_name = "./gen_log/STS_dev_word2vec_lc_elayer1_bsz200_ep7_linear_cosine.json"
+#topic_file_name = "./gen_log/STS_dev_word2vec_lc_elayer1_bsz200_ep7_linear_cosine.json"
+topic_file_name = "./gen_log/STS_dev_wiki2016_glove_lc_bsz200_ep2_0.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_maxlc_bsz200_ep2_0.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_updated_glove_maxlc_bsz200_ep3_0.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_word2vec_maxlc_bsz200_ep2_0.json"
 
 print(topic_file_name)
 
@@ -65,6 +69,7 @@ def summarize_prediction_STS(pred_scores, testing_list):
         #print(pred_and_gt)
         for m in range(len(pred_and_gt)-1):
             print("method", m, spearmanr( pred_and_gt[m], pred_and_gt[-1] ))
+            print("method", m, pearsonr( pred_and_gt[m], pred_and_gt[-1] ))
 
 
 summarize_prediction_STS(pred_scores, testing_list)

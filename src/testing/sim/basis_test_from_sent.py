@@ -20,7 +20,8 @@ parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sen
 ###path
 parser.add_argument('--input', type=str, default='',
                     help='location of the data corpus')
-parser.add_argument('--dict', type=str, default='./data/processed/wackypedia/dictionary_index',
+#parser.add_argument('--dict', type=str, default='./data/processed/wackypedia/dictionary_index',
+parser.add_argument('--dict', type=str, default='./data/processed/wiki2016_min100/dictionary_index',
                     help='location of the dictionary corpus')
 parser.add_argument('--checkpoint', type=str, default='./models/',
                     help='model checkpoint to use')
