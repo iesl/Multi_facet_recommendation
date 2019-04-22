@@ -44,6 +44,8 @@ if args.emb_file == "target_emb.pt":
 if args.nhidlast2 < 0:
     args.nhidlast2 = args.emsize
 
+if args.trans_nhid < 0:
+    args.trans_nhid = args.emsize
 
 # Set the random seed manually for reproducibility.
 seed_all_randomness(args.seed,args.cuda)
