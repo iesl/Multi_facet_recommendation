@@ -359,3 +359,11 @@ def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, external_emb, p
         torch.save(external_emb, os.path.join(path, 'target_emb.pt'))
     torch.save(optimizer_e.state_dict(), os.path.join(path, 'optimizer_e.pt'))
     torch.save(optimizer_d.state_dict(), os.path.join(path, 'optimizer_d.pt'))
+
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'False', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')

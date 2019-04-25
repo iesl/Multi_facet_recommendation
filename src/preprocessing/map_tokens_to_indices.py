@@ -23,8 +23,12 @@ parser.add_argument('--min_sent_length', type=int, default='5',
                     help='skip the sentence if sentence length is less than this number')
 parser.add_argument('--max_sent_num', type=int, default='100000000000',
                     help='load only this number of sentences from input corpus')
+parser.add_argument('--lowercase', type=utils.str2bool, nargs='?', default=False,
+                    help='whether make all the words in corpus lowercased')
 
 args = parser.parse_args()
+
+print(args)
 
 start_time = time.time()
 
@@ -50,6 +54,8 @@ with my_open(args.data, 'r') as f_in:
             continue
         w_ind_list = []
         for w in w_list_org:
+            if args.lowercase:
+                w = w.lower()
             w_ind = dict_c.dict_check_add(w)
             w_ind_list.append(w_ind)
             total_num_w += 1

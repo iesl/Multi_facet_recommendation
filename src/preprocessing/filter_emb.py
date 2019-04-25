@@ -50,6 +50,7 @@ def load_word_dict(data_path):
     with open(data_path) as f_in:
         for line in f_in:
             fields = line.rstrip().split('\t')
+            #fields = line.rstrip().split(' ')
             if len(fields) == 3:
                 d.add(fields[0])
     return d
