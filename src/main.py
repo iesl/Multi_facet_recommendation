@@ -77,7 +77,7 @@ parser.add_argument('--n_basis', type=int, default=10,
                     help='number of basis we want to predict')
 #parser.add_argument('--linear_mapping_dim', type=int, default=0,
 #                    help='map the input embedding by linear transformation')
-parser.add_argument('--postional_option', type=str, default='linear',
+parser.add_argument('--positional_option', type=str, default='linear',
                     help='options of encode positional embedding into models (linear, cat, add)')
 parser.add_argument('--dropoutp', type=float, default=0.5,
                     help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
@@ -161,8 +161,6 @@ else:
 if args.small_batch_size < 0:
     args.small_batch_size = args.batch_size
 
-if args.trans_nhid < 0:
-    args.trans_nhid = args.emsize
 
 assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisible by small_batch_size'
 
@@ -225,6 +223,12 @@ else:
         print("we don't support such target_emb_source " + args.target_emb_source + ", update_target_emb ", args.update_target_emb, ", and emb_file "+ args.emb_file)
         sys.exit(1)
 
+if args.trans_nhid < 0:
+    if args.emsize > 0:
+        args.trans_nhid = args.emsize
+    else:
+        args.trans_nhid = output_emb_size
+
 
 w_freq = counter_to_tensor(idx2word_freq,device)
 
@@ -248,7 +252,7 @@ if args.nhidlast2 < 0:
 #if args.linear_mapping_dim < 0:
 #    args.linear_mapping_dim = encoder.output_dim
 
-decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, postional_option = args.postional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
+decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)

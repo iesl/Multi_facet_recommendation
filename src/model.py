@@ -10,6 +10,19 @@ import model_trans
 import sys
 #from weight_drop import WeightDrop
 
+class MatrixReconstruction(nn.Module):
+    def __init__(self, batch_size, ntopic, nbow, device):
+        super(MatrixReconstruction, self).__init__()
+        self.coeff = nn.Parameter(torch.randn(batch_size, ntopic, nbow, device=device, requires_grad=True))
+        self.device = device
+    
+    def compute_coeff_pos(self):
+        self.coeff.data = self.coeff.clamp(0.0, 1.0)
+    
+    def forward(self, input):
+        result = self.coeff.matmul(input)
+        return result
+
 class RNN_decoder(nn.Module):
     def __init__(self, model_type, emb_dim, ninp, nhid, nlayers):
         super(RNN_decoder, self).__init__()
@@ -95,7 +108,7 @@ class ext_emb_to_seq(nn.Module):
 class EMB2SEQ(nn.Module):
 
     #def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2, using_memory = False):
-    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, postional_option, dropoutp= 0.5, trans_layers=2, using_memory = False):
+    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -108,7 +121,7 @@ class EMB2SEQ(nn.Module):
         #if linear_mapping_dim > 0:
         input_size = ninp
         add_position_emb = False
-        if postional_option == 'linear':
+        if positional_option == 'linear':
             linear_mapping_dim = ninp
             self.init_linear_arr = nn.ModuleList([nn.Linear(ninp, linear_mapping_dim) for i in range(n_basis)])
             for i in range(n_basis):
@@ -117,13 +130,13 @@ class EMB2SEQ(nn.Module):
                 self.init_linear_arr[i].bias.data.uniform_(-.5,.5)
                 self.init_linear_arr[i].weight.data.uniform_(-.1,.1)
             input_size = linear_mapping_dim
-        elif postional_option == 'cat':
+        elif positional_option == 'cat':
             position_emb_size = 100
             self.poistion_emb = nn.Embedding( n_basis, position_emb_size )
             self.linear_keep_same_dim = nn.Linear(position_emb_size + ninp, ninp)
             #input_size = position_emb_size + ninp
             input_size = ninp
-        elif postional_option == 'add':
+        elif positional_option == 'add':
             input_size = ninp
             add_position_emb = True
             if model_type_list[0] == 'LSTM':
@@ -133,7 +146,7 @@ class EMB2SEQ(nn.Module):
                 
         #self.relu_layer = nn.ReLU()
         
-        self.postional_option = postional_option
+        self.positional_option = positional_option
         self.dep_learner = ext_emb_to_seq(model_type_list, input_size, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb)
         
         self.trans_dim = self.dep_learner.trans_dim
@@ -177,11 +190,11 @@ class EMB2SEQ(nn.Module):
         #    emb = input
         #else:
         #    if self.linear_mapping_dim > 0:
-        if self.postional_option == 'linear':
+        if self.positional_option == 'linear':
             emb_raw = torch.cat( [self.init_linear_arr[i](input_init).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
             #emb = emb_raw
             emb = self.drop(emb_raw)
-        elif self.postional_option == 'cat':
+        elif self.positional_option == 'cat':
             #batch_size = input.size(1)
             #input_pos = torch.arange(self.n_basis,dtype=torch.long,device = input.get_device()).expand(batch_size,self.n_basis).permute(1,0)
 
@@ -190,7 +203,7 @@ class EMB2SEQ(nn.Module):
             poistion_emb_input = prepare_posi_emb(input, self.poistion_emb, self.drop)
             emb = torch.cat( ( poistion_emb_input,input), dim = 2  )
             emb = self.linear_keep_same_dim(emb)
-        elif self.postional_option == 'add':
+        elif self.positional_option == 'add':
             if self.dep_learner.decoder_array[0].model_type == "LSTM":
                 poistion_emb_input = prepare_posi_emb(input, self.poistion_emb, self.drop)
                 emb = input + poistion_emb_input

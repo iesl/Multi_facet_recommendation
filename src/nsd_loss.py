@@ -78,6 +78,55 @@ def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device):
     coeff_mat_trans.scatter_(dim=1, index = max_i, src = max_v)
     return coeff_mat_trans.permute(0,2,1)
 
+def estimate_coeff_mat_batch_opt(target_embeddings, basis_pred, L1_losss_B, device, coeff_opt, lr, max_iter):
+    batch_size = target_embeddings.size(0)
+    mr = MR(batch_size, target_embeddings.size(1), basis_pred.size(1), device=device)
+    loss_func = torch.nn.MSELoss(reduction='sum')
+    
+    # opt = torch.optim.LBFGS(mr.parameters(), lr=lr, max_iter=max_iter, max_eval=None, tolerance_grad=1e-05,
+    #                         tolerance_change=1e-09, history_size=100, line_search_fn=None)
+    #
+    # def closure():
+    #     opt.zero_grad()
+    #     mr.compute_coeff_pos()
+    #     pred = mr(basis_pred)
+    #     loss = loss_func(pred, target_embeddings) / 2
+    #     # loss += L1_losss_B * mr.coeff.abs().sum()
+    #     loss += L1_losss_B * (mr.coeff.abs().sum() + mr.coeff.diagonal(dim1=1, dim2=2).abs().sum())
+    #     # print('loss:', loss.item())
+    #     loss.backward()
+    #
+    #     return loss
+    #
+    # opt.step(closure)
+    
+    if coeff_opt == 'sgd':
+        opt = torch.optim.SGD(mr.parameters(), lr=lr, momentum=0, dampening=0, weight_decay=0, nesterov=False)
+    elif coeff_opt == 'asgd':
+        opt = torch.optim.ASGD(mr.parameters(), lr=lr, lambd=0.0001, alpha=0.75, t0=1000000.0, weight_decay=0)
+    elif coeff_opt == 'adagrad':
+        opt = torch.optim.Adagrad(mr.parameters(), lr=lr, lr_decay=0, weight_decay=0, initial_accumulator_value=0)
+    elif coeff_opt == 'rmsprop':
+        opt = torch.optim.RMSprop(mr.parameters(), lr=lr, alpha=0.99, eps=1e-08, weight_decay=0, momentum=0,
+                                  centered=False)
+    elif coeff_opt == 'adam':
+        opt = torch.optim.Adam(mr.parameters(), lr=lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+    else:
+        raise RuntimeError('%s not implemented for coefficient estimation. Please check args.' % coeff_opt)
+    
+    for i in range(max_iter):
+        opt.zero_grad()
+        pred = mr(basis_pred)
+        loss = loss_func(pred, target_embeddings) / 2
+        # loss += L1_losss_B * mr.coeff.abs().sum()
+        #loss += L1_losss_B * (mr.coeff.abs().sum() + mr.coeff.diagonal(dim1=1, dim2=2).abs().sum())
+        loss += L1_losss_B * mr.coeff.abs().sum() 
+        # print('loss:', loss.item())
+        loss.backward()
+        opt.step()
+        mr.compute_coeff_pos()
+    
+    return mr.coeff.detach()
 
 
 def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device, max_iter = 100):

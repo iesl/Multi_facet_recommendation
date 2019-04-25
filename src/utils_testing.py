@@ -9,7 +9,8 @@ import torch.nn.functional as F
 
 def add_model_arguments(parser):
     ###encoder
-    parser.add_argument('--en_model', type=str, default='LSTM',
+    #parser.add_argument('--en_model', type=str, default='LSTM',
+    parser.add_argument('--en_model', type=str, default='TRANS',
                         help='type of encoder model (LSTM)')
     parser.add_argument('--emsize', type=int, default=300,
                         help='size of word embeddings')
@@ -17,21 +18,22 @@ def add_model_arguments(parser):
                         help='number of hidden units per layer')
     parser.add_argument('--nlayers', type=int, default=1,
                         help='number of layers')
-    parser.add_argument('--encode_trans_layers', type=int, default=2,
+    parser.add_argument('--encode_trans_layers', type=int, default=5,
                         help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
     parser.add_argument('--trans_nhid', type=int, default=-1,
                         help='number of hidden units per layer in transformer')
     parser.add_argument('--dropout', type=float, default=0.4,
                         help='dropout applied to the output layer (0 = no dropout)')
-    parser.add_argument('--dropouti', type=float, default=0.4,
+    parser.add_argument('--dropouti', type=float, default=0.1,
                         help='dropout for input embedding layers (0 = no dropout)')
-    parser.add_argument('--dropoute', type=float, default=0.1,
+    parser.add_argument('--dropoute', type=float, default=0.05,
                         help='dropout to remove words from embedding layer (0 = no dropout)')
 
     ###decoder
-    parser.add_argument('--de_model', type=str, default='LSTM',
+    #parser.add_argument('--de_model', type=str, default='LSTM',
+    parser.add_argument('--de_model', type=str, default='TRANS',
                         help='type of decoder model (LSTM)')
-    parser.add_argument('--trans_layers', type=int, default=2,
+    parser.add_argument('--trans_layers', type=int, default=5,
                         help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
     parser.add_argument('--de_en_connection', type=bool, default=True,
                         help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
@@ -39,17 +41,21 @@ def add_model_arguments(parser):
                         help='hidden embedding size of the second LSTM')
     parser.add_argument('--n_basis', type=int, default=10,
                         help='number of basis we want to predict')
+    parser.add_argument('--positional_option', type=str, default='linear',
+                        help='options of encode positional embedding into models (linear, cat, add)')
     parser.add_argument('--linear_mapping_dim', type=int, default=0,
                         help='map the input embedding by linear transformation')
     #parser.add_argument('--postional_option', type=str, default='linear',
     #                help='options of encode positional embedding into models (linear, cat, add)')
-    parser.add_argument('--dropoutp', type=float, default=0.5,
+    parser.add_argument('--dropoutp', type=float, default=0.1,
                         help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
 
 def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-    output_emb_last = parallel_encoder(feature)
-    basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
+    #output_emb_last = parallel_encoder(feature)
+    output_emb_last, output_emb = parallel_encoder(feature)
+    basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
+    #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
 
     coeff_sum = coeff_pred.cpu().numpy()
     coeff_sum_diff = coeff_sum[:,:,0] - coeff_sum[:,:,1]

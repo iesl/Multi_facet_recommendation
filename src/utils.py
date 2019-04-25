@@ -1,8 +1,8 @@
 import os, shutil
 import torch
 import torch.utils.data
-#import model as model_code
-import model_old_1 as model_code
+import model as model_code
+#import model_old_1 as model_code
 import torch.nn as nn
 import numpy as np
 import random
@@ -290,18 +290,26 @@ def loading_all_models(args, idx2word_freq, device, max_sent_len):
     else:
         output_emb_size = args.emsize
 
+    if args.trans_nhid < 0:
+        if args.emsize > 0:
+            args.trans_nhid = args.emsize
+        else:
+            args.trans_nhid = output_emb_size
+
     ntokens = len(idx2word_freq)
     external_emb = torch.tensor([0.])
-    encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_1
+    #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_1
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_2, model_old_3
-                   args.dropout, args.dropouti, args.dropoute, external_emb)
+    #               args.dropout, args.dropouti, args.dropoute, external_emb)
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer) #model_old_4
-    #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer, trans_nhid = args.trans_nhid) 
+    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid) 
 
+    if args.nhidlast2 < 0:
+        args.nhidlast2 = encoder.output_dim
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_2
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layer = args.trans_layer) #model_old_3, model_old_4
-    #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, postional_option = args.postional_option, dropoutp= args.dropoutp, trans_layer = args.trans_layer, using_memory = args.de_en_connection) #model_old_5
-    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
+    decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection) #model_old_5
+    #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
     #if use_position_emb:
     #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
     #else:

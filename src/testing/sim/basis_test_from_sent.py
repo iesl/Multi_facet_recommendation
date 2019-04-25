@@ -56,13 +56,13 @@ print(args)
 if args.emb_file == "target_emb.pt":
     args.emb_file =  os.path.join(args.checkpoint,"target_emb.pt")
 
-if args.nhidlast2 < 0:
-    args.nhidlast2 = args.emsize
+#if args.nhidlast2 < 0:
+#    args.nhidlast2 = args.emsize
 #if args.linear_mapping_dim < 0:
 #    args.linear_mapping_dim = args.nhid
 
-if args.trans_nhid < 0:
-    args.trans_nhid = args.emsize
+#if args.trans_nhid < 0:
+#    args.trans_nhid = args.emsize
 
 # Set the random seed manually for reproducibility.
 seed_all_randomness(args.seed, args.cuda)
@@ -81,7 +81,8 @@ print("Loading Models")
 
 #parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = True)
 #parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, use_position_emb = False)
-parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.linear_mapping_dim)
+#parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.linear_mapping_dim)
+parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.max_sent_len)
 
 encoder.eval()
 decoder.eval()
