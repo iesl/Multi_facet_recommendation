@@ -1,8 +1,11 @@
 #!/bin/bash
-MIN_FREQ=$1
+#MIN_FREQ=$1
+MIN_FREQ=100
+LOWERCASE=True
 echo $MIN_FREQ
 INPUT_FILE="./data/raw/wiki2016.txt"
-DATA_NAME="wiki2016_min$MIN_FREQ"
+#DATA_NAME="wiki2016_min$MIN_FREQ"
+DATA_NAME="wiki2016_lower_min$MIN_FREQ"
 OUTPUT_DIR="./data/processed/$DATA_NAME/"
 
 GLOVE_IN="/iesl/data/word_embedding/glove.840B.300d.txt"
@@ -16,11 +19,11 @@ MULTI_SENT="False"
 
 
 echo "convert words to indices"
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR --min_freq $MIN_FREQ
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR --min_freq $MIN_FREQ --lowercase $LOWERCASE
 
 echo "filter word embedding"
-~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT
-~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $WORD2VEC_IN -o $WORD2VEC_OUT
+#~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT
+#~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $WORD2VEC_IN -o $WORD2VEC_OUT
 
 echo "convert indices to tensor"
 ~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --multi_sent $MULTI_SENT
@@ -28,4 +31,4 @@ echo "convert indices to tensor"
 TENSOR_FOLDER="tensors_multi150"
 MAX_SENT_LEN="150"
 MULTI_SENT="True"
-~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --multi_sent $MULTI_SENT
+#~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --multi_sent $MULTI_SENT
