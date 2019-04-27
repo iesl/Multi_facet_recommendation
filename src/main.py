@@ -17,7 +17,7 @@ import random
 import model as model_code
 import nsd_loss
 
-from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus, output_parallel_models
+from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus, output_parallel_models, str2bool
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -87,7 +87,7 @@ parser.add_argument('--nhidlast2', type=int, default=-1,
 #TRANS only
 parser.add_argument('--trans_layers', type=int, default=2,
                     help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
-parser.add_argument('--de_en_connection', type=bool, default=True, 
+parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True, 
                     help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
 #coeff
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
@@ -97,6 +97,9 @@ parser.add_argument('--L1_losss_B', type=float, default=0.2,
 #parser.add_argument('--coeff_opt', type=str, default='max',
 parser.add_argument('--coeff_opt', type=str, default='lc',
                     help='Could be max, lc, maxlc')
+#parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
+parser.add_argument('--coeff_opt_algo', type=str, default='sgd_bmm',
+                    help='Could be sgd_bmm, sgd, asgd, adagrad, rmsprop, and adam')
 #target emb
 parser.add_argument('--update_target_emb', default=False, action='store_true',
                     help='Whether to update target embedding')
@@ -126,7 +129,7 @@ parser.add_argument('--nonmono', type=int, default=1,
                     help='decay learning rate after seeing how many validation performance drop')
 parser.add_argument('--training_split_num', type=int, default=2,
                     help='We want to split training corpus into how many subsets. Splitting training dataset seems to make pytorch run much faster and we can store and eval the model more frequently')
-parser.add_argument('--copy_training', type=bool, default=True, 
+parser.add_argument('--copy_training', type=str2bool, nargs='?', default=True, 
                     help='turn off this option to save some cpu memory when loading training data')
 #parser.add_argument('--continue_train', action='store_true',
 #                    help='continue train from a checkpoint')
@@ -134,7 +137,7 @@ parser.add_argument('--copy_training', type=bool, default=True,
 ###system
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', type=bool, default=True, 
+parser.add_argument('--cuda', type=str2bool, nargs='?', default=True, 
                     help='use CUDA')
 parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
@@ -314,7 +317,7 @@ def evaluate(dataloader, external_emb, current_coeff_opt):
 
             compute_target_grad = False
             #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
-            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+            loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo)
             loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
             batch_size = feature.size(0)
             total_loss += loss * batch_size
@@ -363,7 +366,7 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
         #print(compute_target_grad)
         #print(input_emb.requires_grad)
         #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
-        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
+        loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo)
         if torch.isnan(loss_set):
             sys.stdout.write('nan, ')
             continue

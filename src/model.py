@@ -220,7 +220,7 @@ class EMB2SEQ(nn.Module):
         output_batch_first = output.permute(1,0,2)
 
         if not predict_coeff_sum:
-            #output has dimension (n_seq_len, n_batch, n_emb_size)
+            #output has dimension (n_batch, n_seq_len, n_emb_size)
             return output_batch_first
         else:
             #bsz = input.size(1)

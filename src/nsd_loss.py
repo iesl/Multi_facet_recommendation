@@ -1,5 +1,6 @@
 import torch
 import random
+from model import MatrixReconstruction as MR
 
 def predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = False):
     #print( output_emb.size() )
@@ -192,7 +193,7 @@ def target_emb_preparation(target_index, w_embeddings, n_batch, n_set, rotate_sh
     return target_embeddings, target_embeddings_rotate
 
 #def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
-def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
+def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad, coeff_opt_algo):
 
     #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
     #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
@@ -225,12 +226,19 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
         
         #coeff_mat = estimate_coeff_mat_batch(target_embeddings.cpu(), basis_pred.detach(), L1_losss_B)
         if coeff_opt == 'lc':
-            coeff_mat = estimate_coeff_mat_batch(target_embeddings, basis_pred.detach(), L1_losss_B, device)
-            coeff_mat_neg = estimate_coeff_mat_batch(target_emb_neg, basis_pred.detach(), L1_losss_B, device)
+            if coeff_opt_algo == 'sgd_bmm':
+                coeff_mat = estimate_coeff_mat_batch(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device)
+                coeff_mat_neg = estimate_coeff_mat_batch(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device)
         else:
-            coeff_mat = estimate_coeff_mat_batch_max(target_embeddings, basis_pred.detach(), device)
+            coeff_mat = estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_pred.detach(), device)
             #coeff_mat = estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred.detach(), device)
-            coeff_mat_neg = estimate_coeff_mat_batch_max(target_emb_neg, basis_pred.detach(), device)
+            coeff_mat_neg = estimate_coeff_mat_batch_max(target_emb_neg.detach(), basis_pred.detach(), device)
+    if coeff_opt == 'lc' and  coeff_opt_algo != 'sgd_bmm':
+        lr_coeff = 0.05
+        iter_coeff = 60
+        coeff_mat = estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+        coeff_mat_neg = estimate_coeff_mat_batch_opt(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+    with torch.no_grad():
         coeff_sum_basis = coeff_mat.sum(dim = 1)
         coeff_sum_basis_neg = coeff_mat_neg.sum(dim = 1)
         coeff_mean = (coeff_sum_basis.mean() + coeff_sum_basis_neg.mean()) / 2

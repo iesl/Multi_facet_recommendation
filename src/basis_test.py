@@ -7,7 +7,7 @@ import torch
 #import torch.utils.data
 #import coherency_eval
 
-from utils import seed_all_randomness, load_corpus, loading_all_models
+from utils import seed_all_randomness, load_corpus, loading_all_models, str2bool
 import utils_testing
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
@@ -25,7 +25,7 @@ parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
 ###system
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
-parser.add_argument('--cuda', default=True, action='store_false',
+parser.add_argument('--cuda', type=str2bool, nargs='?', default=True,
                     help='use CUDA')
 parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
