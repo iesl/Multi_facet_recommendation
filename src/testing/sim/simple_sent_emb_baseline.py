@@ -11,12 +11,14 @@ input_path = "./dataset_testing/STS/stsbenchmark/sts-dev_org"
 #emb_file_path = "./resources/Google-vec-neg300_filtered_wiki2016.txt"
 #emb_file_path = "./resources/word2vec_wiki2016_min100_filtered_google.txt"
 #emb_file_path = "./resources/lexvec.commoncrawl.ngramsubwords.300d.W.pos.vectors"
+emb_file_path = "./resources/lexvec.enwiki+newscrawl.300d.W.pos.vectors"
 #emb_file_path = "./resources/paragram_300_ws353/paragram_300_ws353.txt"
-emb_file_path = "./resources/paragram_300_sl999/paragram_300_sl999.txt"
+#emb_file_path = "./resources/paragram_300_sl999/paragram_300_sl999.txt"
 #emb_file_path = "./resources/apnews_dbow/doc2vec.bin"
 gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 
-lower_words = True
+#lower_words = True
+lower_words = False
 
 print(emb_file_path)
 

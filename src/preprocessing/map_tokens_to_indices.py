@@ -4,7 +4,8 @@ import os
 import time
 import sys
 sys.path.insert(0, sys.path[0]+'/..')
-from utils import Dictionary
+from utils import Dictionary, str2bool
+
 
 #map words to index (and set the max sentence number), 
 #map low freq words into <unk>
@@ -21,9 +22,9 @@ parser.add_argument('--min_freq', type=int, default='5',
                     help='map to <unk> if observe less than this number')
 parser.add_argument('--min_sent_length', type=int, default='5',
                     help='skip the sentence if sentence length is less than this number')
-parser.add_argument('--max_sent_num', type=int, default='100000000000',
+parser.add_argument('--max_sent_num', type=int, default='100000000000000',
                     help='load only this number of sentences from input corpus')
-parser.add_argument('--lowercase', type=utils.str2bool, nargs='?', default=False,
+parser.add_argument('--lowercase', type=str2bool, nargs='?', default=False,
                     help='whether make all the words in corpus lowercased')
 
 args = parser.parse_args()
