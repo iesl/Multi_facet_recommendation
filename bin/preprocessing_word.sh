@@ -25,11 +25,11 @@ echo "convert words to indices"
 
 #subsampling the dataset?
 
-#DATASET="./dataset_testing/SemEval2013/en.trainSet"
+#DATASET="./dataset_testing/SemEval2013/FCT_format/en.trainSet"
 #~/anaconda3/bin/python src/testing/sim_word/OOV_percentage_checking.py -d $OUTPUT_DIR/dictionary_index -t $DATASET
-#DATASET="./dataset_testing/SemEval2013/en.testSet"
+#DATASET="./dataset_testing/SemEval2013/FCT_format/en.testSet"
 #~/anaconda3/bin/python src/testing/sim_word/OOV_percentage_checking.py -d $OUTPUT_DIR/dictionary_index -t $DATASET
-#DATASET="./dataset_testing/Turney2012/jair.data"
+#DATASET="./dataset_testing/Turney2012/FCT_format/jair.data"
 #~/anaconda3/bin/python src/testing/sim_word/OOV_percentage_checking.py -d $OUTPUT_DIR/dictionary_index -t $DATASET
 
 

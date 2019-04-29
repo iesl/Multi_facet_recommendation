@@ -51,7 +51,8 @@ def load_save_w_ind(f_in, max_sent_num, max_sent_len):
 
     all_lines = f_in.readlines()
     assert len(all_lines) % 2 == 0
-    corpus_size = len(all_lines)/2
+    corpus_size = int(len(all_lines)/2)
+    print(corpus_size)
 
     print("Allocating {} bytes".format( corpus_size*(max_target_num+max_sent_len)*4 ) )
     store_type = torch.int32
@@ -75,19 +76,19 @@ def load_save_w_ind(f_in, max_sent_num, max_sent_len):
             all_features[output_i,-current_len:] = torch.tensor(feature_list[-current_len:],dtype = store_type)
             #w_ind_feature.append([int(x) for x in fields])
             is_feature = 0
-            if len(w_ind_feature) % 1000000 == 0:
-                print(len(w_ind_feature))
+            if output_i % 1000000 == 0:
+                print(output_i)
                 sys.stdout.flush()
         else:
             assert len(fields) <= max_target_num + 1
             target_list = [int(x) for x in fields[:-1]] #we should skip <eos>
             all_targets[output_i, :len(target_list) ] = torch.tensor(target_list, dtype = store_type)
             #w_ind_target.append([int(x) for x in fields])
-            if len(w_ind_target) > max_sent_num:
+            if output_i > max_sent_num:
                 break
             is_feature = 1
             output_i += 1
-    print( "Finish loading {} phrases. While having {} long phrases".format(len(w_ind_feature),num_too_long_sent) )
+    print( "Finish loading {} phrases. While having {} long phrases".format(output_i,num_too_long_sent) )
     return all_features, all_targets
 
 corpus_input_name = args.data + "corpus_index"
@@ -109,6 +110,7 @@ corpus_input_name = args.data + "corpus_index"
 with open(corpus_input_name) as f_in:
     all_features, all_targets = load_save_w_ind(f_in, args.max_sent_num, args.max_sent_len)
 
+corpus_size = len(all_features)
 #corpus_size = len(w_ind_feature)
 #args.max_target_num+args.max_sent_len
 
