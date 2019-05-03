@@ -19,6 +19,8 @@ data_path_2 = ""
 
 import sys
 import getopt
+sys.path.insert(0, sys.path[0]+'/..')
+import utils
 
 help_msg = '-f <dict_file_path> -s <second_dict_path> -e <embedding_file_path> -o <output_file_path>'
 
@@ -61,19 +63,19 @@ if len(data_path_2) > 0:
     d2 = load_word_dict(data_path_2)
     d1.update(d2)
 
-def load_emb_file(emb_file):
-    with open(emb_file) as f_in:
-        word2emb = {}
-        for line in f_in:
-            word_val = line.rstrip().split(' ')
-            word = word_val[0]
-            #val = [float(x) for x word_val[1:]]
-            val = word_val[1:]
-            word2emb[word] = val
-            #emb_size = len(val)
-    return word2emb
+#def load_emb_file(emb_file):
+#    with open(emb_file) as f_in:
+#        word2emb = {}
+#        for line in f_in:
+#            word_val = line.rstrip().split(' ')
+#            word = word_val[0]
+#            #val = [float(x) for x word_val[1:]]
+#            val = word_val[1:]
+#            word2emb[word] = val
+#            #emb_size = len(val)
+#    return word2emb
 
-word2emb = load_emb_file(emb_file_in_path)
+word2emb, emb_size = utils.load_emb_file(emb_file_in_path, convert_np = False)
 
 with open(emb_file_out_path,'w') as f_out:
     for w in d1:

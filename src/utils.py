@@ -209,7 +209,7 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
 
     return dataloader_test, org_sent_list, idx2word_freq
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False):
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False):
     train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
     val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
     val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
@@ -217,29 +217,62 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
 
     with open(dictionary_input_name) as f_in:
         idx2word_freq = load_idx2word_freq(f_in)
-
-    with open(train_corpus_name,'rb') as f_in:
-        dataloader_train_arr, max_sent_len = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
-
+    
     with open(val_org_corpus_name,'rb') as f_in:
         dataloader_val = create_data_loader(f_in, eval_bsz, device)
+    
+    max_sent_len = dataloader_val.dataset.feature.size(1)
+    
+    if skip_training:
+        dataloader_train_arr = [0]
+    else:
+        with open(train_corpus_name,'rb') as f_in:
+            dataloader_train_arr, max_sent_len_train = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
+        assert max_sent_len == max_sent_len_train
 
     with open(val_shuffled_corpus_name,'rb') as f_in:
         dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
+    
 
     return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len
 
-def load_emb_file(emb_file, device, idx2word_freq):
+
+def load_emb_file_to_dict(emb_file, lowercase_emb = False, convert_np = True):
+    word2emb = {}
     with open(emb_file) as f_in:
-        word2emb = {}
         for line in f_in:
             word_val = line.rstrip().split(' ')
             if len(word_val) < 3:
                 continue
             word = word_val[0]
+            #val = np.array([float(x) for x in  word_val[1:]])
             val = [float(x) for x in  word_val[1:]]
-            word2emb[word] = val
+            if convert_np:
+                val = np.array(val)
+            if lowercase_emb:
+                word_lower = word.lower()
+                if word_lower not in word2emb:
+                    word2emb[word_lower] = val
+                else:
+                    if word == word_lower:
+                        word2emb[word_lower] = val
+            else:
+                word2emb[word] = val
             emb_size = len(val)
+    return word2emb, emb_size
+
+def load_emb_file_to_tensor(emb_file, device, idx2word_freq):
+    #with open(emb_file) as f_in:
+    #    word2emb = {}
+    #    for line in f_in:
+    #        word_val = line.rstrip().split(' ')
+    #        if len(word_val) < 3:
+    #            continue
+    #        word = word_val[0]
+    #        val = [float(x) for x in  word_val[1:]]
+    #        word2emb[word] = val
+    #        emb_size = len(val)
+    word2emb, emb_size = load_emb_file_to_dict(emb_file, convert_np = False)
     num_w = len(idx2word_freq)
     #emb_size = len(word2emb.values()[0])
     #external_emb = torch.empty(num_w, emb_size, device = device, requires_grad = update_target_emb)
@@ -286,7 +319,7 @@ def loading_all_models(args, idx2word_freq, device, max_sent_len):
             word_emb = torch.load( args.emb_file, map_location=device )
             output_emb_size = word_emb.size(1)
         else:
-            word_emb, output_emb_size, oov_list = load_emb_file(args.emb_file,device,idx2word_freq)
+            word_emb, output_emb_size, oov_list = load_emb_file_tensor(args.emb_file,device,idx2word_freq)
     else:
         output_emb_size = args.emsize
 
@@ -308,7 +341,7 @@ def loading_all_models(args, idx2word_freq, device, max_sent_len):
         args.nhidlast2 = encoder.output_dim
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_2
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layer = args.trans_layer) #model_old_3, model_old_4
-    decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection) #model_old_5
+    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection) #model_old_5
     #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
     #if use_position_emb:
     #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)

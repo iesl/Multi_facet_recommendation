@@ -229,15 +229,21 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
             if coeff_opt_algo == 'sgd_bmm':
                 coeff_mat = estimate_coeff_mat_batch(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device)
                 coeff_mat_neg = estimate_coeff_mat_batch(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device)
+            else:
+                lr_coeff = 0.05
+                iter_coeff = 60
+                with torch.enable_grad():
+                    coeff_mat = estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+                    coeff_mat_neg = estimate_coeff_mat_batch_opt(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
         else:
             coeff_mat = estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_pred.detach(), device)
             #coeff_mat = estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred.detach(), device)
             coeff_mat_neg = estimate_coeff_mat_batch_max(target_emb_neg.detach(), basis_pred.detach(), device)
-    if coeff_opt == 'lc' and  coeff_opt_algo != 'sgd_bmm':
-        lr_coeff = 0.05
-        iter_coeff = 60
-        coeff_mat = estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
-        coeff_mat_neg = estimate_coeff_mat_batch_opt(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+    #if coeff_opt == 'lc' and  coeff_opt_algo != 'sgd_bmm':
+    #    lr_coeff = 0.05
+    #    iter_coeff = 60
+    #    coeff_mat = estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+    #    coeff_mat_neg = estimate_coeff_mat_batch_opt(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
     with torch.no_grad():
         coeff_sum_basis = coeff_mat.sum(dim = 1)
         coeff_sum_basis_neg = coeff_mat_neg.sum(dim = 1)
