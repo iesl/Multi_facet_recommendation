@@ -17,7 +17,7 @@ import random
 import model as model_code
 import nsd_loss
 
-from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file, load_corpus, output_parallel_models, str2bool
+from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file_to_tensor, load_corpus, output_parallel_models, str2bool
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -73,6 +73,8 @@ parser.add_argument('--trans_nhid', type=int, default=-1,
 #both
 parser.add_argument('--de_model', type=str, default='LSTM',
                     help='type of decoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
+parser.add_argument('--de_coeff_model', type=str, default='LSTM',
+                    help='type of decoder model to predict coefficients (LSTM, TRANS)')
 parser.add_argument('--n_basis', type=int, default=10,
                     help='number of basis we want to predict')
 #parser.add_argument('--linear_mapping_dim', type=int, default=0,
@@ -97,8 +99,8 @@ parser.add_argument('--L1_losss_B', type=float, default=0.2,
 #parser.add_argument('--coeff_opt', type=str, default='max',
 parser.add_argument('--coeff_opt', type=str, default='lc',
                     help='Could be max, lc, maxlc')
-#parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
-parser.add_argument('--coeff_opt_algo', type=str, default='sgd_bmm',
+parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
+#parser.add_argument('--coeff_opt_algo', type=str, default='sgd_bmm',
                     help='Could be sgd_bmm, sgd, asgd, adagrad, rmsprop, and adam')
 #target emb
 parser.add_argument('--update_target_emb', default=False, action='store_true',
@@ -129,6 +131,8 @@ parser.add_argument('--nonmono', type=int, default=1,
                     help='decay learning rate after seeing how many validation performance drop')
 parser.add_argument('--training_split_num', type=int, default=2,
                     help='We want to split training corpus into how many subsets. Splitting training dataset seems to make pytorch run much faster and we can store and eval the model more frequently')
+parser.add_argument('--valid_per_epoch', type=int, default=2,
+                    help='Number of times we want to run through validation data and save model within an epoch')
 parser.add_argument('--copy_training', type=str2bool, nargs='?', default=True, 
                     help='turn off this option to save some cpu memory when loading training data')
 #parser.add_argument('--continue_train', action='store_true',
@@ -153,6 +157,7 @@ args = parser.parse_args()
 ########################
 print("Set up environment")
 ########################
+assert args.training_split_num >= args.valid_per_epoch
 
 if args.coeff_opt == 'maxlc':
     current_coeff_opt = 'max'
@@ -208,7 +213,7 @@ external_emb = torch.tensor([0.])
 extra_init_idx = []
 if len(args.emb_file) > 0:
     #with torch.no_grad():
-    external_emb, output_emb_size, extra_init_idx = load_emb_file(args.emb_file, device, idx2word_freq)
+    external_emb, output_emb_size, extra_init_idx = load_emb_file_to_tensor(args.emb_file, device, idx2word_freq)
     external_emb = external_emb / (0.000000000001 + external_emb.norm(dim = 1, keepdim=True))
     external_emb.requires_grad = args.update_target_emb
     print("loading ", args.emb_file)
@@ -255,7 +260,7 @@ if args.nhidlast2 < 0:
 #if args.linear_mapping_dim < 0:
 #    args.linear_mapping_dim = encoder.output_dim
 
-decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
+decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
@@ -332,7 +337,7 @@ def evaluate(dataloader, external_emb, current_coeff_opt):
            total_loss_set_reg.item() / len(dataloader.dataset), total_loss_set_div.item() / len(dataloader.dataset)
 
 
-def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
+def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt, split_i):
     start_time = time.time()
     total_loss = 0.
     total_loss_set = 0.
@@ -423,10 +428,10 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt):
             cur_loss_set_neg = total_loss_set_neg / args.log_interval
             cur_loss_coeff_pred = total_loss_coeff_pred / args.log_interval
             elapsed = time.time() - start_time
-            logging('| e {:3d} | {:5d}/{:5d} b | lr {:02.2f} | ms/batch {:5.2f} | '
-                    'l {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.3f} | reg {:5.2f} | div {:5.2f} '.format(
-                epoch, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
-                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set, cur_loss_set_neg, cur_loss_coeff_pred, cur_loss_set_reg, cur_loss_set_div))
+            logging('| e {:3d} {:3d} | {:5d}/{:5d} b | lr {:02.2f} | ms/batch {:5.2f} | '
+                    'l {:5.2f} | l_f {:5.4f} + {:5.4f} = {:5.4f} | l_coeff {:5.3f} | reg {:5.2f} | div {:5.2f} '.format(
+                epoch, split_i, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
+                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set, cur_loss_set_neg, cur_loss_set + cur_loss_set_neg, cur_loss_coeff_pred, cur_loss_set_reg, cur_loss_set_div))
             #if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
             if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
                 current_coeff_opt = 'lc'
@@ -450,17 +455,21 @@ else:
 lr = args.lr
 best_val_loss = None
 nonmono_count = 0
+saving_freq = int(math.floor(args.training_split_num / args.valid_per_epoch))
 
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     for i in range(len(dataloader_train_arr)):
-        current_coeff_opt = train_one_epoch(dataloader_train_arr[i], external_emb, lr, current_coeff_opt)
+        current_coeff_opt = train_one_epoch(dataloader_train_arr[i], external_emb, lr, current_coeff_opt, i)
+        
+        if i != args.training_split_num - 1 and (i + 1) % saving_freq != 0:
+            continue
 
         val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, external_emb, current_coeff_opt)
         logging('-' * 89)
-        logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+        logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} = {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
                 .format(epoch, i, (time.time() - epoch_start_time), lr,
-                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_set + val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
         
         val_loss_important = val_loss_set + val_loss_set_neg
         
@@ -468,9 +477,9 @@ for epoch in range(1, args.epochs+1):
         #dataloader_val_shuffled?
         val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val_shuffled, external_emb, current_coeff_opt)
         logging('-' * 89)
-        logging('| Shuffled | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
+        logging('| Shuffled | time: {:5.2f}s | lr {:5.2f} | valid loss {:5.2f} | l_f {:5.4f} + {:5.4f} = {:5.4f} | l_coeff {:5.2f} | reg {:5.2f} | div {:5.2f} | '
                 .format((time.time() - epoch_start_time), lr,
-                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
+                                           val_loss_all, val_loss_set, val_loss_set_neg, val_loss_set + val_loss_set_neg, val_loss_ceoff_pred, val_loss_set_reg, val_loss_set_div))
         logging('-' * 89)
         
         if not best_val_loss or val_loss_important < best_val_loss:

@@ -108,7 +108,7 @@ class ext_emb_to_seq(nn.Module):
 class EMB2SEQ(nn.Module):
 
     #def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2, using_memory = False):
-    def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False):
+    def __init__(self, model_type_list, coeff_model, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -153,14 +153,28 @@ class EMB2SEQ(nn.Module):
 
         #self.out_linear = nn.Linear(nhid, outd, bias=False)
         self.out_linear = nn.Linear(self.dep_learner.output_dim, outd)
-
-        self.coeff_nlayers = 1
-        self.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = self.coeff_nlayers , bidirectional = True)
+        
+        self.coeff_model = coeff_model
+        if coeff_model == "LSTM":
+            coeff_nlayers = 1
+            #elf.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
+            self.coeff_rnn = nn.LSTM(input_size+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
+            output_dim = nhid*2
+        elif coeff_model == "TRANS":
+            coeff_nlayers = 2
+            self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
+            #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
+            output_dim = input_size+outd
+            #output_dim = ninp+outd
+            
         #self.coeff_out_linear = nn.Linear(nhid*2, 2)
-
-        self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
-        self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
-        self.coeff_out_linear_3 = nn.Linear(nhid, 2)
+        half_output_dim = int(output_dim / 2)
+        self.coeff_out_linear_1 = nn.Linear(output_dim, half_output_dim)
+        self.coeff_out_linear_2 = nn.Linear(half_output_dim, half_output_dim)
+        self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
+        #self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
+        #self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
+        #self.coeff_out_linear_3 = nn.Linear(nhid, 2)
 
         self.init_weights()
 
@@ -226,9 +240,15 @@ class EMB2SEQ(nn.Module):
             #bsz = input.size(1)
             #weight = next(self.parameters()) # we use this just to let the tensor have the same type and device as the first weight in this class
             #hidden_init = (weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid), weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid))
-            coeff_input= torch.cat( (input, output), dim = 2)
-            #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
-            coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
+            #coeff_input= torch.cat( (input, output), dim = 2)
+            coeff_input= torch.cat( (emb, output), dim = 2)
+            if self.coeff_model == "LSTM":
+                #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
+                coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
+            elif self.coeff_model == "TRANS":
+                hidden_states = coeff_input.detach().permute(1,0,2)
+                hidden_states = self.coeff_trans(hidden_states)
+                coeff_output = hidden_states[0].permute(1,0,2)
             #coeff_pred = self.coeff_out_linear(coeff_output)
             coeff_pred_1 = F.relu(self.coeff_out_linear_1(coeff_output))
             coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))

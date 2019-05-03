@@ -3,6 +3,9 @@ from scipy.spatial import distance
 import random
 import numpy as np
 from sklearn.metrics import average_precision_score, f1_score
+import sys
+sys.path.insert(0, sys.path[0]+'/../..')
+import utils
 
 embedding_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/resources/"
 
@@ -24,26 +27,26 @@ dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding
 dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 
-def load_emb_file(emb_file):
-    with open(emb_file) as f_in:
-        word2emb = {}
-        for line in f_in:
-            word_val = line.rstrip().split(' ')
-            if len(word_val) < 3:
-                continue
-            word = word_val[0]
-            val = np.array([float(x) for x in  word_val[1:]])
-            if lowercase_emb:
-                word_lower = word.lower()
-                if word_lower not in word2emb:
-                    word2emb[word_lower] = val
-                else:
-                    if word == word_lower:
-                        word2emb[word_lower] = val
-            else:
-                word2emb[word] = val
-            emb_size = len(val)
-    return word2emb, emb_size
+#def load_emb_file(emb_file):
+#    with open(emb_file) as f_in:
+#        word2emb = {}
+#        for line in f_in:
+#            word_val = line.rstrip().split(' ')
+#            if len(word_val) < 3:
+#                continue
+#            word = word_val[0]
+#            val = np.array([float(x) for x in  word_val[1:]])
+#            if lowercase_emb:
+#                word_lower = word.lower()
+#                if word_lower not in word2emb:
+#                    word2emb[word_lower] = val
+#                else:
+#                    if word == word_lower:
+#                        word2emb[word_lower] = val
+#            else:
+#                word2emb[word] = val
+#            emb_size = len(val)
+#    return word2emb, emb_size
 
 def load_Turney(file_name):
     dataset = []
@@ -82,7 +85,7 @@ for file_info in dataset_list:
         dataset_arr.append( load_Turney( file_info[0] ) )
 
 print("loading ", embedding_file_name)
-word2emb, emb_size = load_emb_file(embedding_file_name)
+word2emb, emb_size = utils.load_emb_file(embedding_file_name)
 
 def output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count):
     if unigram not in word2emb:
