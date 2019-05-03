@@ -1,7 +1,7 @@
 import numpy as np
 
-#input_dict_file = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/data/processed/wiki2016/dictionary_index"
-input_dict_file = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
+input_dict_file = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/data/processed/wiki2016/dictionary_index"
+#input_dict_file = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
 
 with open(input_dict_file) as f_in:
     freq_list = []

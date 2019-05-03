@@ -25,8 +25,8 @@ parser.add_argument('--max_sent_num', type=int, default='100000000000000',
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 
-#parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
-#                    help='path to the file of a stop word list')
+parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
+                    help='path to the file of a stop word list')
 
 args = parser.parse_args()
 
@@ -36,6 +36,34 @@ random.seed(args.seed)
 
 if not os.path.exists(args.save):
     os.makedirs(args.save)
+
+
+dictionary_input_name = args.data + "dictionary_index"
+with open(dictionary_input_name) as f_in:
+    idx2word_freq = utils.load_idx2word_freq(f_in)
+
+def convert_stop_to_ind(f_in, w_d2_ind_freq):
+    stop_word_set = set()
+    for line in f_in:
+        w = line.rstrip()
+        if w in w_d2_ind_freq:
+            stop_word_set.add(w_d2_ind_freq[w][0])
+    return stop_word_set
+
+def convert_stop_to_ind_lower(f_in, idx2word_freq):
+    stop_word_org_set = set()
+    for line in f_in:
+        w = line.rstrip()
+        stop_word_org_set.add(w)
+    stop_word_set = set()
+    for idx, (w, freq) in enumerate(idx2word_freq):
+        if w.lower() in stop_word_org_set:
+            stop_word_set.add(idx)
+    return stop_word_set
+
+with open(args.stop_word_file) as f_in:
+    #stop_ind_set = convert_stop_to_ind(f_in, w_d2_ind_freq)
+    stop_ind_set = convert_stop_to_ind_lower(f_in, idx2word_freq)
 
 max_target_num = args.window_size * 2
         
@@ -81,7 +109,11 @@ def load_save_w_ind(f_in, max_sent_num, max_sent_len):
                 sys.stdout.flush()
         else:
             assert len(fields) <= max_target_num + 1
-            target_list = [int(x) for x in fields[:-1]] #we should skip <eos>
+            target_list_raw = [int(x) for x in fields[:-1]] #we should skip <eos>
+            target_list = []
+            for w in target_list_raw:
+                if w not in stop_ind_set:
+                    target_list.append(w)
             all_targets[output_i, :len(target_list) ] = torch.tensor(target_list, dtype = store_type)
             #w_ind_target.append([int(x) for x in fields])
             if output_i > max_sent_num:
@@ -92,7 +124,6 @@ def load_save_w_ind(f_in, max_sent_num, max_sent_len):
     return all_features, all_targets
 
 corpus_input_name = args.data + "corpus_index"
-#dictionary_input_name = args.data + "dictionary_index"
 
 #with open(dictionary_input_name) as f_in:
 #    w_d2_ind_freq, max_ind = utils.load_word_dict(f_in)

@@ -14,8 +14,8 @@ embedding_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embeddi
 #lower
 lowercase_emb = False
 #embedding_file_name = embedding_dir + "lexvec_enwiki_wiki2016_min100"
-embedding_file_name = embedding_dir + "paragram_wiki2016_min100"
-#embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
+#embedding_file_name = embedding_dir + "paragram_wiki2016_min100"
+embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
 
 #w2v = gensim.models.KeyedVectors.load_word2vec_format(emb_file_path, binary=False)
 

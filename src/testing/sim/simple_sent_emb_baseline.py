@@ -11,14 +11,15 @@ input_path = "./dataset_testing/STS/stsbenchmark/sts-dev_org"
 #emb_file_path = "./resources/Google-vec-neg300_filtered_wiki2016.txt"
 #emb_file_path = "./resources/word2vec_wiki2016_min100_filtered_google.txt"
 #emb_file_path = "./resources/lexvec.commoncrawl.ngramsubwords.300d.W.pos.vectors"
-emb_file_path = "./resources/lexvec.enwiki+newscrawl.300d.W.pos.vectors"
-#emb_file_path = "./resources/paragram_300_ws353/paragram_300_ws353.txt"
+#emb_file_path = "./resources/lexvec.enwiki+newscrawl.300d.W.pos.vectors"
+#emb_file_path = "./resources/paragram_wiki2016_min100"
+emb_file_path = "./resources/paragram_300_ws353/paragram_300_ws353.txt"
 #emb_file_path = "./resources/paragram_300_sl999/paragram_300_sl999.txt"
 #emb_file_path = "./resources/apnews_dbow/doc2vec.bin"
 gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 
-#lower_words = True
-lower_words = False
+lower_words = True
+#lower_words = False
 
 print(emb_file_path)
 
@@ -83,10 +84,10 @@ for sent_1, sent_2, score_gt, source in testing_list:
         score_pred = 1 - distance.cosine(sent_1_emb, sent_2_emb)
     else:
         score_pred = 1
-        print(sent_1)
-        print(sent_2)
-        print(sent_1_emb)
-        print(sent_2_emb)
+        #print(sent_1)
+        #print(sent_2)
+        #print(sent_1_emb)
+        #print(sent_2_emb)
     if source not in source_d2_info:
         source_d2_info[source] = [ 0, [], [] ]
     source_d2_info[source][0] += oov_count_sent_1 + oov_count_sent_2

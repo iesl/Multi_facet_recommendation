@@ -1,6 +1,7 @@
 #!/bin/bash
 #MIN_FREQ=$1
 MIN_FREQ=100
+#MIN_FREQ=500
 LOWERCASE=True
 echo $MIN_FREQ
 INPUT_FILE="./data/raw/wiki2016_nchunk.txt"
@@ -14,7 +15,8 @@ GLOVE_OUT="./resources/glove.42B.300d_filtered_${DATA_NAME}.txt"
 #WORD2VEC_IN="/iesl/data/word_embedding/GoogleNews-vectors-negative300.txt"
 #WORD2VEC_OUT="./resources/Google-vec-neg300_filtered_${DATA_NAME}.txt"
 
-TENSOR_FOLDER="tensors"
+#TENSOR_FOLDER="tensors"
+TENSOR_FOLDER="tensors_no_stop"
 MAX_SENT_LEN="6"
 
 
