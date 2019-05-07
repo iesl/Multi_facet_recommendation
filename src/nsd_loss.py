@@ -51,8 +51,8 @@ def estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred, device):
     return coeff_mat_trans.permute(0,2,1)
     #torch.gather(coeff_mat_trans , dim=1, index = max_i)
 
-def estimate_coeff_mat_batch_max_cos(target_embeddings, basis_pred, device):
-    batch_size = target_embeddings.size(0)
+def estimate_coeff_mat_batch_max_cos(target_embeddings, basis_pred):
+    #batch_size = target_embeddings.size(0)
     C = target_embeddings.permute(0,2,1)
 
     basis_pred_norm = basis_pred.norm(dim = 2, keepdim=True)

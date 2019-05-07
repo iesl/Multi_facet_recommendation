@@ -16,10 +16,17 @@ import utils
 #topic_file_name = "./gen_log/STS_dev_wiki2016_glove_lc_bsz200_ep2_0.json"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_bsz200_ep1_1.json"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_bsz200_ep2_1.json"
-topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n20_bsz200_ep1_0.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n20_bsz200_ep1_0.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n20_bsz200_ep1_1_fix.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n10_bsz200_ep2_1.json"
+topic_file_name = "./gen_log/STS_train_wiki2016_glove_trans_n10_bsz200_ep2_1.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n3_bsz200_ep1_1.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_n1_bsz200_ep1_0.json"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_RMSProp_bsz200_ep1_0.json"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_glove_trans_no_connect_bsz200_ep2_0.json"
 w_emb_file_name = "./resources/glove.840B.300d_filtered_wiki2016.txt"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_word2vec_trans_n20_bsz200_ep1_0.json"
+#w_emb_file_name = "./resources/word2vec_wiki2016_min100.txt"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_lex_crawl_trans_bsz200_ep2_1.json"
 #w_emb_file_name = "./resources/lexvec_wiki2016_min100"
 freq_file_name = "./data/processed/wiki2016_min100/dictionary_index"
@@ -27,6 +34,7 @@ freq_file_name = "./data/processed/wiki2016_min100/dictionary_index"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_lex_enwiki_trans_bsz200_ep1_0.json"
 #w_emb_file_name = "./resources/lexvec_enwiki_wiki2016_min100"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_paragram_trans_bsz200_ep1_1.json"
+#topic_file_name = "./gen_log/STS_dev_wiki2016_paragram_trans_n20_bsz200_ep1_0.json"
 #w_emb_file_name = "./resources/paragram_wiki2016_min100"
 #freq_file_name = "./data/processed/wiki2016_lower_min100/dictionary_index"
 
@@ -38,7 +46,8 @@ print(topic_file_name)
 print(w_emb_file_name)
 sys.stdout.flush()
 
-gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
 
 #device = 'cpu'
 device = 'cuda'
@@ -48,14 +57,14 @@ L1_losss_B = 0.2
 with open(freq_file_name) as f_in:
     word_d2_idx_freq, max_ind = utils.load_word_dict(f_in)
 
-def compute_freq_prob(word_d2_idx_freq):
-    all_idx, all_freq= list( zip(*word_d2_idx_freq.values()) )
-    freq_sum = float(sum(all_freq))
-    for w in word_d2_idx_freq:
-        idx, freq = word_d2_idx_freq[w]
-        word_d2_idx_freq[w].append(freq/freq_sum)
+#def compute_freq_prob(word_d2_idx_freq):
+#    all_idx, all_freq= list( zip(*word_d2_idx_freq.values()) )
+#    freq_sum = float(sum(all_freq))
+#    for w in word_d2_idx_freq:
+#        idx, freq = word_d2_idx_freq[w]
+#        word_d2_idx_freq[w].append(freq/freq_sum)
 
-compute_freq_prob(word_d2_idx_freq)
+utils_testing.compute_freq_prob(word_d2_idx_freq)
 
 #def load_emb_file(emb_file):
 #    word2emb = {}
@@ -76,7 +85,7 @@ def load_STS_file(f_in):
         #print(line.rstrip().split('\t'))
         fields = line.rstrip().split('\t')
         genre, source, source_year, org_idx, score, sent_1, sent_2 = fields[:7]
-        output_list.append([sent_1, sent_2, float(score), genre+'-'+source, len(sent_1) + len(sent_2)])
+        output_list.append([sent_1.rstrip(), sent_2.rstrip(), float(score), genre+'-'+source, len(sent_1) + len(sent_2)])
     return output_list
 
 print("load", gt_file_name)
