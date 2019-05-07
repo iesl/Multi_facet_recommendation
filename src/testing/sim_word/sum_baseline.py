@@ -85,7 +85,7 @@ for file_info in dataset_list:
         dataset_arr.append( load_Turney( file_info[0] ) )
 
 print("loading ", embedding_file_name)
-word2emb, emb_size = utils.load_emb_file(embedding_file_name)
+word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
 
 def output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count):
     if unigram not in word2emb:
