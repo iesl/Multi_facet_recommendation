@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from utils import str2bool
 sys.path.insert(0, sys.path[0]+'/testing/sim')
 import SIF_pc_removal as SIF
+import math
+import Sinkhorn
 
 def add_model_arguments(parser):
     ###encoder
@@ -332,8 +334,47 @@ def build_loader_from_pairs(testing_list, sent_d2_topics, bsz, device):
     testing_pair_loader = torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
     return testing_pair_loader, (w_imp_list_1, proc_sent_list_1, w_imp_list_2, proc_sent_list_2)
 
+def compute_freq_prob(word_d2_idx_freq):
+    all_idx, all_freq= list( zip(*word_d2_idx_freq.values()) )
+    freq_sum = float(sum(all_freq))
+    for w in word_d2_idx_freq:
+        idx, freq = word_d2_idx_freq[w]
+        word_d2_idx_freq[w].append(freq/freq_sum)
 
-def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq):
+def safe_cosine_sim(emb_1, emb_2):
+    dist = distance.cosine(emb_1, emb_2)
+    if math.isnan(dist):
+        return 0
+    else:
+        return 1 - dist
+
+def compute_AP_best_F1_acc(score_list, gt_list, correct_label = 1):
+    sorted_idx = np.argsort(score_list)
+    sorted_idx = sorted_idx.tolist()[::-1]
+    #print(sorted_idx)
+    #total_correct = sum(gt_list)
+    total_correct = sum([1 if x == correct_label else 0 for x in  gt_list ])
+    correct_count = 0
+    total_count = 0
+    precision_list = []
+    F1_list = []
+    acc_list = []
+    false_neg_num = total_correct
+    for idx in sorted_idx:
+        total_count += 1
+        if gt_list[idx] == correct_label:
+            correct_count += 1
+            precision = correct_count/float(total_count)
+            precision_list.append( precision )
+            recall = correct_count / float(total_correct)
+            F1_list.append(  2*(precision*recall)/(recall+precision) )
+            false_neg_num = total_correct - correct_count
+        rest_num = len(sorted_idx) - total_count
+        true_neg_num = rest_num - false_neg_num
+        acc_list.append( (correct_count + true_neg_num) / float(len(sorted_idx)) )
+    return np.mean(precision_list), np.max(F1_list), np.max(acc_list)
+
+def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True):
     def safe_normalization(weight):
         weight_sum = torch.sum(weight)
         assert weight_sum>0
@@ -343,12 +384,6 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         #assume that weight are normalized
         return (cosine_sim * weight).mean(dim = 1)
 
-    def max_cosine_sim(target, source, target_w, device):
-        cosine_sim_s_to_t, nn_source_idx = nsd_loss.estimate_coeff_mat_batch_max_cos(target, source, device)
-        #cosine_sim should have dimension (n_batch,n_set)
-        sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
-        sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
-        return sim_avg_st, sim_w_avg_st
     
     def lc_pred_dist(target, source, target_w, L1_losss_B, device):
         #coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch(target, source, L1_losss_B, device, max_iter = 1000)
@@ -356,6 +391,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
             coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch_opt(target, source, L1_losss_B, device, coeff_opt = 'rmsprop', lr = 0.05, max_iter = 1000)
         pred_embeddings = torch.bmm(coeff_mat_s_to_t, source)
         dist_st = torch.pow( torch.norm( pred_embeddings - target, dim = 2 ), 2)
+        #dist_st = torch.norm( pred_embeddings - target, dim = 2 )
         dist_avg_st = dist_st.mean(dim = 1)
         dist_w_avg_st = weighted_average(dist_st, target_w)
         return dist_avg_st, dist_w_avg_st
@@ -449,21 +485,28 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         #t_sent_emb, t_sent_emb_freq_3, t_sent_emb_freq_4, t_sent_emb_freq_5, t_sent_emb_freq_3_w_sim, t_sent_emb_freq_4_w_sim, t_sent_emb_freq_5_w_sim, t_sent_emb_w_sim, t_sent_emb_w_sim_sq, t_sent_emb_w_sim_coeff, t_sent_emb_w_coeff = sentence_emb_from_sum(w_embs_target, target_w_imp_list, w_prob_target)
         s_sent_emb, s_sent_emb_freq_3, s_sent_emb_freq_4, s_sent_emb_freq_5, s_sent_emb_freq_3_w_sim, s_sent_emb_freq_4_w_sim, s_sent_emb_freq_5_w_sim, s_sent_emb_w_sim, s_sent_emb_w_sim_coeff, s_sent_emb_w_coeff = sentence_emb_from_sum(w_embs_source, source_w_imp_list, w_prob_source)
         t_sent_emb, t_sent_emb_freq_3, t_sent_emb_freq_4, t_sent_emb_freq_5, t_sent_emb_freq_3_w_sim, t_sent_emb_freq_4_w_sim, t_sent_emb_freq_5_w_sim, t_sent_emb_w_sim, t_sent_emb_w_sim_coeff, t_sent_emb_w_coeff = sentence_emb_from_sum(w_embs_target, target_w_imp_list, w_prob_target)
-        score_baseline = 1 - distance.cosine(s_sent_emb, t_sent_emb)       
-        score_baseline_freq_3 = 1 - distance.cosine(s_sent_emb_freq_3, t_sent_emb_freq_3)
-        score_baseline_freq_4 = 1 - distance.cosine(s_sent_emb_freq_4, t_sent_emb_freq_4)
-        score_baseline_freq_5 = 1 - distance.cosine(s_sent_emb_freq_5, t_sent_emb_freq_5)
-        score_baseline_freq_3_w_sim = 1 - distance.cosine(s_sent_emb_freq_3_w_sim, t_sent_emb_freq_3_w_sim)
-        score_baseline_freq_4_w_sim = 1 - distance.cosine(s_sent_emb_freq_4_w_sim, t_sent_emb_freq_4_w_sim)
-        score_baseline_freq_5_w_sim = 1 - distance.cosine(s_sent_emb_freq_5_w_sim, t_sent_emb_freq_5_w_sim)
-        score_w_sim = 1 - distance.cosine(s_sent_emb_w_sim, t_sent_emb_w_sim)
-        #score_w_sim_sq = 1 - distance.cosine(s_sent_emb_w_sim_sq, t_sent_emb_w_sim_sq)
-        score_w_sim_coeff = 1 - distance.cosine(s_sent_emb_w_sim_coeff, t_sent_emb_w_sim_coeff)
-        score_w_coeff = 1 - distance.cosine(s_sent_emb_w_coeff, t_sent_emb_w_coeff)
+        score_baseline = safe_cosine_sim(s_sent_emb, t_sent_emb)       
+        score_baseline_freq_3 = safe_cosine_sim(s_sent_emb_freq_3, t_sent_emb_freq_3)
+        score_baseline_freq_4 = safe_cosine_sim(s_sent_emb_freq_4, t_sent_emb_freq_4)
+        score_baseline_freq_5 = safe_cosine_sim(s_sent_emb_freq_5, t_sent_emb_freq_5)
+        score_baseline_freq_3_w_sim = safe_cosine_sim(s_sent_emb_freq_3_w_sim, t_sent_emb_freq_3_w_sim)
+        score_baseline_freq_4_w_sim = safe_cosine_sim(s_sent_emb_freq_4_w_sim, t_sent_emb_freq_4_w_sim)
+        score_baseline_freq_5_w_sim = safe_cosine_sim(s_sent_emb_freq_5_w_sim, t_sent_emb_freq_5_w_sim)
+        score_w_sim = safe_cosine_sim(s_sent_emb_w_sim, t_sent_emb_w_sim)
+        #score_w_sim_sq = safe_cosine_sim(s_sent_emb_w_sim_sq, t_sent_emb_w_sim_sq)
+        score_w_sim_coeff = safe_cosine_sim(s_sent_emb_w_sim_coeff, t_sent_emb_w_sim_coeff)
+        score_w_coeff = safe_cosine_sim(s_sent_emb_w_coeff, t_sent_emb_w_coeff)
         #return [score_w_sim, score_w_sim_sq, score_w_sim_coeff, score_w_coeff, score_baseline_freq_3_w_sim, score_baseline_freq_4_w_sim, score_baseline_freq_5_w_sim, score_baseline_freq_3, score_baseline_freq_4, score_baseline_freq_5, score_baseline]
         scores_w_emb = [score_w_sim, score_w_sim_coeff, score_w_coeff, score_baseline_freq_3_w_sim, score_baseline_freq_4_w_sim, score_baseline_freq_5_w_sim, score_baseline_freq_3, score_baseline_freq_4, score_baseline_freq_5, score_baseline]
         sent_emb_list = [ [s_sent_emb_freq_4, t_sent_emb_freq_4], [s_sent_emb_freq_4_w_sim, t_sent_emb_freq_4_w_sim] ]
-        return scores_w_emb, sent_emb_list
+        OOV_first = 0
+        OOV_second = 0
+        if np.sum(np.abs(s_sent_emb)) == 0:
+            OOV_first = 1
+        if np.sum(np.abs(t_sent_emb)) == 0:
+            OOV_second = 1
+        OOV_all_sent = [OOV_first, OOV_second]
+        return scores_w_emb, sent_emb_list, OOV_all_sent
     
     def safe_2_norm(emb):
         emb_mag = np.linalg.norm(emb)
@@ -476,6 +519,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
     def combine_topic_by_word(topics_i, emb_norm):
         cosine_sim = np.matmul(topics_i, emb_norm)
         cosine_sim_pos = np.maximum(0, cosine_sim)
+        #cosine_sim_pos = cosine_sim_pos * cosine_sim_pos
         cosine_sim_pos_sum = sum(cosine_sim_pos)
         if cosine_sim_pos_sum > 0:
             cosine_sim_pos /= cosine_sim_pos_sum
@@ -499,26 +543,63 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
 
         return local_w_embs, local_w_embs_wt
     
+    def compute_cosine_sim(source, target):
+        #assume that two matrices have been normalized
+        C = target.permute(0,2,1)
+        cos_sim_st = torch.bmm(source, C)
+        cos_sim_ts = cos_sim_st.permute(0,2,1)
+        return cos_sim_st, cos_sim_ts 
+    
+    def max_cosine_given_sim(cos_sim_st, target_w):
+        cosine_sim_s_to_t, max_i = torch.max(cos_sim_st, dim = 1)
+        #cosine_sim should have dimension (n_batch,n_set)
+        sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
+        sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
+        return sim_avg_st, sim_w_avg_st
+
+    #def max_cosine_sim(target, source, target_w):
+    #    cosine_sim_s_to_t, nn_source_idx = nsd_loss.estimate_coeff_mat_batch_max_cos(target, source)
+    #    #cosine_sim should have dimension (n_batch,n_set)
+    #    sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
+    #    sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
+    #    return sim_avg_st, sim_w_avg_st
+
     corpus_size = len(testing_pair_loader.dataset)
     pred_scores = [0] * corpus_size
     w_imp_list_1, proc_sent_list_1, w_imp_list_2, proc_sent_list_2 = other_info
     
     emb_size = list(word2emb.values())[0].size
     sent_embs_SIF = [0] * corpus_size
-    output_idx_list = []
+    OOV_first_list = [0] * corpus_size
+    OOV_second_list = [0] * corpus_size
+    #output_idx_list = []
     #for source, source_w, source_sent_emb, source_avg_word_emb, source_w_imp_list, source_proc_sent, target, target_w, target_sent_emb, target_avg_word_emb, target_w_imp_list, target_proc_sent in testing_pair_loader:
     for source, source_w, source_sent_emb, source_avg_word_emb, target, target_w, target_sent_emb, target_avg_word_emb, idx_batch in testing_pair_loader:
         #source_w_imp_list = source_w_imp_list.tolist()
         #target_w_imp_list= target_w_imp_list.tolist()
         #print(source_w_imp_list)
         #normalize w
+        sys.stdout.write( str(idx_batch[0].item()) + ' ' )
+        sys.stdout.flush()
         source_w = safe_normalization(source_w)
         target_w = safe_normalization(target_w)
         
         
         #Kmeans loss
-        sim_avg_st, sim_w_avg_st = max_cosine_sim(target, source, target_w, device)
-        sim_avg_ts, sim_w_avg_ts = max_cosine_sim(source, target, source_w, device)
+        cos_sim_st, cos_sim_ts = compute_cosine_sim(source, target)
+        
+        uniform_s = torch.ones_like(source_w) / source_w.size(1)
+        uniform_t = torch.ones_like(target_w) / target_w.size(1)
+        cos_dist_st = 1 - cos_sim_st
+        Wasserstein_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, uniform_s, uniform_t, epsilon=1, niter=100)
+        Wasserstein_dist = torch.sum( Wasserstein_trans * cos_dist_st, dim = 2).sum(dim = 1)
+        Wasserstein_trans_w = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, source_w, target_w, epsilon=1, niter=100)
+        Wasserstein_dist_w = torch.sum( Wasserstein_trans_w * cos_dist_st, dim = 2).sum(dim = 1)
+
+        sim_avg_st, sim_w_avg_st = max_cosine_given_sim(cos_sim_st, target_w)
+        sim_avg_ts, sim_w_avg_ts = max_cosine_given_sim(cos_sim_ts, source_w)
+        #sim_avg_st, sim_w_avg_st = max_cosine_sim(target, source, target_w)
+        #sim_avg_ts, sim_w_avg_ts = max_cosine_sim(source, target, source_w)
         sim_avg = (sim_avg_st + sim_avg_ts)/2
         sim_w_avg = (sim_w_avg_st + sim_w_avg_ts)/2
 
@@ -542,22 +623,28 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
             w_embs_source, w_prob_source = get_w_emb(source_proc_sent, word2emb, emb_size, word_d2_idx_freq)
             #print(w_embs_source)
             w_embs_target, w_prob_target = get_w_emb(target_proc_sent, word2emb, emb_size, word_d2_idx_freq)
-            scores_w_emb_org, sent_emb_list_org = weighted_sent_avg(w_embs_source, source_w_imp_list, w_prob_source, w_embs_target, target_w_imp_list, w_prob_target)
+            scores_w_emb_org, sent_emb_list_org, OOV_all_sent = weighted_sent_avg(w_embs_source, source_w_imp_list, w_prob_source, w_embs_target, target_w_imp_list, w_prob_target)
             #scores_str = ["w_imp_sim", "w_imp_sim_sq", "w_imp_sim_coeff", "w_imp_coeff",  "w_imp_sim_freq_3", "w_imp_sim_freq_4", "w_imp_sim_freq_5", "baseline_freq3", "baseline_freq4", "baseline_freq5", "baseline"]
             scores_str = ["w_imp_sim", "w_imp_sim_coeff", "w_imp_coeff",  "w_imp_sim_freq_3", "w_imp_sim_freq_4", "w_imp_sim_freq_5", "baseline_freq3", "baseline_freq4", "baseline_freq5", "baseline"]
             local_emb_source, local_emb_wt_source = compute_local_embs(w_embs_source, source[i,:,:].cpu().numpy(), source_w[i,:].cpu().numpy())
             local_emb_target, local_emb_wt_target = compute_local_embs(w_embs_target, target[i,:,:].cpu().numpy(), target_w[i,:].cpu().numpy())
             #scores_w_emb_local = weighted_sent_avg(local_emb_source, source_w_imp_list, w_prob_source, local_emb_target, target_w_imp_list, w_prob_target)
-            scores_w_emb_local_wt, sent_emb_list_local_wt = weighted_sent_avg(local_emb_wt_source, source_w_imp_list, w_prob_source, local_emb_wt_target, target_w_imp_list, w_prob_target)
+            scores_w_emb_local_wt, sent_emb_list_local_wt, dummy = weighted_sent_avg(local_emb_wt_source, source_w_imp_list, w_prob_source, local_emb_wt_target, target_w_imp_list, w_prob_target)
             #scores_str_local = [x + '_local' for x in scores_str]            
             scores_str_local_wt = [x + '_local_wt' for x in scores_str]            
-            sent_embs_SIF[idx] = sent_emb_list_org + sent_emb_list_local_wt
+            sent_embs_SIF[idx] = sent_emb_list_org + sent_emb_list_local_wt + [  [source_sent_emb[i,:].cpu().numpy(), target_sent_emb[i,:].cpu().numpy()] ] + [ [source_avg_word_emb[i,:].cpu().numpy(), target_avg_word_emb[i,:].cpu().numpy()] ]
+            OOV_first_list[idx] = OOV_all_sent[0]
+            OOV_second_list[idx] = OOV_all_sent[1]
 
             #pred_scores.append([sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local + scores_w_emb_local_wt)
-            pred_scores[idx] = [sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local_wt
-            output_idx_list.append(idx.item())
+            if OOV_sim_zero and (OOV_all_sent[0] == 1 or OOV_all_sent[1] == 1):
+                pred_scores[idx] = [0] * (8 + len(scores_str)*2)
+            else:
+                pred_scores[idx] = [-Wasserstein_dist[i].item(), -Wasserstein_dist_w[i].item(), sim_avg[i].item(), sim_w_avg[i].item(), -dist_avg[i].item(), -dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local_wt
+            #output_idx_list.append(idx.item())
     #method_names = ["kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local + scores_str_local_wt
-    method_names = ["kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local_wt
+    print("Total OOV first: ", np.sum(OOV_first_list), ", Total OOV second:", np.sum(OOV_second_list))
+    method_names = ["Wasserstein", "Wasserstein_w", "kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local_wt
     #sent_embs_freq, sent_embs_freq_w_sim, sent_embs_freq_local_wt, sent_embs_freq_w_sim_local_wt = 
     pred_scores_transpose = list(zip(*pred_scores))
     #print(len(pred_scores_transpose))
@@ -570,13 +657,14 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         for i in range( int(len(sent_embs_pc)/2) ):
             sent_emb_1 = sent_embs_pc[2*i]
             sent_emb_2 = sent_embs_pc[2*i+1]
-            sim = 1 - distance.cosine(sent_emb_1, sent_emb_2)
+            sim = safe_cosine_sim(sent_emb_1, sent_emb_2)
             score.append( sim )
-        score_sorted = [score[i] for i in output_idx_list]
+        #score_sorted = [score[i] for i in output_idx_list]
         #print(len(score_sorted))
-        pred_scores_transpose += [score_sorted]
+        #pred_scores_transpose += [score_sorted]
+        pred_scores_transpose += [score]
     #print(len(pred_scores_transpose))
     pred_scores = [list(x) for x in zip(*pred_scores_transpose)]
     #print(len(pred_scores))
-    method_names += ["baseline_freq_4_pc1", "w_imp_sim_freq_4_pc1", "baseline_freq_4_local_wt_pc1", "w_imp_sim_freq_4_local_wt_pc1"]
+    method_names += ["baseline_freq_4_pc1", "w_imp_sim_freq_4_pc1", "baseline_freq_4_local_wt_pc1", "w_imp_sim_freq_4_local_wt_pc1", "en_sent_emb_pc1", "avg_en_word_emb_pc1"]
     return pred_scores, method_names
