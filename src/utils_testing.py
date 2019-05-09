@@ -58,22 +58,35 @@ def add_model_arguments(parser):
     parser.add_argument('--dropoutp', type=float, default=0.1,
                         help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
 
-def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
+def predict_batch_simple(feature, parallel_encoder, parallel_decoder):
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
     #output_emb_last = parallel_encoder(feature)
     output_emb_last, output_emb = parallel_encoder(feature)
     basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
 
+    basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
+    return coeff_pred, basis_norm_pred
+    
+
+def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
+    
+    coeff_pred, basis_norm_pred = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+    #output_emb_last, output_emb = parallel_encoder(feature)
+    #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
+
     coeff_sum = coeff_pred.cpu().numpy()
+    
     coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
+    coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
     coeff_sum_diff_cpu = coeff_sum_diff.cpu().numpy()
     coeff_order = np.argsort(coeff_sum_diff_cpu, axis = 1)
     coeff_order = np.flip( coeff_order, axis = 1 )
 
-    basis_pred = basis_pred.permute(0,2,1)
-    #basis_pred should have dimension (n_batch, emb_size, n_basis)
-    basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 1, keepdim=True) )
+    #basis_pred = basis_pred.permute(0,2,1)
+    #basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 1, keepdim=True) )
+    basis_norm_pred = basis_norm_pred.permute(0,2,1)
+    #basis_norm_pred should have dimension (n_batch, emb_size, n_basis)
     #word_norm_emb should have dimension (ntokens, emb_size)
     sim_pairwise = torch.matmul(word_norm_emb.unsqueeze(dim = 0), basis_norm_pred)
     #print(sim_pairwise.size())
@@ -92,7 +105,6 @@ def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_
     word_imp_sim = []
     word_imp_sim_coeff = []
     word_imp_coeff = []
-    coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
     for i in range(bsz):
         #print(feature[i,:])
         sent_len = (feature[i,:] != 0).sum()
@@ -225,6 +237,30 @@ def load_prediction_from_json(f_in):
             topic_list.append(vector)
         sent_d2_topics[org_sent] = [topic_list, topic_weight_list, sent_emb, avg_word_emb,  (w_imp_sim, w_imp_sim_coeff, w_imp_coeff), proc_sent]
     return sent_d2_topics
+
+#def output_sent_basis_summ(dataloader, org_sent_list, parallel_encoder, parallel_decoder, n_basis, idx2word_freq):
+def output_sent_basis_summ(dataloader, parallel_encoder, parallel_decoder, n_basis, idx2word_freq):
+    sent_d2_basis = {}
+    with torch.no_grad():
+        #current_idx = 0
+        proc_sent_list = []
+        basis_coeff_list = []
+        for i_batch, sample_batched in enumerate(dataloader):
+            #assuming dataloader is not shuffled
+            feature, target = sample_batched
+            coeff_pred, basis_norm_pred = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+            coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
+            coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
+
+            feature_text = convert_feature_to_text(feature, idx2word_freq)
+            for i in range(feature.size(0)):
+                #sent_d2_basis[ org_sent_list[current_idx] ] = [ basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :] ]
+                basis_coeff_list.append( [basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :]] )
+                proc_sent_list.append(feature_text[i])
+                #current_idx += 1
+            
+    #return sent_d2_basis
+    return basis_coeff_list, proc_sent_list
 
 def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, n_basis, outf_vis):
     basis_json = []

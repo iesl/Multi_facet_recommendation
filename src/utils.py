@@ -14,6 +14,19 @@ w_d2_ind_init = {'[null]': 0, '<unk>': 1, '<eos>': 2}
 ind_l2_w_freq_init = [ ['[null]',-1,0], ['<unk>',0,1], ['<eos>',0,2] ]
 num_special_token = len(w_d2_ind_init)
 
+class Logger(object):
+    def __init__(self, logging_path, print_=True, log_=True):
+        self.f_log = open(logging_path,'w')
+        self.print_ = print_
+        self.log_ = log_
+
+    def logging(self, s, print_=None, log_=None):
+        if print_ or (print_ is None and self.print_):
+            print(s)
+            sys.stdout.flush()
+        if log_ or (log_ is None and self.log_):
+            self.f_log.write(s + '\n')
+
 class Dictionary(object):
     def __init__(self, byte_mode=False):
         self.w_d2_ind = w_d2_ind_init
@@ -143,7 +156,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
         dataset_arr = [ F2SetDataset(feature[i:feature.size(0):split_num,:], target[i:target.size(0):split_num,:], device) for i in range(split_num)]
 
     use_cuda = False
-    if device == 'cude':
+    if device.startswith('cude'):
         use_cuda = True
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
@@ -155,7 +168,7 @@ def create_data_loader(f_in, bsz, device):
     dataset = F2SetDataset(feature, target, device)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
-    if device == 'cude':
+    if device.startswith('cude'):
         use_cuda = True
     return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
 
@@ -185,6 +198,15 @@ def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
     print("Truncation rate: ", truncate_num/float(len(proc_sent_list)) )
     return feature_tensor
 
+def load_testing_article_summ(word_d2_idx_freq, article, max_sent_len, eval_bsz, device):
+    feature_tensor = convert_sent_to_tensor(article, max_sent_len, word_d2_idx_freq)
+    dataset = F2SetDataset(feature_tensor, None, device)
+    use_cuda = False
+    if device.startswith('cude'):
+        use_cuda = True
+    dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
+    return dataloader_test
+
 def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
     with open(dict_path) as f_in:
         idx2word_freq = load_idx2word_freq(f_in)
@@ -200,14 +222,16 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
             org_sent_list.append(org_sent)
             proc_sent_list.append(proc_sent)
     
-    feature_tensor = convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx)
-    dataset = F2SetDataset(feature_tensor, None, device)
-    use_cuda = False
-    if device == 'cude':
-        use_cuda = True
-    dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
+    dataloader_test = load_testing_article_summ(word2idx, proc_sent_list, max_sent_len, eval_bsz, device)
+    #feature_tensor = convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx)
+    #dataset = F2SetDataset(feature_tensor, None, device)
+    #use_cuda = False
+    #if device.startswith('cude'):
+    #    use_cuda = True
+    #dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
 
     return dataloader_test, org_sent_list, idx2word_freq
+
 
 def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False):
     train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
