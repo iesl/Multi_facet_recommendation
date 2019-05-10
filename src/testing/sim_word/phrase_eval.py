@@ -7,8 +7,31 @@ import utils
 import utils_testing
 import torch
 
+import getopt
+help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:l:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-t"):
+        topic_file_name = arg
+    elif opt in ("-w"):
+        embedding_file_name = arg
+    elif opt in ("-d"):
+        freq_file_name = arg
+    elif opt in ("-g"):
+        train_or_test= int(arg)
+    elif opt in ("-l"):
+        lowercase_emb= int(arg)
+
 #embedding_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/resources/"
-embedding_dir = "./resources/"
+#embedding_dir = "./resources/"
 
 
 #lowercase_emb = True
@@ -17,28 +40,31 @@ embedding_dir = "./resources/"
 #embedding_file_name = embedding_dir + "word2vec_wiki2016_min100.txt"
 
 #lower
-lowercase_emb = False
+#lowercase_emb = False
 #embedding_file_name = embedding_dir + "paragram_wiki2016_min100"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_bsz200_ep1_3.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_bsz200_no_connect_ep1_3.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_bsz200_no_connect_no_stop_ep1_3.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_no_stop_bsz200_ep1_3.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_bsz200_no_connect_ep1_5.json"
-topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json"
+#topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_n1_bsz200_no_connect_ep1_2.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_n1_bsz200_no_connect_no_stop_ep1_2.json"
-embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
+#embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_lex_enwiki_trans_d400_bsz400_ep1_5.json"
 #embedding_file_name = embedding_dir + "lexvec_enwiki_wiki2016_min100"
+
+#freq_file_name = "./data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
 
 #w2v = gensim.models.KeyedVectors.load_word2vec_format(emb_file_path, binary=False)
 
 dataset_dir = "./dataset_testing/phrase/"
 #dataset_list = [ [dataset_dir + "SemEval2013/en.trainSet", "SemEval2013" ], [dataset_dir + "SemEval2013/en.testSet", "SemEval2013"], [dataset_dir + "Turney2012/jair.data", "Turney"] ]
-dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
-#dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
+if train_or_test == 'train':
+    dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
+elif train_or_test == 'test'::
+    dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
 
-freq_file_name = "./data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
 bsz = 100
 
 device = 'cuda'

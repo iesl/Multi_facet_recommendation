@@ -6,19 +6,40 @@ import numpy as np
 import torch
 import utils
 
+import getopt
+help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -f <feature_file_name> -g <gt_file_name>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "t:w:d:f:g:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-t"):
+        topic_file_name = arg
+    elif opt in ("-w"):
+        w_emb_file_name = arg
+    elif opt in ("-d"):
+        freq_file_name = arg
+    elif opt in ("-f"):
+        test_file_name= arg
+    elif opt in ("-g"):
+        gt_file_name= arg
+
 #topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_n20_bsz200_ep1_1.json"
 #topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_n3_bsz200_ep1_1.json"
 #topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_n1_bsz200_ep1_0.json"
-topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_n10_bsz200_ep2_1.json"
+#topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_n10_bsz200_ep2_1.json"
 #topic_file_name = "./gen_log/WiC_dev_wiki2016_glove_trans_no_connect_bsz200_ep2_0.json"
 #w_emb_file_name = "./resources/word2vec_wiki2016_min100.txt"
-w_emb_file_name = "./resources/glove.840B.300d_filtered_wiki2016.txt"
+#w_emb_file_name = "./resources/glove.840B.300d_filtered_wiki2016.txt"
 #w_emb_file_name = "./resources/lexvec_wiki2016_min100"
-freq_file_name = "./data/processed/wiki2016_min100/dictionary_index"
+#freq_file_name = "./data/processed/wiki2016_min100/dictionary_index"
 
-#topic_file_name = "./gen_log/STS_dev_wiki2016_lex_enwiki_trans_bsz200_ep1_0.json"
 #w_emb_file_name = "./resources/lexvec_enwiki_wiki2016_min100"
-#topic_file_name = "./gen_log/STS_dev_wiki2016_paragram_trans_bsz200_ep1_1.json"
 #w_emb_file_name = "./resources/paragram_wiki2016_min100"
 #freq_file_name = "./data/processed/wiki2016_lower_min100/dictionary_index"
 
@@ -28,8 +49,8 @@ sys.stdout.flush()
 
 #test_file_name = "dataset_testing/WiC_dataset/train/train.data.txt"
 #gt_file_name = "dataset_testing/WiC_dataset/train/train.gold.txt"
-test_file_name = "dataset_testing/WiC_dataset/dev/dev.data.txt"
-gt_file_name = "dataset_testing/WiC_dataset/dev/dev.gold.txt"
+#test_file_name = "dataset_testing/WiC_dataset/dev/dev.data.txt"
+#gt_file_name = "dataset_testing/WiC_dataset/dev/dev.gold.txt"
 
 #device = 'cpu'
 device = 'cuda'

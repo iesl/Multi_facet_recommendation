@@ -6,6 +6,7 @@ import model as model_code
 import torch.nn as nn
 import numpy as np
 import random
+import sys
 
 UNK_IND = 1
 EOS_IND = 2
@@ -156,7 +157,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
         dataset_arr = [ F2SetDataset(feature[i:feature.size(0):split_num,:], target[i:target.size(0):split_num,:], device) for i in range(split_num)]
 
     use_cuda = False
-    if device.startswith('cude'):
+    if device.type == 'cude':
         use_cuda = True
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
@@ -168,7 +169,7 @@ def create_data_loader(f_in, bsz, device):
     dataset = F2SetDataset(feature, target, device)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
-    if device.startswith('cude'):
+    if device.type == 'cude':
         use_cuda = True
     return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
 
@@ -202,7 +203,7 @@ def load_testing_article_summ(word_d2_idx_freq, article, max_sent_len, eval_bsz,
     feature_tensor = convert_sent_to_tensor(article, max_sent_len, word_d2_idx_freq)
     dataset = F2SetDataset(feature_tensor, None, device)
     use_cuda = False
-    if device.startswith('cude'):
+    if device.type == 'cude':
         use_cuda = True
     dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
     return dataloader_test
@@ -226,7 +227,7 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
     #feature_tensor = convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx)
     #dataset = F2SetDataset(feature_tensor, None, device)
     #use_cuda = False
-    #if device.startswith('cude'):
+    #if device.type == 'cude':
     #    use_cuda = True
     #dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
 
@@ -335,15 +336,24 @@ def output_parallel_models(use_cuda, single_gpu, encoder, decoder):
         parallel_encoder = encoder
         parallel_decoder = decoder
     return parallel_encoder, parallel_decoder
+        
+def load_emb_from_path(emb_file_path, device, idx2word_freq):
+    if emb_file_path[-3:] == '.pt':
+        word_emb = torch.load( emb_file_path, map_location=device )
+        output_emb_size = word_emb.size(1)
+    else:
+        word_emb, output_emb_size, oov_list = load_emb_file_tensor(emb_file_path,device,idx2word_freq)
+    return word_emb, output_emb_size
 
 def loading_all_models(args, idx2word_freq, device, max_sent_len):
 
     if len(args.emb_file) > 0:
-        if args.emb_file[-3:] == '.pt':
-            word_emb = torch.load( args.emb_file, map_location=device )
-            output_emb_size = word_emb.size(1)
-        else:
-            word_emb, output_emb_size, oov_list = load_emb_file_tensor(args.emb_file,device,idx2word_freq)
+        word_emb, output_emb_size = load_emb_from_path(args.emb_file, device, idx2word_freq)
+        #if args.emb_file[-3:] == '.pt':
+        #    word_emb = torch.load( args.emb_file, map_location=device )
+        #    output_emb_size = word_emb.size(1)
+        #else:
+        #    word_emb, output_emb_size, oov_list = load_emb_file_tensor(args.emb_file,device,idx2word_freq)
     else:
         output_emb_size = args.emsize
 

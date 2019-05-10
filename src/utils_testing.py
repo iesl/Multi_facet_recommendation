@@ -256,7 +256,7 @@ def output_sent_basis_summ(dataloader, parallel_encoder, parallel_decoder, n_bas
             for i in range(feature.size(0)):
                 #sent_d2_basis[ org_sent_list[current_idx] ] = [ basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :] ]
                 basis_coeff_list.append( [basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :]] )
-                proc_sent_list.append(feature_text[i])
+                proc_sent_list.append(' '.join(feature_text[i]))
                 #current_idx += 1
             
     #return sent_d2_basis

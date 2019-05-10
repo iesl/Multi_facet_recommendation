@@ -1,8 +1,10 @@
 dataset_dir = "./dataset_testing/"
 
-dataset_list = [ [dataset_dir + "phrase/SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "phrase/SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "phrase/Turney2012/Turney_train.txt", "Turney"] ]
-
-output_file = dataset_dir + "phrase/SemEval2013_Turney2012_phrase_org"
+/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/HypeNet/rnd/val.tsv
+#dataset_list = [ [dataset_dir + "phrase/SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "phrase/SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "phrase/Turney2012/Turney_train.txt", "Turney"] ]
+dataset_list = [ [ dataset_dir + 'phrase/HypeNet/rnd/val.tsv' , "hyper" ], [ dataset_dir + 'phrase/WordNet/wordnet_valid.txt' , "hyper" ] ]
+#output_file = dataset_dir + "phrase/SemEval2013_Turney2012_phrase_org"
+output_file = dataset_dir + "phrase/HypeNet_WordNet_val_org"
 
 def load_Turney(file_name):
     #dataset = []
@@ -34,6 +36,14 @@ def load_SemEval(neg_file, pos_file):
     pos_phrase = load_pairs(pos_file)
     all_phrases = neg_phrase + pos_phrase
     return all_phrases
+
+def load_hyper(file_name):
+    all_phrases = []
+    with open(file_name) as f_in:
+        for line in f_in:
+            fields = line.rstrip().split('\t')
+            processing_phrase(fields[0])
+            .split(',')
 
 all_phrases = []
 for file_info in dataset_list:
