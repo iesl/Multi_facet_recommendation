@@ -66,12 +66,12 @@ def predict_batch_simple(feature, parallel_encoder, parallel_decoder):
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
 
     basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
-    return coeff_pred, basis_norm_pred
+    return coeff_pred, basis_norm_pred, output_emb_last, output_emb
     
 
 def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k):
     
-    coeff_pred, basis_norm_pred = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+    coeff_pred, basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
     #output_emb_last, output_emb = parallel_encoder(feature)
     #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
 
@@ -101,6 +101,8 @@ def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_
     #word_basis_sim_pos = word_basis_sim_pos * word_basis_sim_pos 
 
     bsz, max_sent_len, emb_size = output_emb.size()
+    #bsz, max_sent_len = feature.size()
+    #emb_size = basis_norm_pred.size(1)
     avg_out_emb = torch.empty(bsz, emb_size)
     word_imp_sim = []
     word_imp_sim_coeff = []
@@ -248,7 +250,7 @@ def output_sent_basis_summ(dataloader, parallel_encoder, parallel_decoder, n_bas
         for i_batch, sample_batched in enumerate(dataloader):
             #assuming dataloader is not shuffled
             feature, target = sample_batched
-            coeff_pred, basis_norm_pred = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+            coeff_pred, basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
             coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
             coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
 

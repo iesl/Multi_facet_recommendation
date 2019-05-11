@@ -10,6 +10,8 @@ import torch
 import getopt
 help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>'
 
+lowercase_emb = 0
+
 try:
     opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:l:")
 except getopt.GetoptError:
@@ -26,7 +28,7 @@ for opt, arg in opts:
     elif opt in ("-d"):
         freq_file_name = arg
     elif opt in ("-g"):
-        train_or_test= int(arg)
+        train_or_test= arg
     elif opt in ("-l"):
         lowercase_emb= int(arg)
 
@@ -50,12 +52,12 @@ for opt, arg in opts:
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_n1_bsz200_no_connect_ep1_2.json"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_glove_trans_n1_bsz200_no_connect_no_stop_ep1_2.json"
-topic_file_name = "./gen_log/phrase_hyper_val_wiki2016_glove_trans5_bsz1000_ep1_29.json"
-embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
+#topic_file_name = "./gen_log/phrase_hyper_val_wiki2016_glove_trans5_bsz1000_ep1_29.json"
+#embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
 #topic_file_name = "./gen_log/phrase_train_wiki2016_lex_enwiki_trans_d400_bsz400_ep1_5.json"
 #embedding_file_name = embedding_dir + "lexvec_enwiki_wiki2016_min100"
 
-freq_file_name = "./data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
+#freq_file_name = "./data/processed/wiki2016_nchunk_lower_min100/dictionary_index"
 
 #w2v = gensim.models.KeyedVectors.load_word2vec_format(emb_file_path, binary=False)
 
@@ -64,7 +66,7 @@ if train_or_test == 'train':
     dataset_list = [ [ dataset_dir + 'HypeNet/rnd/train.tsv', 'raw' , "hyper"], [ dataset_dir + 'WordNet/wordnet_train.txt' , "POS",  "hyper" ] ]
 elif train_or_test == 'val':
     dataset_list = [ [ dataset_dir + 'HypeNet/rnd/val.tsv', 'raw' , "hyper"], [ dataset_dir + 'WordNet/wordnet_valid.txt' , "POS",  "hyper" ] ]
-elif train_or_test == 'test'::
+elif train_or_test == 'test':
     dataset_list = [ [ dataset_dir + 'HypeNet/rnd/test.tsv', 'raw' , "hyper"], [ dataset_dir + 'WordNet/wordnet_test.txt' , "POS",  "hyper" ] ]
 
 bsz = 100
@@ -100,11 +102,11 @@ def load_hyper(file_name, POS_suffix, all_pairs):
                 not_noun_count += 1
                 continue
             label = 0
-            if fields[3] == 'hyper'
+            if fields[3] == 'hyper':
                 label = 1
-            dataset.append( [hypo_candidate, hypo_candidate, label] )
-            all_pairs.append( [hypo_candidate, hypo_candidate, 'hyper'] )
-    print("Throw away "+str(not_noun_count)+" pairs which are not nouns and keep "+str(len(all_phrases)/2)+" pairs")
+            dataset.append( [hypo_candidate, hyper_candidate, label] )
+            all_pairs.append( [hypo_candidate, hyper_candidate, 'hyper'] )
+    print("Throw away "+str(not_noun_count)+" pairs which are not nouns and keep "+str(len(all_pairs))+" pairs")
     return dataset
 
 dataset_arr = []
@@ -116,7 +118,7 @@ for file_info in dataset_list:
         POS_suffix = False
         if file_info[1] == "POS":
             POS_suffix = True
-        all_phrases += load_hyper(file_info[0], POS_suffix, all_pairs)
+        dataset_arr.append( load_hyper(file_info[0], POS_suffix, all_pairs) )
 
 with open(freq_file_name) as f_in:
     word_d2_idx_freq, max_ind = utils.load_word_dict(f_in)
@@ -131,7 +133,7 @@ print("build dataloader")
 testing_pair_loader, other_info = utils_testing.build_loader_from_pairs(all_pairs, sent_d2_topics, bsz, device)
 
 print("loading ", embedding_file_name)
-word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
+word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_emb)
 
 with torch.no_grad():
     pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)

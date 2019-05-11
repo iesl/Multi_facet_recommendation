@@ -104,7 +104,7 @@ with open(args.dict) as f_in:
 utils_testing.compute_freq_prob(word_d2_idx_freq)
 
 #all_clustering_models = [MiniBatchKMeans(n_clusters=i, max_iter=10, n_init=1, max_no_improvement=3, compute_labels=False) for i in range(1,args.top_k_max+1)]
-all_clustering_models = [KMeans(n_clusters=i, max_iter=30, n_init=1, precompute_distances=True, n_jobs = 5) for i in range(1,args.top_k_max+1)]
+all_clustering_models = [KMeans(n_clusters=i, max_iter=100, n_init=1, precompute_distances=True, n_jobs = 5) for i in range(1,args.top_k_max+1)]
 
 ########################
 print("Processing data")

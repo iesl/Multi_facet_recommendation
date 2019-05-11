@@ -10,6 +10,8 @@ import torch
 import getopt
 help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>'
 
+lowercase_emb = 0
+
 try:
     opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:l:")
 except getopt.GetoptError:
@@ -26,7 +28,7 @@ for opt, arg in opts:
     elif opt in ("-d"):
         freq_file_name = arg
     elif opt in ("-g"):
-        train_or_test= int(arg)
+        train_or_test= arg
     elif opt in ("-l"):
         lowercase_emb= int(arg)
 
@@ -154,7 +156,7 @@ print("build dataloader")
 testing_pair_loader, other_info = utils_testing.build_loader_from_pairs(all_pairs, sent_d2_topics, bsz, device)
 
 print("loading ", embedding_file_name)
-word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
+word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_emb)
 
 with torch.no_grad():
     pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)

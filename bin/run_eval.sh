@@ -67,3 +67,5 @@ DICT_PHRASE_LOWER="./data/processed/wiki2016_nchunk_lower_min100/dictionary_inde
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29
 
+#~/anaconda3/bin/python src/testing/sim_word/hyper_eval.py -t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>
+~/anaconda3/bin/python src/testing/sim_word/hyper_eval.py -t ./gen_log/phrase_hyper_val_wiki2016_glove_trans5_bsz1000_ep1_29.json  -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g val -l 0 
