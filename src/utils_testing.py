@@ -117,11 +117,16 @@ def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_
         topic_weights_sum = topic_weights.sum(dim = 1)
         #print(topic_weights_sum)
         #print(topic_weights_sum.size())
-        weights_nonzeros = topic_weights_sum.nonzero().squeeze(dim = 1)
+        weights_nonzeros = topic_weights_sum.nonzero()
+        weights_nonzeros_size = weights_nonzeros.size()
+        if len(weights_nonzeros_size) == 2 and weights_nonzeros_size[1] == 1:
+            weights_nonzeros = weights_nonzeros.squeeze(dim = 1)
         #print(weights_nonzeros)
         #print(weights_nonzeros.size())
         topic_weights_norm = topic_weights.clone()
-        topic_weights_norm[weights_nonzeros,:] = topic_weights[weights_nonzeros,:] / topic_weights_sum[weights_nonzeros].unsqueeze(dim = 1)
+        #print(weights_nonzeros)
+        if weights_nonzeros.nelement() > 0:
+            topic_weights_norm[weights_nonzeros,:] = topic_weights[weights_nonzeros,:] / topic_weights_sum[weights_nonzeros].unsqueeze(dim = 1)
         #if (topic_weights_sum == 0).sum() == 0:
         #    topic_weights_norm = topic_weights / topic_weights_sum
         #else:
@@ -412,42 +417,152 @@ def compute_AP_best_F1_acc(score_list, gt_list, correct_label = 1):
         acc_list.append( (correct_count + true_neg_num) / float(len(sorted_idx)) )
     return np.mean(precision_list), np.max(F1_list), np.max(acc_list)
 
-def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True):
-    def safe_normalization(weight):
-        weight_sum = torch.sum(weight)
-        assert weight_sum>0
-        return weight / weight_sum
+def safe_normalization(weight):
+    weight_sum = torch.sum(weight)
+    assert weight_sum>0
+    return weight / weight_sum
 
-    def weighted_average(cosine_sim, weight):
-        #assume that weight are normalized
-        return (cosine_sim * weight).mean(dim = 1)
+def compute_cosine_sim(source, target):
+    #assume that two matrices have been normalized
+    C = target.permute(0,2,1)
+    cos_sim_st = torch.bmm(source, C)
+    cos_sim_ts = cos_sim_st.permute(0,2,1)
+    return cos_sim_st, cos_sim_ts 
 
+def weighted_average(cosine_sim, weight):
+    #assume that weight are normalized
+    return (cosine_sim * weight).mean(dim = 1)
+
+def max_cosine_given_sim(cos_sim_st, target_w):
+    cosine_sim_s_to_t, max_i = torch.max(cos_sim_st, dim = 1)
+    #cosine_sim should have dimension (n_batch,n_set)
+    sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
+    sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
+    return sim_avg_st, sim_w_avg_st
+
+def lc_pred_dist(target, source, target_w, L1_losss_B, device):
+    #coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch(target, source, L1_losss_B, device, max_iter = 1000)
+    with torch.enable_grad():
+        coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch_opt(target, source, L1_losss_B, device, coeff_opt = 'rmsprop', lr = 0.05, max_iter = 1000)
+    pred_embeddings = torch.bmm(coeff_mat_s_to_t, source)
+    dist_st = torch.pow( torch.norm( pred_embeddings - target, dim = 2 ), 2)
+    #dist_st = torch.norm( pred_embeddings - target, dim = 2 )
+    dist_avg_st = dist_st.mean(dim = 1)
+    dist_w_avg_st = weighted_average(dist_st, target_w)
+    return dist_avg_st, dist_w_avg_st
+
+def get_w_emb(proc_sent, word2emb, emb_size, word_d2_idx_freq):
+    w_embs = []
+    w_prob = []
+    for w in proc_sent:
+        if w in word2emb:
+            w_embs.append(word2emb[w].reshape(1,-1))
+            w_prob.append(word_d2_idx_freq[w][2])
+        else:
+            #assert w == '<eos>' or w == '<unk>', w
+            w_embs.append(np.zeros( (1,emb_size) ))
+            w_prob.append(0)
+    w_embs = np.concatenate( w_embs, axis = 0 )
+    w_prob = np.array(w_prob)
+    return w_embs, w_prob
+
+def weighted_sum_emb_list(w_embs, w_imp=None):
+    if w_imp is None:
+        return np.sum(w_embs, axis = 0)
+    else:
+        return np.matmul(w_imp, w_embs)
+
+def check_OOV(s_sent_emb, t_sent_emb):
+    OOV_first = 0
+    OOV_second = 0
+    if np.sum(np.abs(s_sent_emb)) == 0:
+        OOV_first = 1
+    if np.sum(np.abs(t_sent_emb)) == 0:
+        OOV_second = 1
+    OOV_all_sent = [OOV_first, OOV_second]
+    return OOV_all_sent
+
+def predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True):
+    corpus_size = len(testing_pair_loader.dataset)
+    pred_scores = [0] * corpus_size
+    w_imp_list_1, proc_sent_list_1, w_imp_list_2, proc_sent_list_2 = other_info
     
-    def lc_pred_dist(target, source, target_w, L1_losss_B, device):
-        #coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch(target, source, L1_losss_B, device, max_iter = 1000)
-        with torch.enable_grad():
-            coeff_mat_s_to_t = nsd_loss.estimate_coeff_mat_batch_opt(target, source, L1_losss_B, device, coeff_opt = 'rmsprop', lr = 0.05, max_iter = 1000)
-        pred_embeddings = torch.bmm(coeff_mat_s_to_t, source)
-        dist_st = torch.pow( torch.norm( pred_embeddings - target, dim = 2 ), 2)
-        #dist_st = torch.norm( pred_embeddings - target, dim = 2 )
-        dist_avg_st = dist_st.mean(dim = 1)
-        dist_w_avg_st = weighted_average(dist_st, target_w)
-        return dist_avg_st, dist_w_avg_st
+    emb_size = list(word2emb.values())[0].size
+    sent_embs_SIF = [0] * corpus_size
+    OOV_first_list = [0] * corpus_size
+    OOV_second_list = [0] * corpus_size
+    OOV_value = -100000000000
+    for source, source_w, source_sent_emb, source_avg_word_emb, target, target_w, target_sent_emb, target_avg_word_emb, idx_batch in testing_pair_loader:
+        #normalize w
+        sys.stdout.write( str(idx_batch[0].item()) + ' ' )
+        sys.stdout.flush()
+        source_w = safe_normalization(source_w)
+        target_w = safe_normalization(target_w)
+        
+        #Kmeans loss
+        cos_sim_st, cos_sim_ts = compute_cosine_sim(source, target)
+        
+        uniform_s = torch.ones_like(source_w) / source_w.size(1)
+        uniform_t = torch.ones_like(target_w) / target_w.size(1)
+        cos_dist_st = 1 - cos_sim_st
+        Wasserstein_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, uniform_s, uniform_t, epsilon=1, niter=100)
+        Wasserstein_dist = torch.sum( Wasserstein_trans * cos_dist_st, dim = 2).sum(dim = 1)
+        Wasserstein_trans_w = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, source_w, target_w, epsilon=1, niter=100)
+        Wasserstein_dist_w = torch.sum( Wasserstein_trans_w * cos_dist_st, dim = 2).sum(dim = 1)
 
-    def get_w_emb(proc_sent, word2emb, emb_size, word_d2_idx_freq):
-        w_embs = []
-        w_prob = []
-        for w in proc_sent:
-            if w in word2emb:
-                w_embs.append(word2emb[w].reshape(1,-1))
-                w_prob.append(word_d2_idx_freq[w][2])
+        sim_avg_st, sim_w_avg_st = max_cosine_given_sim(cos_sim_st, target_w)
+        sim_avg_ts, sim_w_avg_ts = max_cosine_given_sim(cos_sim_ts, source_w)
+        sim_avg = (sim_avg_st + sim_avg_ts)/2
+        sim_w_avg = (sim_w_avg_st + sim_w_avg_ts)/2
+
+        sim_avg_max = torch.max( sim_avg_st, sim_avg_ts )
+        sim_avg_min = torch.min( sim_avg_st, sim_avg_ts )
+        sim_avg_diff = sim_avg_ts - sim_avg_st
+        sim_avg_diff_inv = sim_avg_st - sim_avg_ts
+        sim_w_avg_diff = sim_w_avg_ts - sim_w_avg_st
+        sim_w_avg_diff_inv = sim_w_avg_st - sim_w_avg_ts
+
+        dist_avg_st, dist_w_avg_st = lc_pred_dist(target, source, target_w, L1_losss_B, device)
+        dist_avg_ts, dist_w_avg_ts = lc_pred_dist(source, target, source_w, L1_losss_B, device)
+        dist_avg_diff = dist_avg_ts - dist_avg_st
+        dist_avg_diff_inv = dist_avg_st - dist_avg_ts
+        dist_w_avg_diff = dist_w_avg_ts - dist_w_avg_st
+        dist_w_avg_diff_inv = dist_w_avg_st - dist_w_avg_ts
+
+        cosine_sim = F.cosine_similarity(source_sent_emb, target_sent_emb, dim = 1)
+        cosine_sim_word = F.cosine_similarity(source_avg_word_emb, target_avg_word_emb, dim = 1)
+
+        for i in range(sim_avg.size(0)):
+        #coeff_mat should have dimension (n_batch,n_set,n_basis)
+            idx = idx_batch[i]
+            source_proc_sent = proc_sent_list_1[idx]
+            target_proc_sent = proc_sent_list_2[idx]
+            source_w_imp_list = w_imp_list_1[idx]
+            target_w_imp_list = w_imp_list_2[idx]
+            w_embs_source, w_prob_source = get_w_emb(source_proc_sent, word2emb, emb_size, word_d2_idx_freq)
+            w_embs_target, w_prob_target = get_w_emb(target_proc_sent, word2emb, emb_size, word_d2_idx_freq)
+            s_sent_emb = weighted_sum_emb_list(w_embs_source)
+            t_sent_emb = weighted_sum_emb_list(w_embs_target)
+            score_baseline = safe_cosine_sim(s_sent_emb, t_sent_emb)
+
+            OOV_first, OOV_second = check_OOV(s_sent_emb, t_sent_emb)
+
+            OOV_first_list[idx] = OOV_first
+            OOV_second_list[idx] = OOV_second
+
+            if OOV_sim_zero and (OOV_first == 1 or OOV_second == 1):
+                pred_scores[idx] = [OOV_value] * 21
             else:
-                #assert w == '<eos>' or w == '<unk>', w
-                w_embs.append(np.zeros( (1,emb_size) ))
-                w_prob.append(0)
-        w_embs = np.concatenate( w_embs, axis = 0 )
-        w_prob = np.array(w_prob)
-        return w_embs, w_prob
+                pred_scores[idx] = [-Wasserstein_dist[i].item(), -Wasserstein_dist_w[i].item(), sim_avg[i].item(), sim_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item(), score_baseline.item(), sim_avg_max[i].item(), sim_avg_min[i].item(), sim_avg_diff[i].item(), sim_avg_diff[i].item() * sim_avg[i].item(), sim_avg_diff_inv[i].item(), sim_w_avg_diff[i].item(), sim_w_avg_diff_inv[i].item(), sim_avg_diff_inv[i].item()* sim_avg[i].item(), sim_w_avg_diff[i].item() * sim_avg[i].item(), dist_avg_diff[i].item(), dist_avg_diff_inv[i].item(), dist_w_avg_diff[i].item(), dist_w_avg_diff_inv[i].item(), dist_avg_diff_inv[i].item() + dist_w_avg_diff[i].item()]
+            
+    print("Total OOV first: ", np.sum(OOV_first_list), ", Total OOV second:", np.sum(OOV_second_list))
+    method_names = ["Wasserstein", "Wasserstein_w", "kmeans", "kmeans_w", "en_sent_emb", "avg_en_word_emb", "baseline", "kmeans_max", "kmeans_min", "kmeans_diff", "kmeans_diff_avg", "kmeans_diff_inv", "kmeans_diff_w", "kmeans_diff_w_inv", "kmeans_diff_inv_avg", "kmeans_diff_w_avg", "SC_diff", "SC_diff_inv", "SC_diff_w", "SC_diff_w_inv", "SC_diff_inv+SC_diff_w"] 
+
+    return pred_scores, method_names, OOV_value
+
+def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True):
+    
+
     
 #    def weighted_sum_emb_list_sq(w_embs, w_imp):
 #        emb_size = w_embs[0].size
@@ -485,11 +600,6 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
 #        return sent_emb
 #
      
-    def weighted_sum_emb_list(w_embs, w_imp=None):
-        if w_imp is None:
-            return np.sum(w_embs, axis = 0)
-        else:
-            return np.matmul(w_imp, w_embs)
 
     def freq_weighting(w_embs, w_prob, w_imp, alpha):
         w_imp_freq = alpha/(w_prob+alpha)
@@ -518,6 +628,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         #return sent_emb, sent_emb_freq_3, sent_emb_freq_4, sent_emb_freq_5, sent_emb_freq_3_w_sim, sent_emb_freq_4_w_sim, sent_emb_freq_5_w_sim, sent_emb_w_sim, sent_emb_w_sim_sq, sent_emb_w_sim_coeff, sent_emb_w_coeff
         return sent_emb, sent_emb_freq_3, sent_emb_freq_4, sent_emb_freq_5, sent_emb_freq_3_w_sim, sent_emb_freq_4_w_sim, sent_emb_freq_5_w_sim, sent_emb_w_sim, sent_emb_w_sim_coeff, sent_emb_w_coeff
 
+    
     def weighted_sent_avg(w_embs_source, source_w_imp_list, w_prob_source, w_embs_target, target_w_imp_list, w_prob_target):
         #s_sent_emb, s_sent_emb_freq_3, s_sent_emb_freq_4, s_sent_emb_freq_5, s_sent_emb_freq_3_w_sim, s_sent_emb_freq_4_w_sim, s_sent_emb_freq_5_w_sim, s_sent_emb_w_sim, s_sent_emb_w_sim_sq, s_sent_emb_w_sim_coeff, s_sent_emb_w_coeff = sentence_emb_from_sum(w_embs_source, source_w_imp_list, w_prob_source)
         #t_sent_emb, t_sent_emb_freq_3, t_sent_emb_freq_4, t_sent_emb_freq_5, t_sent_emb_freq_3_w_sim, t_sent_emb_freq_4_w_sim, t_sent_emb_freq_5_w_sim, t_sent_emb_w_sim, t_sent_emb_w_sim_sq, t_sent_emb_w_sim_coeff, t_sent_emb_w_coeff = sentence_emb_from_sum(w_embs_target, target_w_imp_list, w_prob_target)
@@ -537,13 +648,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         #return [score_w_sim, score_w_sim_sq, score_w_sim_coeff, score_w_coeff, score_baseline_freq_3_w_sim, score_baseline_freq_4_w_sim, score_baseline_freq_5_w_sim, score_baseline_freq_3, score_baseline_freq_4, score_baseline_freq_5, score_baseline]
         scores_w_emb = [score_w_sim, score_w_sim_coeff, score_w_coeff, score_baseline_freq_3_w_sim, score_baseline_freq_4_w_sim, score_baseline_freq_5_w_sim, score_baseline_freq_3, score_baseline_freq_4, score_baseline_freq_5, score_baseline]
         sent_emb_list = [ [s_sent_emb_freq_4, t_sent_emb_freq_4], [s_sent_emb_freq_4_w_sim, t_sent_emb_freq_4_w_sim] ]
-        OOV_first = 0
-        OOV_second = 0
-        if np.sum(np.abs(s_sent_emb)) == 0:
-            OOV_first = 1
-        if np.sum(np.abs(t_sent_emb)) == 0:
-            OOV_second = 1
-        OOV_all_sent = [OOV_first, OOV_second]
+        OOV_all_sent = check_OOV(s_sent_emb, t_sent_emb)
         return scores_w_emb, sent_emb_list, OOV_all_sent
     
     def safe_2_norm(emb):
@@ -581,19 +686,6 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
 
         return local_w_embs, local_w_embs_wt
     
-    def compute_cosine_sim(source, target):
-        #assume that two matrices have been normalized
-        C = target.permute(0,2,1)
-        cos_sim_st = torch.bmm(source, C)
-        cos_sim_ts = cos_sim_st.permute(0,2,1)
-        return cos_sim_st, cos_sim_ts 
-    
-    def max_cosine_given_sim(cos_sim_st, target_w):
-        cosine_sim_s_to_t, max_i = torch.max(cos_sim_st, dim = 1)
-        #cosine_sim should have dimension (n_batch,n_set)
-        sim_avg_st = cosine_sim_s_to_t.mean(dim = 1)
-        sim_w_avg_st = weighted_average(cosine_sim_s_to_t, target_w)
-        return sim_avg_st, sim_w_avg_st
 
     #def max_cosine_sim(target, source, target_w):
     #    cosine_sim_s_to_t, nn_source_idx = nsd_loss.estimate_coeff_mat_batch_max_cos(target, source)
@@ -631,6 +723,11 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
         cos_dist_st = 1 - cos_sim_st
         Wasserstein_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, uniform_s, uniform_t, epsilon=1, niter=100)
         Wasserstein_dist = torch.sum( Wasserstein_trans * cos_dist_st, dim = 2).sum(dim = 1)
+        Wasserstein_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, uniform_s, uniform_t, epsilon=2, niter=100)
+        Wasserstein_dist_e2 = torch.sum( Wasserstein_trans * cos_dist_st, dim = 2).sum(dim = 1)
+        Wasserstein_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, uniform_s, uniform_t, epsilon=0.5, niter=100)
+        Wasserstein_dist_e05 = torch.sum( Wasserstein_trans * cos_dist_st, dim = 2).sum(dim = 1)
+        
         Wasserstein_trans_w = Sinkhorn.batch_sinkhorn_loss_weighted( cos_dist_st, source_w, target_w, epsilon=1, niter=100)
         Wasserstein_dist_w = torch.sum( Wasserstein_trans_w * cos_dist_st, dim = 2).sum(dim = 1)
 
@@ -676,13 +773,13 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
 
             #pred_scores.append([sim_avg[i].item(), sim_w_avg[i].item(), dist_avg[i].item(), dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local + scores_w_emb_local_wt)
             if OOV_sim_zero and (OOV_all_sent[0] == 1 or OOV_all_sent[1] == 1):
-                pred_scores[idx] = [0] * (8 + len(scores_str)*2)
+                pred_scores[idx] = [-100000000000] * (10 + len(scores_str)*2)
             else:
-                pred_scores[idx] = [-Wasserstein_dist[i].item(), -Wasserstein_dist_w[i].item(), sim_avg[i].item(), sim_w_avg[i].item(), -dist_avg[i].item(), -dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local_wt
+                pred_scores[idx] = [-Wasserstein_dist[i].item(), -Wasserstein_dist_e2[i].item(), -Wasserstein_dist_e05[i].item(), -Wasserstein_dist_w[i].item(), sim_avg[i].item(), sim_w_avg[i].item(), -dist_avg[i].item(), -dist_w_avg[i].item(), cosine_sim[i].item(), cosine_sim_word[i].item()] + scores_w_emb_org + scores_w_emb_local_wt
             #output_idx_list.append(idx.item())
     #method_names = ["kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local + scores_str_local_wt
     print("Total OOV first: ", np.sum(OOV_first_list), ", Total OOV second:", np.sum(OOV_second_list))
-    method_names = ["Wasserstein", "Wasserstein_w", "kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local_wt
+    method_names = ["Wasserstein", "Wasserstein_e2", "Wasserstein_e05", "Wasserstein_w", "kmeans", "kmeans_w", "SC_rmsprop", "SC_rmsprop_w", "en_sent_emb", "avg_en_word_emb"] + scores_str + scores_str_local_wt
     #sent_embs_freq, sent_embs_freq_w_sim, sent_embs_freq_local_wt, sent_embs_freq_w_sim_local_wt = 
     pred_scores_transpose = list(zip(*pred_scores))
     #print(len(pred_scores_transpose))

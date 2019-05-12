@@ -240,8 +240,8 @@ class EMB2SEQ(nn.Module):
             #bsz = input.size(1)
             #weight = next(self.parameters()) # we use this just to let the tensor have the same type and device as the first weight in this class
             #hidden_init = (weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid), weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid))
-            coeff_input= torch.cat( (input, output), dim = 2)
-            #coeff_input= torch.cat( (emb, output), dim = 2)
+            #coeff_input= torch.cat( (input, output), dim = 2)
+            coeff_input= torch.cat( (emb, output), dim = 2)
             if self.coeff_model == "LSTM":
                 #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
                 coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
