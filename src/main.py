@@ -91,6 +91,8 @@ parser.add_argument('--trans_layers', type=int, default=2,
                     help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
 parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True, 
                     help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
+parser.add_argument('--dropout_prob_trans', type=float, default=0.1,
+                    help='hidden_dropout_prob and attention_probs_dropout_prob in Transformer')
 #coeff
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
                     help='weights for coefficient prediction loss')
@@ -260,7 +262,7 @@ if args.nhidlast2 < 0:
 #if args.linear_mapping_dim < 0:
 #    args.linear_mapping_dim = encoder.output_dim
 
-decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
+decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans)
 #decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)

@@ -141,7 +141,8 @@ word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_
 
 with torch.no_grad():
     #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
-    pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
+    #pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
+    pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info)
 
 pair_d2_score = {}
 for i in range(len(all_pairs)):

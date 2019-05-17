@@ -70,7 +70,7 @@ class RNN_decoder(nn.Module):
     
 
 class ext_emb_to_seq(nn.Module):
-    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb):
+    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans):
         super(ext_emb_to_seq, self).__init__()
         self.decoder_array = nn.ModuleList()
         input_dim = emb_dim
@@ -82,7 +82,7 @@ class ext_emb_to_seq(nn.Module):
                 #output_dim = nhid
             elif model_type == 'TRANS':
                 #model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers)
-                model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers, add_position_emb = add_position_emb,  decoder = using_memory)
+                model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers, add_position_emb = add_position_emb,  decoder = using_memory, dropout_prob = dropout_prob_trans)
                 self.trans_dim = input_dim
                 #output_dim = input_dim
             else:
@@ -108,7 +108,7 @@ class ext_emb_to_seq(nn.Module):
 class EMB2SEQ(nn.Module):
 
     #def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2, using_memory = False):
-    def __init__(self, model_type_list, coeff_model, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False):
+    def __init__(self, model_type_list, coeff_model, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False, dropout_prob_trans = 0.1):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -147,7 +147,7 @@ class EMB2SEQ(nn.Module):
         #self.relu_layer = nn.ReLU()
         
         self.positional_option = positional_option
-        self.dep_learner = ext_emb_to_seq(model_type_list, input_size, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb)
+        self.dep_learner = ext_emb_to_seq(model_type_list, input_size, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans)
         
         self.trans_dim = self.dep_learner.trans_dim
 
