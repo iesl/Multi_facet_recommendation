@@ -6,47 +6,19 @@ from sklearn.metrics import average_precision_score, f1_score
 import sys
 sys.path.insert(0, sys.path[0]+'/../..')
 import utils
+import json
 
-embedding_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/resources/"
-
-#lowercase_emb = True
-#embedding_file_name = embedding_dir + "glove.840B.300d_filtered_wiki2016_min100.txt"
-#embedding_file_name = embedding_dir + "lexvec_wiki2016_min100"
-#embedding_file_name = embedding_dir + "word2vec_wiki2016_min100.txt"
-
-#lower
-lowercase_emb = False
-#embedding_file_name = embedding_dir + "lexvec_enwiki_wiki2016_min100"
-#embedding_file_name = embedding_dir + "paragram_wiki2016_min100"
-embedding_file_name = embedding_dir + "glove.42B.300d_filtered_wiki2016_nchunk_lower_min100.txt"
-
-#w2v = gensim.models.KeyedVectors.load_word2vec_format(emb_file_path, binary=False)
+embedding_file_name = "gen_log/BERT_SemEval2013_Turney2012_phrase_train.json"
 
 dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
 #dataset_list = [ [dataset_dir + "SemEval2013/en.trainSet", "SemEval2013" ], [dataset_dir + "SemEval2013/en.testSet", "SemEval2013"], [dataset_dir + "Turney2012/jair.data", "Turney"] ]
 dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 
-#def load_emb_file(emb_file):
-#    with open(emb_file) as f_in:
-#        word2emb = {}
-#        for line in f_in:
-#            word_val = line.rstrip().split(' ')
-#            if len(word_val) < 3:
-#                continue
-#            word = word_val[0]
-#            val = np.array([float(x) for x in  word_val[1:]])
-#            if lowercase_emb:
-#                word_lower = word.lower()
-#                if word_lower not in word2emb:
-#                    word2emb[word_lower] = val
-#                else:
-#                    if word == word_lower:
-#                        word2emb[word_lower] = val
-#            else:
-#                word2emb[word] = val
-#            emb_size = len(val)
-#    return word2emb, emb_size
+def reverse_bigram(bigram):
+    #w_list = bigram.split()
+    #return w_list[1]+' '+w_list[0]
+    return [bigram[1],bigram[0]]
 
 def load_Turney(file_name):
     dataset = []
@@ -85,32 +57,61 @@ for file_info in dataset_list:
         dataset_arr.append( load_Turney( file_info[0] ) )
 
 print("loading ", embedding_file_name)
-word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
+#word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
+with open(embedding_file_name) as f_in:
+    embedding_list = json.load(f_in)
+
+word2emb = {}
+for w, proc_idx, avg_emb, cls_emb in embedding_list:
+    word2emb[w] = cls_emb
+    #word2emb[w] = avg_emb
+
 
 def output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count):
-    if unigram not in word2emb:
-        uni_OOV_count += 1
-        return 0, uni_OOV_count, bi_OOV_count
-    else:
-        uni_emb = word2emb[unigram]
+    #if unigram not in word2emb:
+    #    uni_OOV_count += 1
+    #    return 0, uni_OOV_count, bi_OOV_count
+    #else:
+    #    uni_emb = word2emb[unigram]
     
-    bi_emb = np.zeros( emb_size )
-    count = 0
-    for w in bigram:
-        if w in word2emb:
-            count += 1
-            bi_emb += word2emb[w]
-    if count == 0:
-        bi_OOV_count += 1
-        return 0, uni_OOV_count, bi_OOV_count
-    else:
-        bi_emb = bi_emb / count
+    #bi_emb = np.zeros( emb_size )
+    #count = 0
+    #for w in bigram:
+    #    if w in word2emb:
+    #        count += 1
+    #        bi_emb += word2emb[w]
+    #if count == 0:
+    #    bi_OOV_count += 1
+    #    return 0, uni_OOV_count, bi_OOV_count
+    #else:
+    #    bi_emb = bi_emb / count
+    uni_emb = word2emb[unigram]
+    bi_emb = word2emb[' '.join(bigram)]
     score_pred = 1 - distance.cosine(uni_emb, bi_emb)
     return score_pred, uni_OOV_count, bi_OOV_count
+
+def max_break_tie_randomly(input_list):
+    max_val = -100000000000
+    max_buffer = []
+    for i, ele in enumerate(input_list):
+        if ele > max_val:
+            max_val = ele
+            max_buffer = [i]
+        elif ele == max_val:
+            max_buffer.append(i)
+    return random.choice(max_buffer)
+
+def update_correct_count(score_list, candidates, correct_count):
+    max_idx = max_break_tie_randomly(score_list)
+    if max_idx < len(candidates) and candidates[max_idx][1] == 1:
+        correct_count += 1
+    return correct_count
 
 def test_Turney(dataset, word2emb):
     correct_count = 0
     correct_count_7 = 0
+    correct_count_10 = 0
+    correct_count_14 = 0
     total_count = 0
     uni_OOV_count = 0
     bi_OOV_count = 0
@@ -120,19 +121,35 @@ def test_Turney(dataset, word2emb):
         for unigram, label in candidates:
             score_pred, uni_OOV_count, bi_OOV_count = output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count)
             score_list.append(score_pred)
-        max_idx = np.argmax(score_list)
-        if candidates[max_idx][1] == 1:
-            correct_count += 1
-        
+        correct_count = update_correct_count(score_list, candidates, correct_count)        
+
+        score_list_10 = score_list.copy()
+        for unigram, label in candidates:
+            score_pred, uni_OOV_count, bi_OOV_count = output_sim_score( reverse_bigram(bigram), unigram, word2emb, uni_OOV_count, bi_OOV_count)
+            score_list_10.append(score_pred)
+        correct_count_10 = update_correct_count(score_list_10, candidates, correct_count_10)
+
+        #max_idx = np.argmax(score_list)
+        #if candidates[max_idx][1] == 1:
+        #    correct_count += 1
+        score_5_7_list = []
         for unigram in bigram:
             score_pred, dummy_1, dummy_2 = output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count)
-            score_list.append(score_pred)
-        max_idx = np.argmax(score_list)
-        if max_idx < len(candidates) and candidates[max_idx][1] == 1:
-            correct_count_7 += 1
+            score_5_7_list.append(score_pred)
+        correct_count_7 = update_correct_count(score_list+score_5_7_list, candidates, correct_count_7)
+
+        score_list_14 = score_list_10 + score_5_7_list
+        for unigram in bigram:
+            score_pred, dummy_1, dummy_2 = output_sim_score(reverse_bigram(bigram), unigram, word2emb, uni_OOV_count, bi_OOV_count)
+            score_list_14.append(score_pred)
+        correct_count_14 = update_correct_count(score_list_14, candidates, correct_count_14)
+        #max_idx = np.argmax(score_list)
+        #if max_idx < len(candidates) and candidates[max_idx][1] == 1:
+        #    correct_count_7 += 1
     
-    print("accuracy 5 candidates", correct_count/float(total_count))
-    print("accuracy 7 candidates", correct_count_7/float(total_count))
+    print(': acc (5 c) ' + str(correct_count/float(total_count)) + ', acc (7 c) ' + str(correct_count_7/float(total_count)) + 'acc (10 c) ' + str(correct_count_10/float(total_count)) + ', acc (14 c) ' + str(correct_count_14/float(total_count)) )
+    #print("accuracy 5 candidates", correct_count/float(total_count))
+    #print("accuracy 7 candidates", correct_count_7/float(total_count))
     print("total ", len(candidates)*total_count, ", unigram OOV ", uni_OOV_count, ", bigram OOV ", bi_OOV_count )
 
 def test_SemEval(dataset, word2emb):
