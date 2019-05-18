@@ -30,8 +30,9 @@ STSB_DEV="./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #topic_file_name = "./gen_log/STS_dev_wiki2016_lex_crawl_trans_bsz200_ep2_1.json"
 #w_emb_file_name = "./resources/lexvec_wiki2016_min100"
 
-#~/anaconda3/bin/python src/testing/sim/STS_eval.py -t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <gt_file_name>
-##~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_train_wiki2016_glove_trans_n10_bsz200_ep2_1.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_TRAIN > eval_log/STS_train_wiki2016_glove_trans_n10_bsz200_ep2_1
+#~/anaconda3/bin/python src/testing/sim/STS_eval.py -t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <gt_file_name> -m <pc_mode> -p <path_to_pc>
+~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_train_wiki2016_glove_trans_n10_bsz200_ep2_1.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_TRAIN -m save -p ./gen_log/pc_sts_train_n10  > eval_log/STS_train_wiki2016_glove_trans_n10_bsz200_ep2_1
+##~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_dev_wiki2016_glove_trans_n10_bsz200_ep2_1.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_DEV -m load -p ./gen_log/pc_sts_train_n10 > eval_log/STS_dev_wiki2016_glove_trans_n10_bsz200_ep2_1_pc_train
 #~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_dev_wiki2016_glove_trans_n3_bsz200_ep2_0.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_DEV > eval_log/STS_dev_wiki2016_glove_trans_n3_bsz200_ep2_0
 #~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_dev_wiki2016_glove_trans_n5_bsz200_ep2_0.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_DEV > eval_log/STS_dev_wiki2016_glove_trans_n5_bsz200_ep2_0
 #~/anaconda3/bin/python src/testing/sim/STS_eval.py -t ./gen_log/STS_dev_wiki2016_glove_trans_n5_bsz200_no_connect_ep2_0.json -w $GLOVE_UPPER -d $DICT_UPPER -g $STSB_DEV > eval_log/STS_dev_wiki2016_glove_trans_n5_bsz200_no_connect_ep2_0
@@ -74,7 +75,7 @@ DICT_PHRASE_LOWER="./data/processed/wiki2016_nchunk_lower_min100/dictionary_inde
 #embedding_file_name = embedding_dir + "lexvec_enwiki_wiki2016_min100"
 
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>
-~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29
+#~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans5_bsz1000_ep1_29
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans55_connect_bsz1000_ep1_29.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans55_connect_bsz1000_ep1_29
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans_no_stop_bsz200_ep1_8.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans_no_stop_bsz200_ep1_8
 #~/anaconda3/bin/python src/testing/sim_word/phrase_eval.py -t ./gen_log/phrase_train_wiki2016_glove_trans_n3_no_stop_no_connect_bsz200_ep1_8.json -w $GLOVE_LOWER -d $DICT_PHRASE_LOWER -g train -l 0 > eval_log/phrase_train_wiki2016_glove_trans_n3_no_stop_no_connect_bsz200_ep1_8

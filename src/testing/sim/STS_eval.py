@@ -7,7 +7,15 @@ import torch
 import utils
 
 import getopt
-help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <gt_file_name>'
+help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <gt_file_name> -m <pc_mode> -p <path_to_pc>'
+
+#pc_mode = 'none'
+pc_mode = 'self'
+#pc_mode = 'save'
+#pc_mode = 'load'
+
+#path_to_pc = './gen_log/pc_sts_train_n10'
+path_to_pc = ''
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:")
@@ -26,6 +34,10 @@ for opt, arg in opts:
         freq_file_name = arg
     elif opt in ("-g"):
         gt_file_name= arg
+    elif opt in ("-m"):
+        pc_mode = arg
+    elif opt in ("-p"):
+        path_to_pc = arg
 
 #topic_file_name = "./gen_log/STS_dev_updated_glove_lc_elayer2_bsz200_ep6_linear_cosine.json"
 #topic_file_name = "./gen_log/STS_dev_glove_lc_elayer2_bsz200_ep7_linear_cosine.json"
@@ -125,7 +137,7 @@ testing_pair_loader, other_info = utils_testing.build_loader_from_pairs(testing_
 
 with torch.no_grad():
     #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = False)
-    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = True)
+    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = True, pc_mode = pc_mode, path_to_pc = path_to_pc)
 
 def get_lower_half(score_list):
     sorted_ind = np.argsort(score_list)
