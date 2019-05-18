@@ -534,11 +534,12 @@ def reconstruct_sent_emb(source, t_w_emb_tensor, L1_losss_B, device, weights = N
         dist_avg_st, dist_w_avg_st = lc_pred_dist(t_w_emb_tensor, source, weights, L1_losss_B, device)
         return sim_w_avg_st, dist_w_avg_st
 
+def store_w_embs_prob_to_tensors(w_uni_tensor, w_embs_tensor, i, w_embs, w_prob, device):
+    w_num = w_embs.shape[0]
+    w_embs_tensor[i,-w_num:,:] = torch.tensor(w_embs, device = device)
+    w_uni_tensor[i,-w_num:] = torch.tensor(w_prob, device = device)
+
 def predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, OOV_sim_zero = True):
-    def store_w_embs_prob_to_tensors(w_uni_tensor, w_embs_tensor, i, w_embs, w_prob, device):
-        w_num = w_embs.shape[0]
-        w_embs_tensor[i,-w_num:,:] = torch.tensor(w_embs, device = device)
-        w_uni_tensor[i,-w_num:] = torch.tensor(w_prob, device = device)
 
     corpus_size = len(testing_pair_loader.dataset)
     pred_scores = [0] * corpus_size
@@ -606,8 +607,8 @@ def predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, othe
             target_w_imp_list = w_imp_list_2[idx]
             w_embs_source = get_w_emb(source_proc_sent, word2emb, emb_size)
             w_embs_target = get_w_emb(target_proc_sent, word2emb, emb_size)
-            w_prob_source = get_w_emb(source_proc_sent, word2emb, word_d2_idx_freq = None)
-            w_prob_target = get_w_emb(target_proc_sent, word2emb, word_d2_idx_freq = None)
+            w_prob_source = get_w_prob(source_proc_sent, word2emb, word_d2_idx_freq = None)
+            w_prob_target = get_w_prob(target_proc_sent, word2emb, word_d2_idx_freq = None)
             
             store_w_embs_prob_to_tensors(s_w_uni_tensor, s_w_embs_tensor, i, w_embs_source, w_prob_source, device)
             store_w_embs_prob_to_tensors(t_w_uni_tensor, t_w_embs_tensor, i, w_embs_target, w_prob_target, device)
@@ -862,13 +863,13 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
             #print(source_w_imp_list)
             w_embs_source = get_w_emb(source_proc_sent, word2emb, emb_size)
             w_embs_target = get_w_emb(target_proc_sent, word2emb, emb_size)
-            w_prob_source = get_w_emb(source_proc_sent, word2emb, word_d2_idx_freq)
-            w_prob_target = get_w_emb(target_proc_sent, word2emb, word_d2_idx_freq)
+            w_prob_source = get_w_prob(source_proc_sent, word2emb, word_d2_idx_freq)
+            w_prob_target = get_w_prob(target_proc_sent, word2emb, word_d2_idx_freq)
             if compute_WMD:
-                w_uni_source = get_w_emb(source_proc_sent, word2emb, word_d2_idx_freq = None)
-                w_uni_target = get_w_emb(target_proc_sent, word2emb, word_d2_idx_freq = None)
-                store_w_embs_prob_to_tensors(s_w_uni_tensor, s_w_embs_tensor, i, w_embs_source, w_prob_source, device)
-                store_w_embs_prob_to_tensors(t_w_uni_tensor, t_w_embs_tensor, i, w_embs_target, w_prob_target, device)
+                w_uni_source = get_w_prob(source_proc_sent, word2emb, word_d2_idx_freq = None)
+                w_uni_target = get_w_prob(target_proc_sent, word2emb, word_d2_idx_freq = None)
+                store_w_embs_prob_to_tensors(s_w_uni_tensor, s_w_embs_tensor, i, w_embs_source, w_uni_source, device)
+                store_w_embs_prob_to_tensors(t_w_uni_tensor, t_w_embs_tensor, i, w_embs_target, w_uni_target, device)
 
             #print(w_embs_source)
             scores_w_emb_org, sent_emb_list_org, OOV_all_sent, t_sent_emb, t_sent_emb_freq_4_w_sim, t_sent_emb_w_sim = weighted_sent_avg(w_embs_source, source_w_imp_list, w_prob_source, w_embs_target, target_w_imp_list, w_prob_target)
@@ -900,7 +901,7 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
             t_w_embs_tensor = t_w_embs_tensor / (0.000000000001 + t_w_embs_tensor.norm(dim = 2, keepdim=True) )
             cos_w_sim_st, cos_w_sim_ts = compute_cosine_sim(s_w_embs_tensor, t_w_embs_tensor)
             cos_w_dist_st = 1 - cos_w_sim_st
-            WMD_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_w_dist_st, w_uni_source, w_uni_target, epsilon=1, niter=100)
+            WMD_trans = Sinkhorn.batch_sinkhorn_loss_weighted( cos_w_dist_st, s_w_uni_tensor, t_w_uni_tensor, epsilon=1, niter=100)
             WMD_dist = torch.sum( WMD_trans * cos_w_dist_st, dim = 2).sum(dim = 1)
         else:
             WMD_dist = torch.randn(sim_avg.size(0))

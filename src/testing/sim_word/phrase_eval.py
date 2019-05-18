@@ -159,7 +159,8 @@ print("loading ", embedding_file_name)
 word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_emb)
 
 with torch.no_grad():
-    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
+    #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = False)
+    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = True)
 
 pair_d2_score = {}
 for i in range(len(all_pairs)):
