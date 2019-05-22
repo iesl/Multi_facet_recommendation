@@ -43,8 +43,8 @@ parser.add_argument('--outf_vis', type=str, default='eval_log/summ_vis/summ.json
 #parser.add_argument('--method_set', type=str, default='ours+embs+cluster',
 #parser.add_argument('--method_set', type=str, default='ours+embs',
 #parser.add_argument('--method_set', type=str, default='ours+cluster',
-#parser.add_argument('--method_set', type=str, default='ours',
-parser.add_argument('--method_set', type=str, default='cluster',
+parser.add_argument('--method_set', type=str, default='ours',
+#parser.add_argument('--method_set', type=str, default='cluster',
 #parser.add_argument('--method_set', type=str, default='embs',
                     help='If we want to run all methods, use ours+embs+cluster. Notice that we will turn off the sentence preprocessing if ours is not included, so the baseline scores might be slightly different.')
 parser.add_argument('--top_k_max', type=int, default=10,

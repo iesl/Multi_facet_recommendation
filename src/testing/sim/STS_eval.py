@@ -18,7 +18,7 @@ pc_mode = 'self'
 path_to_pc = ''
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:")
+    opts, args = getopt.getopt(sys.argv[1:], "t:w:d:g:m:p:")
 except getopt.GetoptError:
     print(help_msg)
     sys.exit(2)
@@ -137,7 +137,8 @@ testing_pair_loader, other_info = utils_testing.build_loader_from_pairs(testing_
 
 with torch.no_grad():
     #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = False)
-    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = True, pc_mode = pc_mode, path_to_pc = path_to_pc)
+    #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = True, pc_mode = pc_mode, path_to_pc = path_to_pc)
+    pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq, OOV_sim_zero = True, compute_WMD = False, pc_mode = pc_mode, path_to_pc = path_to_pc)
 
 def get_lower_half(score_list):
     sorted_ind = np.argsort(score_list)
@@ -148,6 +149,14 @@ def get_lower_half(score_list):
 
 print(len(pred_scores))
 def summarize_prediction_STS(pred_scores, testing_list):
+    method_d2_genre_score = {}
+    method_paper_order = ['SC_rmsprop', 'avg_en_word_emb', 'baseline', 'baseline_freq4', 'baseline_freq_4_pc1', 'w_imp_sim', 'w_imp_sim_freq_4', 'w_imp_sim_freq_4_pc1']
+    for method in method_paper_order:
+        method_d2_genre_score[method] = []
+    #method_paper_set = set(method_paper_order)
+    genre_paper_order = ['all', 'lower', 'higher']
+    #genre_paper_set = set(genre_paper_order)
+    paper_num_format = '{0:.1f}'
     genre_s_d2_scores = {'all': [], 'lower': [], 'higher': [], 'short': [], 'long': []}
     field_lists = list(zip(*testing_list))
     score_list = field_lists[2]
@@ -174,6 +183,13 @@ def summarize_prediction_STS(pred_scores, testing_list):
         #print(pred_and_gt)
         for m in range(len(pred_and_gt)-1):
             print("method ", method_names[m],pearsonr( pred_and_gt[m], pred_and_gt[-1] ), spearmanr( pred_and_gt[m], pred_and_gt[-1] ))
-
+    for genre_s in genre_paper_order:
+        pred_and_gt = list( zip(*genre_s_d2_scores[genre_s]) )
+        for m in range(len(pred_and_gt)-1):
+            if method_names[m] in method_d2_genre_score:
+                p_r, conf = pearsonr( pred_and_gt[m], pred_and_gt[-1])
+                method_d2_genre_score[method_names[m]].append( paper_num_format.format( 100 * p_r  ) )
+    for method in method_paper_order:
+        print(method + ' & ' + ' & '.join( method_d2_genre_score[method]) )
 
 summarize_prediction_STS(pred_scores, testing_list)

@@ -13,12 +13,12 @@ def compute_pc(X,npc=1):
     return svd.components_
 
 def load_pc(path_to_pc):
-    with open(path_to_pc) as f_in:
+    with open(path_to_pc,'rb') as f_in:
         pc = pickle.load(f_in)
     return pc
 
 def save_pc(pc, path_to_pc):
-    with open(path_to_pc,'w') as f_out:
+    with open(path_to_pc,'wb') as f_out:
         pickle.dump(pc, f_out)
 
 def remove_pc(X, npc, pc_mode, path_to_pc):

@@ -162,7 +162,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
 
-def create_data_loader(f_in, bsz, device):
+def create_data_loader(f_in, bsz, device, want_to_shuffle = True):
     feature, target = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
@@ -171,7 +171,7 @@ def create_data_loader(f_in, bsz, device):
     use_cuda = False
     if device.type == 'cude':
         use_cuda = True
-    return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False)
+    return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = want_to_shuffle, pin_memory=use_cuda, drop_last=False)
 
 def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
     store_type = torch.int32
@@ -234,7 +234,7 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
     return dataloader_test, org_sent_list, idx2word_freq
 
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False):
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True):
     train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
     val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
     val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
@@ -244,7 +244,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
         idx2word_freq = load_idx2word_freq(f_in)
     
     with open(val_org_corpus_name,'rb') as f_in:
-        dataloader_val = create_data_loader(f_in, eval_bsz, device)
+        dataloader_val = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
     
     max_sent_len = dataloader_val.dataset.feature.size(1)
     
@@ -256,7 +256,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors
         assert max_sent_len == max_sent_len_train
 
     with open(val_shuffled_corpus_name,'rb') as f_in:
-        dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device)
+        dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
     
 
     return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len
