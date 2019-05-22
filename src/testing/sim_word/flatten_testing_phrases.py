@@ -2,14 +2,16 @@ dataset_dir = "./dataset_testing/"
 
 #/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/HypeNet/rnd/val.tsv
 #dataset_list = [ [dataset_dir + "phrase/SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "phrase/SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "phrase/Turney2012/Turney_train.txt", "Turney"] ]
+dataset_list = [ [dataset_dir + "phrase/SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "phrase/SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "phrase/Turney2012/Turney_test.txt", "Turney"] ]
 #dataset_list = [ [ dataset_dir + 'phrase/HypeNet/rnd/val.tsv', 'raw' , "hyper"], [ dataset_dir + 'phrase/WordNet/wordnet_valid.txt' , "POS",  "hyper" ] ]
 #dataset_list = [ [ dataset_dir + 'phrase/HypeNet/rnd/test.tsv', 'raw' , "hyper"], [ dataset_dir + 'phrase/WordNet/wordnet_test.txt' , "POS",  "hyper" ] ]
-dataset_list = [ [ dataset_dir + 'phrase/HypeNet/rnd/val.tsv', 'raw' , "hyper"], [ dataset_dir + 'phrase/HypeNet/rnd/test.tsv', 'raw' , "hyper"] ]
+#dataset_list = [ [ dataset_dir + 'phrase/HypeNet/rnd/val.tsv', 'raw' , "hyper"], [ dataset_dir + 'phrase/HypeNet/rnd/test.tsv', 'raw' , "hyper"] ]
 #dataset_list = [ [ dataset_dir + 'phrase/word_hyper/BLESS.all', 'POS' , "hyper"], [ dataset_dir + 'phrase/word_hyper/EVALution.all' , "POS",  "hyper" ], [ dataset_dir + 'phrase/word_hyper/LenciBenotto.all' , "POS",  "hyper" ], [ dataset_dir + 'phrase/word_hyper/Weeds.all' , "POS",  "hyper" ] ]
 #output_file = dataset_dir + "phrase/SemEval2013_Turney2012_phrase_org"
+output_file = dataset_dir + "phrase/SemEval2013_Turney2012_phrase_test_org"
 #output_file = dataset_dir + "phrase/HypeNet_WordNet_val_org"
 #output_file = dataset_dir + "phrase/HypeNet_WordNet_test_org"
-output_file = dataset_dir + "phrase/HypeNet_val_test_org"
+#output_file = dataset_dir + "phrase/HypeNet_val_test_org"
 #output_file = dataset_dir + "phrase/word_hyper_org"
 
 def load_Turney(file_name):

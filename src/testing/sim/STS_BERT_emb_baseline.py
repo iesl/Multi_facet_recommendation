@@ -10,13 +10,19 @@ from scipy.spatial import distance
 
 import getopt
 
+#method = "BERT"
+method = "ST"
+
 #sent_emb_file_name = "./gen_log/BERT_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
-sent_emb_file_name = "./gen_log/BERT_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
+sent_emb_file_name = "./gen_log/ST_d600_sts-dev_final.json"
+#sent_emb_file_name = "./gen_log/ST_d600_sts-test_final.json"
 
-#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
-gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
 
 print(sent_emb_file_name)
 sys.stdout.flush()
@@ -47,11 +53,19 @@ print("loading ", sent_emb_file_name)
 with open(sent_emb_file_name) as f_in:
     embedding_list = json.load(f_in)
 
-sent2emb = {}
-for sent, proc_idx, avg_emb, cls_emb in embedding_list:
-    sent2emb[sent] = [avg_emb, cls_emb]
+if method == "BERT":
+    sent2emb = {}
+    for sent, proc_idx, avg_emb, cls_emb in embedding_list:
+        sent2emb[sent] = [avg_emb, cls_emb]
 
-method_names = ['BERT_avg_emb','BERT_cls_emb']
+    method_names = ['BERT_avg_emb','BERT_cls_emb']
+elif method == "ST":
+    sent2emb = {}
+    for sent, emb in embedding_list:
+        sent2emb[sent] = [emb]
+
+    method_names = ['ST_emb']
+    
 
 pred_scores = []
 for fields in testing_list:
