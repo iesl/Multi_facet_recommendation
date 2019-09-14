@@ -17,7 +17,7 @@ echo "code is running"
 #~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190414-132830 --outf ./gen_log/wiki2016_val_glove_bad_init_bsz200_ep1 --data ./data/processed/wiki2016_min100/
 #~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190512-141313 --outf ./gen_log/wiki2016_val_glove_trans_bsz200_n1 --n_basis 1 --de_en_connection False --trans_layers 1 --data ./data/processed/wiki2016_min100/
 #~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190512-141251 --outf ./gen_log/wiki2016_val_glove_trans_bsz200_n3 --n_basis 3 --data ./data/processed/wiki2016_min100/
-~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190512-135816 --outf ./gen_log/wiki2016_val_glove_trans_bsz200_n10 --n_basis 10 --data ./data/processed/wiki2016_min100/
+#~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190512-135816 --outf ./gen_log/wiki2016_val_glove_trans_bsz200_n10 --n_basis 10 --data ./data/processed/wiki2016_min100/
 #~/anaconda3/bin/python src/basis_test.py --checkpoint ./models/wiki2016-20190512-135411 --outf ./gen_log/wiki2016_val_glove_trans_bsz200_n20 --n_basis 20 --data ./data/processed/wiki2016_min100/
 
 
@@ -70,6 +70,8 @@ echo "code is running"
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190430-032925 --n_basis 20
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190429-105749 --n_basis 3 --de_en_connection False
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190429-110107
+~/anaconda3/bin/python src/testing/summarization/cnn_dm_pyrouge.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190429-110107 --method_set embs
+#~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190429-110107 --method_set embs > eval_log/sum_no_stop
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190512-135411 --n_basis 20 > eval_log/final_sum_1000_wiki2016_glove_trans_n20
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190512-125918 --n_basis 50 > eval_log/final_sum_1000_wiki2016_glove_trans_n50
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/summ_small --checkpoint ./models/wiki2016-20190512-135816 --n_basis 10 > eval_log/final_sum_1000_wiki2016_glove_trans_n10
@@ -78,6 +80,9 @@ echo "code is running"
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-125918 --n_basis 50 > eval_log/final_sum_test_wiki2016_glove_trans_n50
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-135816 --n_basis 10 > eval_log/final_sum_test_wiki2016_glove_trans_n10
 #~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-141251 --n_basis 3 > eval_log/final_sum_test_wiki2016_glove_trans_n3
+#~/anaconda3/bin/python src/testing/summarization/cnn_dm_eval.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-141251 --n_basis 3 --method_set embs > eval_log/sum_no_stop_test
+#~/anaconda3/bin/python src/testing/summarization/cnn_dm_pyrouge.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-141251 --n_basis 3 --method_set embs > eval_log/sum_pyrouge
+#~/anaconda3/bin/python src/testing/summarization/cnn_dm_pyrouge.py --input ./dataset_testing/finished_files/test --checkpoint ./models/wiki2016-20190512-141251 --n_basis 3 --method_set embs
 
 #~/anaconda3/bin/python src/testing/sim/basis_test_from_sent.py --input ./dataset_testing/SCWS/scws_org --checkpoint ./models/ --outf ./gen_log/SWCS_wiki2016_glove_lc_bsz200_ep2_0.json --max_sent_len 150
 #~/anaconda3/bin/python src/testing/sim/basis_test_from_sent.py --input ./dataset_testing/STS/stsbenchmark/sts-dev_org --checkpoint ./models/wiki2016-20190415-152214 --outf ./gen_log/STS_dev_wiki2016_glove_lc_bsz200_ep2_0.json --outf_vis gen_log/generated_STS_wiki2016_glove_lc.txt

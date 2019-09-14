@@ -2,6 +2,7 @@ resources/*
 gen_log/*
 eval_log/*
 dataset_testing/*
+temp/*
 *.swp
 *.pt
 *.pyc

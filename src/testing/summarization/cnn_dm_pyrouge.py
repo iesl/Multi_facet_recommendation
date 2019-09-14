@@ -20,6 +20,9 @@ warnings.filterwarnings("ignore")
 from utils import seed_all_randomness, load_word_dict, load_emb_from_path, load_idx2word_freq, loading_all_models, load_testing_article_summ, str2bool, Logger
 import utils_testing
 from pythonrouge.pythonrouge import Pythonrouge
+from pyrouge import Rouge155
+import uuid
+import string
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -85,6 +88,9 @@ device = torch.device("cuda" if args.cuda else "cpu")
 ########################
 print("Loading Models")
 ########################
+temp_file_dir = "./temp/"
+assert os.path.isdir(temp_file_dir)
+
 with open(args.dict) as f_in:
     idx2word_freq = load_idx2word_freq(f_in)
 
@@ -102,6 +108,8 @@ with open(args.dict) as f_in:
     word_d2_idx_freq, max_ind = load_word_dict(f_in)
 
 utils_testing.compute_freq_prob(word_d2_idx_freq)
+
+#print(word_d2_idx_freq)
 
 #all_clustering_models = [MiniBatchKMeans(n_clusters=i, max_iter=10, n_init=1, max_no_improvement=3, compute_labels=False) for i in range(1,args.top_k_max+1)]
 all_clustering_models = [KMeans(n_clusters=i, max_iter=100, n_init=1, precompute_distances=True, n_jobs = 5) for i in range(1,args.top_k_max+1)]
@@ -135,17 +143,23 @@ def article_to_embs(article, word_norm_emb, word_d2_idx_freq, device):
     w_emb_tensors_list = []
     sent_lens = torch.empty(num_sent, device = device)
     alpha = 0.0001
+    #print(article)
     for i_sent, sent in enumerate(article):
         w_emb_list = []
         #print(sent)
         w_list = sent.split()
         for w in w_list:
+            #sys.stdout.write(w + ' ')
             if w in word_d2_idx_freq:
                 w_idx, freq, freq_prob = word_d2_idx_freq[w]
                 sent_embs_tensor[i_sent,:] += word_norm_emb[w_idx,:]
                 sent_embs_w_tensor[i_sent,:] += word_norm_emb[w_idx,:] * (alpha / (alpha + freq_prob) )
                 w_emb_list.append(word_norm_emb[w_idx,:].view(1,-1))
-        w_emb_tensors_list.append( torch.cat(w_emb_list, dim = 0) )
+        #print(len(w_emb_list))
+        if len(w_emb_list) > 0:
+            w_emb_tensors_list.append( torch.cat(w_emb_list, dim = 0) )
+        else:
+            w_emb_tensors_list.append( torch.zeros(1, emb_size, device = device) )
         sent_lens[i_sent] = len(w_list) - 1 #remove the final <eos>
     sent_embs_tensor = sent_embs_tensor / (0.000000000001 + sent_embs_tensor.norm(dim = 1, keepdim=True) )
     sent_embs_w_tensor = sent_embs_w_tensor / (0.000000000001 + sent_embs_w_tensor.norm(dim = 1, keepdim=True) )
@@ -280,6 +294,31 @@ def rank_sents(basis_coeff_list, article, word_norm_emb, word_d2_idx_freq, top_k
     
     return m_d2_sent_ranks
 
+import logging
+def eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix):
+    r = Rouge155(log_level=logging.ERROR)
+
+    r.model_dir = temp_file_dir
+    r.system_dir = temp_file_dir
+    file_basename = os.path.basename(temp_file_prefix)
+    r.system_filename_pattern = file_basename + '.(\d+).txt'
+    r.model_filename_pattern = file_basename + '.[A-Z].#ID#.txt'
+    assert len(abstract_list) < 10000000
+    assert len(abstract_list) == len(selected_sent_all)
+    alphabet = string.ascii_uppercase
+    cmd = 'rm '+ temp_file_prefix +'*'
+    os.system(cmd)
+    for i in range(len(abstract_list)):
+        np.savetxt(temp_file_prefix + '.{0:07d}.txt'.format(i), selected_sent_all[i], newline = '\n', fmt="%s")
+        for j in range(len(abstract_list[i])):
+            np.savetxt(temp_file_prefix + '.{}.{:07d}.txt'.format(alphabet[j],i), abstract_list[i][j], newline = '\n', fmt="%s")
+    output = r.convert_and_evaluate()
+    output = r.output_to_dict(output)
+    cmd = 'rm '+ temp_file_prefix +'*'
+    os.system(cmd)
+    return output
+            
+    
 
 fname_d2_sent_rank = {}
 fname_list = []
@@ -333,6 +372,9 @@ not_inclusive_methods = set(['sent_emb_freq_4_cluster_sent','sent_emb_freq_4_clu
 
 pretty_header = ['method_name', 'sent_num', 'avg_sent_len', 'ROUGE-1-F', 'ROUGE-2-F', 'ROUGE-SU4-F']
 
+unique_filename = str(uuid.uuid4())
+temp_file_prefix = temp_file_dir + unique_filename
+
 m_d2_output_list = {}
 for m in all_method_list:
     m_d2_output_list[m] = []
@@ -347,36 +389,38 @@ for top_k in range(1,args.top_k_max+1):
         for i in range(len(fname_list)):
             file_name = fname_list[i]
             article = article_list[i]
-            if len(article) <= top_k:
-                continue
+            #if len(article) <= top_k:
+            #    continue
+            top_k_art_len = min(len(article), top_k)
             if method == 'first':
-                sent_rank = list(range(top_k))
+                sent_rank = list(range(top_k_art_len))
             elif method == 'rnd':
-                sent_rank = np.random.choice(len(article), top_k).tolist()
+                sent_rank = np.random.choice(len(article), top_k_art_len).tolist()
             else:
                 sent_rank = fname_d2_sent_rank[file_name][method]
             if method in not_inclusive_methods:
-                selected_sent = [article[s] for s in sent_rank[top_k-1]]
+                selected_sent = [article[s] for s in sent_rank[top_k_art_len-1]]
             else:
-                selected_sent = [article[s] for s in sent_rank[:top_k]]
-            summ_len = sum([len(sent.split()) for sent in selected_sent])
+                selected_sent = [article[s] for s in sent_rank[:top_k_art_len]]
+            summ_len = sum([len(sent.split()) for sent in set(selected_sent)])
             summ_len_sum += summ_len
             effective_doc_count += 1
             selected_sent_all.append(selected_sent)
-        rouge = Pythonrouge(summary_file_exist=False,
-                    summary=selected_sent_all, reference=abstract_list,
-                    n_gram=2, ROUGE_SU4=True, ROUGE_L=False,
-                    #recall_only=True, stemming=True, stopwords=True,
-                    #recall_only=False, stemming=True, stopwords=True,
-                    recall_only=False, stemming=True, stopwords=False,
-                    word_level=True, length_limit=False, length=50,
-                    use_cf=False, cf=95, scoring_formula='average',
-                    resampling=True, samples=1000, favor=True, p=0.5)
-        score = rouge.calc_score()
+        #selected_sent_all
+
+        score = eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix)
+        #rouge = Pythonrouge(summary_file_exist=False, summary=selected_sent_all, reference=abstract_list, n_gram=2, ROUGE_SU4=True, ROUGE_L=False,
+        #            #recall_only=True, stemming=True, stopwords=True,
+        #            #recall_only=False, stemming=True, stopwords=True,
+        #            recall_only=False, stemming=False, stopwords=False,
+        #            word_level=True, length_limit=False, length=50,
+        #            use_cf=False, cf=95, scoring_formula='average',
+        #            resampling=True, samples=1000, favor=True, p=0.5)
+        #score = rouge.calc_score()
         avg_summ_len = summ_len_sum / float(effective_doc_count)
         logger.logging(str(score))
         logger.logging("summarization length "+str(avg_summ_len))
-        m_d2_output_list[method].append( [method, str(top_k), str(avg_summ_len), str(score[pretty_header[3]]), str(score[pretty_header[4]]), str(score[pretty_header[5]])])
+        #m_d2_output_list[method].append( [method, str(top_k), str(avg_summ_len), str(score[pretty_header[3]]), str(score[pretty_header[4]]), str(score[pretty_header[5]])])
 
 logger.logging(','.join(pretty_header))
 for method in m_d2_output_list:
