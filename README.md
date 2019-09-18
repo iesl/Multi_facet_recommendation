@@ -9,3 +9,8 @@ src/testing/sim/SIF_pc_removal.py comes from https://github.com/PrincetonML/SIF/
 src/testing/sim/Sinkhorn.py is modified from https://github.com/iesl/string-edit-distance/blob/dptam/src/python/entity_align/utils/Sinkhorn.py and https://github.com/gpeyre/SinkhornAutoDiff
 
 The CNN/DailyMail is preprocessed using the codes which are modified from https://github.com/abisee/cnn-dailymail
+
+Before releasing the code, remember to delete some testing scoring functions which are not used
+remember to delete some redundant code such as still normalize target embedding for each batch.
+
+L1_losss_B is lambda/2
