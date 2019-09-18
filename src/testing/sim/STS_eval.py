@@ -131,7 +131,15 @@ with open(topic_file_name) as f_in:
     sent_d2_topics = utils_testing.load_prediction_from_json(f_in)
 
 print("load", w_emb_file_name)
-word2emb, emb_size  = utils.load_emb_file_to_dict(w_emb_file_name)
+word2emb_org, emb_size  = utils.load_emb_file_to_dict(w_emb_file_name)
+
+no_filter_before =True
+
+word2emb = {}
+if no_filter_before:
+    for w in word_d2_idx_freq:
+        if w in word2emb_org:
+            word2emb[w] =  word2emb_org[w]
 
 testing_pair_loader, other_info = utils_testing.build_loader_from_pairs(testing_list, sent_d2_topics, bsz, device)
 

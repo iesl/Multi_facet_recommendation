@@ -10,10 +10,11 @@ import torch
 import json
 from scipy.spatial import distance
 
-train_or_test = 'test'
+#train_or_test = 'test'
+train_or_test = 'val'
 
-#embedding_file_name = "gen_log/BERT_HypeNet_WordNet_phrase_val.json"
-embedding_file_name = "gen_log/BERT_HypeNet_WordNet_phrase_test.json"
+embedding_file_name = "gen_log/BERT_large_HypeNet_WordNet_phrase_val.json"
+#embedding_file_name = "gen_log/BERT_large_HypeNet_WordNet_phrase_test.json"
 #embedding_file_name = embedding_dir + "glove.840B.300d_filtered_wiki2016_min100.txt"
 
 #lower
