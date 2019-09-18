@@ -23,6 +23,8 @@ from pythonrouge.pythonrouge import Pythonrouge
 from pyrouge import Rouge155
 import uuid
 import string
+import logging
+import tempfile
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -90,6 +92,12 @@ print("Loading Models")
 ########################
 temp_file_dir = "./temp/"
 assert os.path.isdir(temp_file_dir)
+
+#pyrouge will write temp file to /tmp/, but it won't delete it, so we need to manually redirect the temp files and delete them
+unique_dir_name = str(uuid.uuid4())
+tempfile.tempdir = "./temp_pyrouge/" + unique_dir_name + '/'
+
+os.mkdir(tempfile.tempdir)
 
 with open(args.dict) as f_in:
     idx2word_freq = load_idx2word_freq(f_in)
@@ -294,27 +302,34 @@ def rank_sents(basis_coeff_list, article, word_norm_emb, word_d2_idx_freq, top_k
     
     return m_d2_sent_ranks
 
-import logging
-def eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix):
+def eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix, temp_dir_for_pyrouge):
     r = Rouge155(log_level=logging.ERROR)
 
-    r.model_dir = temp_file_dir
-    r.system_dir = temp_file_dir
-    file_basename = os.path.basename(temp_file_prefix)
-    r.system_filename_pattern = file_basename + '.(\d+).txt'
-    r.model_filename_pattern = file_basename + '.[A-Z].#ID#.txt'
+    #r.model_dir = temp_file_dir
+    #r.system_dir = temp_file_dir
+    r.model_dir = temp_file_prefix
+    r.system_dir = temp_file_prefix
+    #file_basename = os.path.basename(temp_file_prefix)
+    #r.system_filename_pattern = file_basename + '.(\d+).txt'
+    #r.model_filename_pattern = file_basename + '.[A-Z].#ID#.txt'
+    r.system_filename_pattern = 'sys.(\d+).txt'
+    r.model_filename_pattern = 'model.[A-Z].#ID#.txt'
     assert len(abstract_list) < 10000000
     assert len(abstract_list) == len(selected_sent_all)
-    alphabet = string.ascii_uppercase
-    cmd = 'rm '+ temp_file_prefix +'*'
-    os.system(cmd)
+    #alphabet = string.ascii_uppercase
+    #cmd = 'rm '+ temp_file_prefix +'*'
+    #os.system(cmd)
     for i in range(len(abstract_list)):
-        np.savetxt(temp_file_prefix + '.{0:07d}.txt'.format(i), selected_sent_all[i], newline = '\n', fmt="%s")
-        for j in range(len(abstract_list[i])):
-            np.savetxt(temp_file_prefix + '.{}.{:07d}.txt'.format(alphabet[j],i), abstract_list[i][j], newline = '\n', fmt="%s")
+        np.savetxt(temp_file_prefix + 'sys.{0:07d}.txt'.format(i), selected_sent_all[i], newline = '\n', fmt="%s")
+        abstract_list_i_flat = [ x[k] for x in abstract_list[i] for k in range(len(x))]
+        np.savetxt(temp_file_prefix + 'model.A.{:07d}.txt'.format(i), abstract_list_i_flat, newline = '\n', fmt="%s")
+        #for j in range(len(abstract_list[i])):
+        #    np.savetxt(temp_file_prefix + '.{}.{:07d}.txt'.format(alphabet[j],i), abstract_list[i][j], newline = '\n', fmt="%s")
     output = r.convert_and_evaluate()
     output = r.output_to_dict(output)
     cmd = 'rm '+ temp_file_prefix +'*'
+    os.system(cmd)
+    cmd = 'rm -r '+ temp_dir_for_pyrouge +'*'
     os.system(cmd)
     return output
             
@@ -370,10 +385,13 @@ all_method_list += ['first','rnd']
 
 not_inclusive_methods = set(['sent_emb_freq_4_cluster_sent','sent_emb_freq_4_cluster_sent_len','sent_emb_freq_4_cluster_word','sent_emb_freq_4_cluster_word_freq_4', 'sent_emb_cluster_sent','sent_emb_cluster_sent_len','sent_emb_cluster_word','sent_emb_cluster_word_freq_4'])
 
-pretty_header = ['method_name', 'sent_num', 'avg_sent_len', 'ROUGE-1-F', 'ROUGE-2-F', 'ROUGE-SU4-F']
+#pretty_header = ['method_name', 'sent_num', 'avg_sent_len', 'ROUGE-1-F', 'ROUGE-2-F', 'ROUGE-SU4-F']
+pretty_header = ['method_name', 'sent_num', 'avg_sent_len', 'rouge_1_f_score', 'rouge_2_f_score', 'rouge_su*_f_score', 'rouge_l_f_score']
 
-unique_filename = str(uuid.uuid4())
-temp_file_prefix = temp_file_dir + unique_filename
+unique_dir_name = str(uuid.uuid4())
+temp_file_prefix = temp_file_dir + unique_dir_name + '/'
+
+os.mkdir(temp_file_prefix)
 
 m_d2_output_list = {}
 for m in all_method_list:
@@ -408,7 +426,7 @@ for top_k in range(1,args.top_k_max+1):
             selected_sent_all.append(selected_sent)
         #selected_sent_all
 
-        score = eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix)
+        score = eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix, tempfile.tempdir)
         #rouge = Pythonrouge(summary_file_exist=False, summary=selected_sent_all, reference=abstract_list, n_gram=2, ROUGE_SU4=True, ROUGE_L=False,
         #            #recall_only=True, stemming=True, stopwords=True,
         #            #recall_only=False, stemming=True, stopwords=True,
@@ -420,7 +438,12 @@ for top_k in range(1,args.top_k_max+1):
         avg_summ_len = summ_len_sum / float(effective_doc_count)
         logger.logging(str(score))
         logger.logging("summarization length "+str(avg_summ_len))
-        #m_d2_output_list[method].append( [method, str(top_k), str(avg_summ_len), str(score[pretty_header[3]]), str(score[pretty_header[4]]), str(score[pretty_header[5]])])
+        m_d2_output_list[method].append( [method, str(top_k), str(avg_summ_len), str(score[pretty_header[3]]), str(score[pretty_header[4]]), str(score[pretty_header[5]]), str(score[pretty_header[6]])])
+
+cmd = 'rm -r '+ tempfile.tempdir
+os.system(cmd)
+cmd = 'rm -r '+ temp_file_prefix
+os.system(cmd)
 
 logger.logging(','.join(pretty_header))
 for method in m_d2_output_list:
