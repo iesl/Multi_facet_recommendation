@@ -243,7 +243,7 @@ def load_prediction_from_json(f_in):
             w_imp_coeff = np.array([float(x) for x in input_dict['w_imp_coeff']])
         for topic in input_dict['topics']:
             if 'coeff_pos' not in topic:
-                weights = 0
+                weight = 0
             else:
                 weight = max( 0, float(topic['coeff_pos']) - float(topic['coeff_neg']))
             vector = [float(x) for x in topic['v']]

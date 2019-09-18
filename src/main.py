@@ -56,7 +56,7 @@ parser.add_argument('--nlayers', type=int, default=1,
 parser.add_argument('--dropout', type=float, default=0.4,
                     help='dropout applied to the output layer (0 = no dropout)')
 #TRANS only
-parser.add_argument('--encode_trans_layers', type=int, default=2,
+parser.add_argument('--encode_trans_layers', type=int, default=5,
                     help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
 parser.add_argument('--trans_nhid', type=int, default=-1,
                     help='number of hidden units per layer in transformer')
@@ -87,7 +87,7 @@ parser.add_argument('--dropoutp', type=float, default=0.5,
 parser.add_argument('--nhidlast2', type=int, default=-1,
                     help='hidden embedding size of the second LSTM')
 #TRANS only
-parser.add_argument('--trans_layers', type=int, default=2,
+parser.add_argument('--trans_layers', type=int, default=5,
                     help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
 parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True, 
                     help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
