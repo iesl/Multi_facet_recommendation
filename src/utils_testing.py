@@ -812,7 +812,8 @@ def predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_
     sent_embs_SIF = [0] * corpus_size
     OOV_first_list = [0] * corpus_size
     OOV_second_list = [0] * corpus_size
-    OOV_value = -100000000000
+    #OOV_value = -100000000000 #TODO current Turney and SemEval results in paper are based on this line
+    OOV_value = 0 #TODO BiRD evaluation is based on this option
 
     max_phrase_len = max( [len(x) for x in proc_sent_list_1 + proc_sent_list_2 ])
     #output_idx_list = []

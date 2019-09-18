@@ -6,6 +6,7 @@ sys.path.insert(0, sys.path[0]+'/../..')
 import utils
 import utils_testing
 import torch
+from scipy import stats
 
 import getopt
 help_msg = '-t <topic_file_name> -w <w_emb_file_name> -d <freq_file_name> -g <train_or_test> -l <upper_emb_to_lower>'
@@ -66,7 +67,8 @@ if train_or_test == 'train':
     dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 elif train_or_test == 'test':
     dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
-
+elif train_or_test == 'BiRD':
+    dataset_list = [ [dataset_dir + "BiRD/BiRD.txt", 'BiRD'] ]
 bsz = 100
 
 device = 'cuda'
@@ -116,6 +118,17 @@ def load_Turney(file_name, all_pairs):
                 all_pairs.append( [reverse_bigram(bigram), unigram, "Turney"] )
     return dataset
 
+def load_BiRD(file_name, all_pairs):
+    pair_list = []
+    with open(file_name) as f_in:
+        for i, line in enumerate(f_in):
+            if i == 0:
+                continue
+            fields = line.rstrip().split('\t')
+            pair_list.append( [fields[1], fields[2], float(fields[6])])
+            all_pairs.append( [fields[1], fields[2], "BiRD"] )
+    return pair_list
+
 def load_pairs(file_name, label, all_pairs):
     pair_list = []
     with open(file_name) as f_in:
@@ -142,6 +155,8 @@ for file_info in dataset_list:
         dataset_arr.append( load_SemEval( file_info[0], file_info[1], all_pairs ) )
     elif file_type == "Turney":
         dataset_arr.append( load_Turney( file_info[0], all_pairs ) )
+    elif file_type == "BiRD":
+        dataset_arr.append( load_BiRD( file_info[0], all_pairs ) )
 
 with open(freq_file_name) as f_in:
     word_d2_idx_freq, max_ind = utils.load_word_dict(f_in)
@@ -237,6 +252,32 @@ def test_Turney_single(dataset, method_idx, method_name, pair_d2_score):
     #print("total ", len(candidates)*total_count, ", unigram OOV ", uni_OOV_count, ", bigram OOV ", bi_OOV_count )
 
 
+def test_BiRD_single(dataset, method_idx, method_name, pair_d2_score):
+    score_list = []
+    gt_list = []
+    bigram_d2_pred = {}
+    bigram_d2_gt = {}
+    for bigram, unigram, label in dataset:
+        score_pred = pair_d2_score[ (bigram, unigram) ][method_idx]
+        score_list.append( score_pred )
+        gt_list.append(label)
+        if bigram not in bigram_d2_pred:
+            bigram_d2_pred[bigram] = []
+            bigram_d2_gt[bigram] = []
+        bigram_d2_pred[bigram].append(score_pred)
+        bigram_d2_gt[bigram].append(label)
+    pearson_score_sum = 0
+    rank_score_sum = 0
+    weight_sum = 0.0
+    for bigram in bigram_d2_pred:
+        weight = len(bigram_d2_gt[bigram])
+        weight_sum += weight
+        pearson_score_sum += weight * stats.pearsonr(bigram_d2_pred[bigram], bigram_d2_gt[bigram])[0]
+        rank_score_sum += weight * stats.spearmanr(bigram_d2_pred[bigram], bigram_d2_gt[bigram])[0]
+
+    global_rank_results = stats.spearmanr(score_list, gt_list)
+    global_linear_results = stats.pearsonr(score_list, gt_list)
+    print(method_name + ': Pearson '+ str(pearson_score_sum/weight_sum)+ ', Spearman rank '+ str(rank_score_sum/weight_sum) + ', Global Pearson '+ str(global_linear_results[0])+ ', Spearman rank '+ str(global_rank_results[0]) )
     
 def test_SemEval_single(dataset, method_idx, method_name, pair_d2_score):
     score_list = []
@@ -273,6 +314,8 @@ def test_SemEval_single(dataset, method_idx, method_name, pair_d2_score):
     #print("F1 ", f1_score(gt_list, score_list) )
     #print("total ", len(gt_list), ", unigram OOV ", uni_OOV_count, ", bigram OOV ", bi_OOV_count )
 
+#print(pair_d2_score)
+
 def test_all_methods(dataset, pair_d2_score, method_names, file_type):
     num_methods = len(method_names)
     for method_idx, method_name in enumerate(method_names):
@@ -280,6 +323,8 @@ def test_all_methods(dataset, pair_d2_score, method_names, file_type):
             test_SemEval_single(dataset, method_idx, method_name, pair_d2_score)
         elif file_type == "Turney":
             test_Turney_single(dataset, method_idx, method_name, pair_d2_score)
+        elif file_type == "BiRD":
+            test_BiRD_single(dataset, method_idx, method_name, pair_d2_score)
             
 
 for file_info, dataset in zip(dataset_list, dataset_arr):
