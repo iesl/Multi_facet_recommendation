@@ -13,17 +13,17 @@ import getopt
 method = "BERT"
 #method = "ST"
 
-#sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
+sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
-sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_36k.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_final.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-test_36k.json"
 
-#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
-gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
 
 print(sent_emb_file_name)
 sys.stdout.flush()

@@ -2,16 +2,20 @@
 #MIN_FREQ=$1
 MIN_FREQ=100
 #MIN_FREQ=500
-LOWERCASE=True
+#LOWERCASE=True
+LOWERCASE=False
 echo $MIN_FREQ
 INPUT_FILE="./data/raw/wiki2016_nchunk.txt"
 #DATA_NAME="wiki2016_min$MIN_FREQ"
-DATA_NAME="wiki2016_nchunk_lower_min$MIN_FREQ"
+#DATA_NAME="wiki2016_nchunk_lower_min$MIN_FREQ"
+DATA_NAME="wiki2016_nchunk_min$MIN_FREQ"
 OUTPUT_DIR="./data/processed/$DATA_NAME/"
 
 #GLOVE_IN="/iesl/data/word_embedding/glove.42B.300d.txt"
-GLOVE_IN="./resources/glove.42B.300d.txt"
-GLOVE_OUT="./resources/glove.42B.300d_filtered_${DATA_NAME}.txt"
+#GLOVE_IN="./resources/glove.42B.300d.txt"
+#GLOVE_OUT="./resources/glove.42B.300d_filtered_${DATA_NAME}.txt"
+GLOVE_IN="./resources/glove.840B.300d_filtered_wiki2016.txt"
+GLOVE_OUT="./resources/glove.840B.300d_filtered_${DATA_NAME}.txt"
 #WORD2VEC_IN="/iesl/data/word_embedding/GoogleNews-vectors-negative300.txt"
 #WORD2VEC_OUT="./resources/Google-vec-neg300_filtered_${DATA_NAME}.txt"
 
@@ -44,5 +48,5 @@ echo "filter word embedding"
 
 echo "convert indices to tensor"
 WIN_SIZE=5
-~/anaconda3/bin/python src/preprocessing/map_word_indices_to_tensors_memory_saving.py --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --window_size $WIN_SIZE
+~/anaconda3/bin/python src/preprocessing/map_word_indices_to_tensors_memory_saving.py --lowercase $LOWERCASE --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --window_size $WIN_SIZE
 

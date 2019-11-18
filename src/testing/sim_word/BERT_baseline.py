@@ -11,15 +11,18 @@ from scipy import stats
 
 #embedding_file_name = "gen_log/BERT_SemEval2013_Turney2012_phrase_train.json"
 #embedding_file_name = "gen_log/BERT_SemEval2013_Turney2012_phrase_test.json"
-embedding_file_name = "gen_log/BERT_large_BiRD_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_large_BiRD_phrase_test.json"
 #embedding_file_name = "gen_log/BERT_base_BiRD_phrase_test.json"
-#embedding_file_name = "gen_log/BERT_large_SemEval2013_Turney2012_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_large_WikiSRS_rel_sim_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_base_WikiSRS_rel_sim_phrase_test.json"
+embedding_file_name = "gen_log/BERT_large_SemEval2013_Turney2012_phrase_test.json"
 
 dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
 #dataset_list = [ [dataset_dir + "SemEval2013/en.trainSet", "SemEval2013" ], [dataset_dir + "SemEval2013/en.testSet", "SemEval2013"], [dataset_dir + "Turney2012/jair.data", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
-#dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
-dataset_list = [ [dataset_dir + "BiRD/BiRD.txt", 'BiRD'] ]
+dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
+#dataset_list = [ [dataset_dir + "BiRD/BiRD.txt", 'BiRD'] ]
+#dataset_list = [ [dataset_dir + "WikiSRS/WikiSRS_relatedness.csv", 'WikiSRS'], [dataset_dir + "WikiSRS/WikiSRS_similarity.csv", 'WikiSRS'] ]
 
 def reverse_bigram(bigram):
     #w_list = bigram.split()
@@ -48,6 +51,17 @@ def load_BiRD(file_name):
             pair_list.append( [ tuple(fields[1].split()), tuple(fields[2].split()), float(fields[6])])
     return pair_list
 
+def load_WikiSRS(file_name):
+    pair_list = []
+    with open(file_name) as f_in:
+        for i, line in enumerate(f_in):
+            if i == 0:
+                continue
+            fields = line.rstrip().split('\t')
+            pair_list.append( [ tuple(fields[2].split()), tuple(fields[3].split()), float(fields[4])])
+            #pair_list.append( [fields[2].lower(), fields[3].lower(), float(fields[4])])
+    return pair_list
+
 def load_pairs(file_name, label):
     pair_list = []
     with open(file_name) as f_in:
@@ -73,6 +87,8 @@ for file_info in dataset_list:
         dataset_arr.append( load_Turney( file_info[0] ) )
     elif file_type == "BiRD":
         dataset_arr.append( load_BiRD( file_info[0] ) )
+    elif file_type == "WikiSRS":
+        dataset_arr.append( load_WikiSRS( file_info[0] ) )
 
 print("loading ", embedding_file_name)
 #word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name)
@@ -247,4 +263,6 @@ for file_info, dataset in zip(dataset_list, dataset_arr):
     elif file_type == "Turney":
         test_Turney(dataset, word2emb)
     elif file_type == "BiRD":
+        test_BiRD(dataset, word2emb)
+    elif file_type == "WikiSRS":
         test_BiRD(dataset, word2emb)

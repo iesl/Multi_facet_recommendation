@@ -75,9 +75,9 @@ if len(data_path_2) > 0:
 #            #emb_size = len(val)
 #    return word2emb
 
-word2emb, emb_size = utils.load_emb_file(emb_file_in_path, convert_np = False)
+word2emb, emb_size = utils.load_emb_file_to_dict(emb_file_in_path, convert_np = False)
 
 with open(emb_file_out_path,'w') as f_out:
     for w in d1:
         if w in word2emb:
-            f_out.write(w+' '+' '.join(word2emb[w])+'\n')
+            f_out.write(w+' '+' '.join([str(x) for x in word2emb[w]])+'\n')
