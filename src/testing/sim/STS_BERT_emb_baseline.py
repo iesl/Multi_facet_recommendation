@@ -10,10 +10,13 @@ from scipy.spatial import distance
 
 import getopt
 
-method = "BERT"
+#method = "BERT"
+method = "ELMo"
 #method = "ST"
 
-sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
+#sent_emb_file_name = "./gen_log/ELMo_large_sts-dev_cased.json"
+sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
@@ -21,9 +24,9 @@ sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_final.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-test_36k.json"
 
-gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
-#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
 
 print(sent_emb_file_name)
 sys.stdout.flush()
@@ -66,6 +69,13 @@ elif method == "ST":
         sent2emb[sent] = [emb]
 
     method_names = ['ST_emb']
+elif method == "ELMo":
+    sent2emb = {}
+    for sent, proc_idx, avg_emb, cls_emb in embedding_list:
+        #sent2emb[' '.join(sent)] = [avg_emb, cls_emb]
+        sent2emb[sent] = [avg_emb, cls_emb]
+
+    method_names = ['ELMo_avg_emb','ELMo_proc_emb']
     
 
 pred_scores = []

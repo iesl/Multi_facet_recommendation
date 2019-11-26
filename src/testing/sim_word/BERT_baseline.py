@@ -15,14 +15,16 @@ from scipy import stats
 #embedding_file_name = "gen_log/BERT_base_BiRD_phrase_test.json"
 #embedding_file_name = "gen_log/BERT_large_WikiSRS_rel_sim_phrase_test.json"
 #embedding_file_name = "gen_log/BERT_base_WikiSRS_rel_sim_phrase_test.json"
-embedding_file_name = "gen_log/BERT_large_SemEval2013_Turney2012_phrase_test.json"
+embedding_file_name = "gen_log/ELMo_WikiSRS_rel_sim_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_large_SemEval2013_Turney2012_phrase_test.json"
 
-dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
+dataset_dir = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
+#dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
 #dataset_list = [ [dataset_dir + "SemEval2013/en.trainSet", "SemEval2013" ], [dataset_dir + "SemEval2013/en.testSet", "SemEval2013"], [dataset_dir + "Turney2012/jair.data", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
-dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
+#dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
 #dataset_list = [ [dataset_dir + "BiRD/BiRD.txt", 'BiRD'] ]
-#dataset_list = [ [dataset_dir + "WikiSRS/WikiSRS_relatedness.csv", 'WikiSRS'], [dataset_dir + "WikiSRS/WikiSRS_similarity.csv", 'WikiSRS'] ]
+dataset_list = [ [dataset_dir + "WikiSRS/WikiSRS_relatedness.csv", 'WikiSRS'], [dataset_dir + "WikiSRS/WikiSRS_similarity.csv", 'WikiSRS'] ]
 
 def reverse_bigram(bigram):
     #w_list = bigram.split()
@@ -97,8 +99,8 @@ with open(embedding_file_name) as f_in:
 
 word2emb = {}
 for w, proc_idx, avg_emb, cls_emb in embedding_list:
-    #word2emb[w] = cls_emb
-    word2emb[w] = avg_emb
+    word2emb[w] = cls_emb
+    #word2emb[w] = avg_emb
 
 
 def output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count):
