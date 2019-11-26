@@ -48,5 +48,6 @@ echo "filter word embedding"
 
 echo "convert indices to tensor"
 WIN_SIZE=5
-~/anaconda3/bin/python src/preprocessing/map_word_indices_to_tensors_memory_saving.py --lowercase $LOWERCASE --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --window_size $WIN_SIZE
+~/anaconda3/bin/python src/preprocessing/map_word_indices_to_tensors_memory_saving.py --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --window_size $WIN_SIZE
+#~/anaconda3/bin/python src/preprocessing/map_word_indices_to_tensors_memory_saving.py --lowercase $LOWERCASE --data $OUTPUT_DIR --save $OUTPUT_DIR/$TENSOR_FOLDER/ --max_sent_len $MAX_SENT_LEN --window_size $WIN_SIZE
 

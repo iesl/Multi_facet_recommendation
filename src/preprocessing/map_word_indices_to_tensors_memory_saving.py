@@ -28,8 +28,8 @@ parser.add_argument('--seed', type=int, default=1111,
 
 parser.add_argument('--stop_word_file', type=str, default='./resources/stop_word_list',
                     help='path to the file of a stop word list')
-parser.add_argument('--lowercase', type=str2bool, nargs='?', default=False,
-                    help='whether make all the words in corpus lowercased')
+#parser.add_argument('--lowercase', type=str2bool, nargs='?', default=False,
+#                    help='whether make all the words in corpus lowercased')
 
 args = parser.parse_args()
 
@@ -65,10 +65,11 @@ def convert_stop_to_ind_lower(f_in, idx2word_freq):
     return stop_word_set
 
 with open(args.stop_word_file) as f_in:
-    if args.lowercase:
-        stop_ind_set = convert_stop_to_ind_lower(f_in, idx2word_freq)
-    else:
-        stop_ind_set = convert_stop_to_ind(f_in, w_d2_ind_freq)
+    stop_ind_set = convert_stop_to_ind_lower(f_in, idx2word_freq)
+    #if args.lowercase:
+    #    stop_ind_set = convert_stop_to_ind_lower(f_in, idx2word_freq)
+    #else:
+    #    stop_ind_set = convert_stop_to_ind(f_in, w_d2_ind_freq)
 
 max_target_num = args.window_size * 2
         

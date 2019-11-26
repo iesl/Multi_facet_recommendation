@@ -18,8 +18,14 @@ lowercase = False
 #file_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/STS/stsbenchmark/sts-train_only_sent"
 #output_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/STS/stsbenchmark/sts-train_org"
 
-file_path = "./dataset_testing/STS/stsbenchmark/sts-test_only_sent"
-output_path = "./dataset_testing/STS/stsbenchmark/sts-test_org"
+#file_path = "./dataset_testing/STS/stsbenchmark/sts-test_only_sent"
+#output_path = "./dataset_testing/STS/stsbenchmark/sts-test_org"
+
+file_path = "./dataset_testing/STS/sts_test_all_only_sent"
+output_path = "./dataset_testing/STS/sts_test_all_org"
+
+#file_path = "./dataset_testing/STS/sts_train_2012_only_sent"
+#output_path = "./dataset_testing/STS/sts_train_2012_org"
 
 #file_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/WiC_dataset/dev/dev.data_only_sent"
 #output_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/WiC_dataset/dev/dev.data_org_lower"
