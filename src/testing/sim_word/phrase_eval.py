@@ -69,6 +69,8 @@ elif train_or_test == 'test':
     dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
 elif train_or_test == 'BiRD':
     dataset_list = [ [dataset_dir + "BiRD/BiRD.txt", 'BiRD'] ]
+elif train_or_test == 'WikiSRS':
+    dataset_list = [ [dataset_dir + "WikiSRS/WikiSRS_relatedness.csv", 'WikiSRS'], [dataset_dir + "WikiSRS/WikiSRS_similarity.csv", 'WikiSRS'] ]
 bsz = 100
 
 device = 'cuda'
@@ -118,6 +120,19 @@ def load_Turney(file_name, all_pairs):
                 all_pairs.append( [reverse_bigram(bigram), unigram, "Turney"] )
     return dataset
 
+def load_WikiSRS(file_name, all_pairs):
+    pair_list = []
+    with open(file_name) as f_in:
+        for i, line in enumerate(f_in):
+            if i == 0:
+                continue
+            fields = line.rstrip().split('\t')
+            pair_list.append( [fields[2], fields[3], float(fields[4])])
+            all_pairs.append( [fields[2], fields[3], "WikiSRS"] )
+            #pair_list.append( [fields[2].lower(), fields[3].lower(), float(fields[4])])
+            #all_pairs.append( [fields[2].lower(), fields[3].lower(), "WikiSRS"] )
+    return pair_list
+
 def load_BiRD(file_name, all_pairs):
     pair_list = []
     with open(file_name) as f_in:
@@ -157,7 +172,10 @@ for file_info in dataset_list:
         dataset_arr.append( load_Turney( file_info[0], all_pairs ) )
     elif file_type == "BiRD":
         dataset_arr.append( load_BiRD( file_info[0], all_pairs ) )
+    elif file_type == "WikiSRS":
+        dataset_arr.append( load_WikiSRS( file_info[0], all_pairs ) )
 
+#print(all_pairs)
 with open(freq_file_name) as f_in:
     word_d2_idx_freq, max_ind = utils.load_word_dict(f_in)
 
@@ -324,6 +342,8 @@ def test_all_methods(dataset, pair_d2_score, method_names, file_type):
         elif file_type == "Turney":
             test_Turney_single(dataset, method_idx, method_name, pair_d2_score)
         elif file_type == "BiRD":
+            test_BiRD_single(dataset, method_idx, method_name, pair_d2_score)
+        elif file_type == "WikiSRS":
             test_BiRD_single(dataset, method_idx, method_name, pair_d2_score)
             
 

@@ -13,6 +13,10 @@ from sklearn.cluster import KMeans, MiniBatchKMeans
 import warnings
 warnings.filterwarnings("ignore")
 
+bert_dir = '/mnt/nfs/scratch1/hschang/language_modeling/pytorch-pretrained-BERT'
+sys.path.insert(1, bert_dir)
+from pytorch_pretrained_bert import BertTokenizer, BertModel
+
 #import torch.nn as nn
 #import torch.utils.data
 #import coherency_eval
@@ -99,23 +103,90 @@ tempfile.tempdir = "./temp_pyrouge/" + unique_dir_name + '/'
 
 os.mkdir(tempfile.tempdir)
 
-with open(args.dict) as f_in:
-    idx2word_freq = load_idx2word_freq(f_in)
+idx2word_freq = None
+if args.dict != 'None':
+    with open(args.dict) as f_in:
+        idx2word_freq = load_idx2word_freq(f_in)
 
+word_norm_emb = None
 if 'ours' in args.method_set:
     parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb = loading_all_models(args, idx2word_freq, device, args.max_sent_len)
 
     encoder.eval()
     decoder.eval()
-else:
+elif args.method_set != 'bert':
     word_emb, output_emb_size = load_emb_from_path(args.emb_file, device, idx2word_freq)
     word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     word_norm_emb[0,:] = 0
 
-with open(args.dict) as f_in:
-    word_d2_idx_freq, max_ind = load_word_dict(f_in)
+if 'bert' in args.method_set:
+    BERT_model_path = 'bert-base-cased'
+    #BERT_model_path = 'bert-large-cased'
+    lower_case = False
+    bert_tokenizer = BertTokenizer.from_pretrained(BERT_model_path, cache_dir = bert_dir + '/cache_dir/', do_lower_case = lower_case)
+    bert_max_len = 2 + 500
+    bert_batch_size = 100
+    bert_model = BertModel.from_pretrained(BERT_model_path)
+    bert_model.eval()
+    bert_model.to(device)
 
-utils_testing.compute_freq_prob(word_d2_idx_freq)
+def run_bert(input_sents, device, bert_tokenizer, bert_model, word_d2_idx_freq):
+    freq_prob_list = []
+    sent_emb_list = []
+    w_emb_list = []
+    idx_list = []
+    sent_lens = []
+    for sent in input_sents:
+        tokenized_text = bert_tokenizer.tokenize('[CLS] ' + sent + ' [SEP]')
+        indexed_tokens = bert_tokenizer.convert_tokens_to_ids(tokenized_text)
+        idx_list.append(indexed_tokens)
+        sent_lens.append( min(len(indexed_tokens), bert_max_len) )
+        if word_d2_idx_freq is not None:
+            for w in tokenized_text:
+                if w in word_d2_idx_freq:
+                    w_idx, freq, freq_prob = word_d2_idx_freq[w]
+                    freq_prob_list.append(freq_prob)
+                else:
+                    freq_prob_list.append(0) 
+    if word_d2_idx_freq is None:
+        freq_prob_tensor = None
+    else:
+        freq_prob_tensor = torch.tensor(freq_prob_list,device = device)
+
+    for i in range(len(idx_list)):
+        storing_idx = i % bert_batch_size
+        if storing_idx == 0:
+            sys.stdout.write(str(i)+' ')
+            sys.stdout.flush()
+            tokens_tensor = torch.zeros(bert_batch_size, bert_max_len, device = device, dtype = torch.long)
+            mask_tensor = torch.zeros(bert_batch_size, bert_max_len, device = device, dtype = torch.long)
+            length_list = []
+        proc_sent = idx_list[i]
+        #sent_len = len(proc_sent)
+        sent_len = sent_lens[i]
+        tokens_tensor[storing_idx, :sent_len] = torch.tensor(proc_sent[:sent_len], device = device)
+        mask_tensor[storing_idx, :sent_len] = 1
+        length_list.append(sent_len)
+        #proc_sent_inner.append(idx_list[i])
+
+        if storing_idx == bert_batch_size - 1 or i == len(idx_list)-1:
+            with torch.no_grad():
+                encoded_layers_batch, cls_emb_batch = bert_model(tokens_tensor, attention_mask=mask_tensor, output_all_encoded_layers=False)
+            for inner_i in range(len(length_list)):
+                sent_len = length_list[inner_i]
+                avg_emb = torch.mean(encoded_layers_batch[inner_i, :sent_len, :], dim = 0, keepdim=True)
+                w_emb = encoded_layers_batch[inner_i, :sent_len, :]
+                w_emb_list.append(w_emb)
+                sent_emb_list.append(avg_emb)
+    
+    return sent_emb_list, w_emb_list, sent_lens, freq_prob_tensor
+
+word_d2_idx_freq = None
+if args.dict != 'None':
+    with open(args.dict) as f_in:
+        word_d2_idx_freq, max_ind = load_word_dict(f_in)
+
+    utils_testing.compute_freq_prob(word_d2_idx_freq)
 
 #print(word_d2_idx_freq)
 
@@ -141,6 +212,26 @@ def load_tokenized_story(f_in):
             article.append(line)
     #@highlight
     return article, abstract
+
+
+def article_to_embs_bert(article, bert_tokenizer, bert_model, word_d2_idx_freq, device): 
+    sent_emb_list, w_emb_tensors_list, sent_lens_list, freq_prob_tensor = run_bert(article, device, bert_tokenizer, bert_model, word_d2_idx_freq)
+    sent_embs_tensor = torch.cat(sent_emb_list, dim=0)
+    all_words_tensor = torch.cat(w_emb_tensors_list, dim=0)
+    sent_embs_tensor = sent_embs_tensor / (0.000000000001 + sent_embs_tensor.norm(dim = 1, keepdim=True) )
+    all_words_tensor = all_words_tensor / (0.000000000001 + all_words_tensor.norm(dim = 1, keepdim=True) )
+
+    sent_lens = torch.tensor(sent_lens_list, dtype=torch.float32 , device = device)
+    
+    num_word = all_words_tensor.size(0)
+    w_freq_tensor = torch.ones(1,num_word,device = device)
+        
+    #emb_size = sent_emb_list[0].size(1)
+    #num_sent = len(article)
+    #sent_embs_tensor = torch.zeros(num_sent, emb_size, device = device)
+    #w_emb_tensors_list = []
+    #sent_lens = torch.empty(num_sent, device = device)
+    return sent_embs_tensor, all_words_tensor, w_emb_tensors_list, sent_lens, freq_prob_tensor, w_freq_tensor
 
 ##convert the set of word embedding we want to reconstruct into tensor
 def article_to_embs(article, word_norm_emb, word_d2_idx_freq, device):
@@ -191,7 +282,8 @@ def article_to_embs(article, word_norm_emb, word_d2_idx_freq, device):
 
 def greedy_selection(sent_words_sim, top_k_max, sent_lens = None):
     num_words = sent_words_sim.size(1)
-    max_sim = -10000 * torch.ones( (1,num_words), device = device )
+    #max_sim = -10000 * torch.ones( (1,num_words), device = device )
+    max_sim = -1 * torch.ones( (1,num_words), device = device )
     max_sent_idx_list = []
     for i in range(top_k_max):
         sent_sim_improvement = sent_words_sim - max_sim
@@ -272,11 +364,22 @@ def select_by_clustering_words(sent_embs_tensor, all_words_tensor, top_k_max, de
     return max_sent_idx_list
 
 def rank_sents(basis_coeff_list, article, word_norm_emb, word_d2_idx_freq, top_k_max, device):
-    sent_embs_tensor, sent_embs_w_tensor, all_words_tensor, w_emb_tensors_list, sent_lens, freq_prob_tensor, w_freq_tensor = article_to_embs(article, word_norm_emb, word_d2_idx_freq, device)
-    
     alpha = 0.0001
-    freq_w_4_tensor = alpha / (alpha + freq_prob_tensor)
     m_d2_sent_ranks = {} 
+    if args.method_set != 'bert':
+        sent_embs_tensor, sent_embs_w_tensor, all_words_tensor, w_emb_tensors_list, sent_lens, freq_prob_tensor, w_freq_tensor = article_to_embs(article, word_norm_emb, word_d2_idx_freq, device)
+        freq_w_4_tensor = alpha / (alpha + freq_prob_tensor)
+    if 'bert' in args.method_set:
+        sent_embs_tensor_bert, all_words_tensor_bert, w_emb_tensors_list_bert, sent_lens_bert, freq_prob_tensor_bert, w_freq_tensor_bert = article_to_embs_bert(article, bert_tokenizer, bert_model, word_d2_idx_freq, device)
+
+        #m_d2_sent_ranks['bert_sent_emb_dist_avg'] = select_by_avg_dist_boost( sent_embs_tensor_bert, all_words_tensor_bert, w_freq_tensor_bert, top_k_max, device )
+        #m_d2_sent_ranks['bert_norm_w_in_sent'] = select_by_topics( w_emb_tensors_list_bert, all_words_tensor_bert, w_freq_tensor_bert, top_k_max, device, sent_lens_bert)
+        if freq_prob_tensor_bert is not None:
+            freq_w_4_tensor_bert = alpha / (alpha + freq_prob_tensor_bert)
+            m_d2_sent_ranks['bert_sent_emb_dist_avg_freq_4'] = select_by_avg_dist_boost( sent_embs_tensor_bert, all_words_tensor_bert, w_freq_tensor_bert, top_k_max, device, freq_w_4_tensor_bert )
+            m_d2_sent_ranks['bert_norm_w_in_sent_freq_4'] = select_by_topics( w_emb_tensors_list_bert, all_words_tensor_bert, w_freq_tensor_bert, top_k_max, device, sent_lens_bert, freq_w_tensor = freq_w_4_tensor_bert)
+
+
     if 'embs' in args.method_set:
         m_d2_sent_ranks['sent_emb_dist_avg'] = select_by_avg_dist_boost( sent_embs_tensor, all_words_tensor, w_freq_tensor, top_k_max, device )
         m_d2_sent_ranks['sent_emb_dist_avg_freq_4'] = select_by_avg_dist_boost( sent_embs_tensor, all_words_tensor, w_freq_tensor, top_k_max, device, freq_w_4_tensor )
@@ -375,12 +478,14 @@ if 'ours' in args.method_set:
     all_method_list += ['ours', 'ours_freq_4']
 if 'embs' in args.method_set:
     all_method_list += ['sent_emb_dist_avg', 'sent_emb_dist_avg_freq_4', 'sent_emb_freq_4_dist_avg_freq_4', 'norm_w_in_sent', 'norm_w_in_sent_freq_4']
+if 'bert' in args.method_set:
+    all_method_list += ['bert_sent_emb_dist_avg', 'bert_sent_emb_dist_avg_freq_4', 'bert_norm_w_in_sent', 'bert_norm_w_in_sent_freq_4']
 if 'cluster' in args.method_set:
     all_method_list += ['sent_emb_freq_4_cluster_sent','sent_emb_freq_4_cluster_sent_len','sent_emb_cluster_word','sent_emb_cluster_word_freq_4']
     #all_method_list += ['sent_emb_cluster_sent','sent_emb_cluster_sent_len','sent_emb_cluster_word','sent_emb_cluster_word_freq_4']
     #all_method_list += ['sent_emb_freq_4_cluster_sent','sent_emb_freq_4_cluster_sent_len','sent_emb_freq_4_cluster_word','sent_emb_freq_4_cluster_word_freq_4']
 
-all_method_list += ['first','rnd']
+#all_method_list += ['first','rnd']
 #all_method_list = ['ours', 'ours_freq_4', 'sent_emb_dist_avg', 'sent_emb_dist_avg_freq_4', 'norm_w_in_sent', 'norm_w_in_sent_freq_4', 'sent_emb_cluster_sent','sent_emb_cluster_sent_len','sent_emb_cluster_word','sent_emb_cluster_word_freq_4', 'first']
 
 not_inclusive_methods = set(['sent_emb_freq_4_cluster_sent','sent_emb_freq_4_cluster_sent_len','sent_emb_freq_4_cluster_word','sent_emb_freq_4_cluster_word_freq_4', 'sent_emb_cluster_sent','sent_emb_cluster_sent_len','sent_emb_cluster_word','sent_emb_cluster_word_freq_4'])
@@ -415,6 +520,8 @@ for top_k in range(1,args.top_k_max+1):
             elif method == 'rnd':
                 sent_rank = np.random.choice(len(article), top_k_art_len).tolist()
             else:
+                if method not in fname_d2_sent_rank[file_name]:
+                    continue
                 sent_rank = fname_d2_sent_rank[file_name][method]
             if method in not_inclusive_methods:
                 selected_sent = [article[s] for s in sent_rank[top_k_art_len-1]]
@@ -425,7 +532,11 @@ for top_k in range(1,args.top_k_max+1):
             effective_doc_count += 1
             selected_sent_all.append(selected_sent)
         #selected_sent_all
-
+        if len(selected_sent_all) != len(abstract_list):
+            logger.logging(str(len(selected_sent_all)))
+            logger.logging(str(len(abstract_list)))
+            logger.logging("do not run " + method)
+            continue
         score = eval_by_pyrouge(selected_sent_all, abstract_list, temp_file_prefix, tempfile.tempdir)
         #rouge = Pythonrouge(summary_file_exist=False, summary=selected_sent_all, reference=abstract_list, n_gram=2, ROUGE_SU4=True, ROUGE_L=False,
         #            #recall_only=True, stemming=True, stopwords=True,

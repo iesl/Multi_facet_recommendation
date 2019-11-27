@@ -421,6 +421,8 @@ def train_one_epoch(dataloader_train, external_emb, lr, current_coeff_opt, split
             if args.target_emb_source != 'ewe':
                 external_emb.data[0,:] = 0
             external_emb.grad.data.zero_()
+            #with torch.no_grad():
+            external_emb.data = external_emb.data / (0.000000000001 + external_emb.data.norm(dim = 1, keepdim=True))
 
         if i_batch % args.log_interval == 0 and i_batch > 0:
             cur_loss = total_loss / args.log_interval
