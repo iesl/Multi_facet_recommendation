@@ -13,15 +13,16 @@ from scipy import stats
 #embedding_file_name = "gen_log/BERT_SemEval2013_Turney2012_phrase_test.json"
 #embedding_file_name = "gen_log/BERT_large_BiRD_phrase_test.json"
 #embedding_file_name = "gen_log/BERT_base_BiRD_phrase_test.json"
-embedding_file_name = "gen_log/BERT_base_cased_BiRD_phrase_test.json"
-#embedding_file_name = "gen_log/BERT_large_WikiSRS_rel_sim_phrase_test.json"
-#embedding_file_name = "gen_log/BERT_base_WikiSRS_rel_sim_phrase_test.json"
 #embedding_file_name = "gen_log/ELMo_WikiSRS_rel_sim_phrase_test.json"
 #embedding_file_name = "gen_log/ELMo_BiRD_phrase_test.json"
+embedding_file_name = "gen_log/BERT_base_BiRD_phrase_test_cased.json"
+#embedding_file_name = "gen_log/BERT_large_WikiSRS_rel_sim_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_base_WikiSRS_rel_sim_phrase_test.json"
+#embedding_file_name = "gen_log/BERT_base_WikiSRS_rel_sim_phrase_test_cased.json"
 #embedding_file_name = "gen_log/BERT_large_SemEval2013_Turney2012_phrase_test.json"
 
-dataset_dir = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
-#dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
+#dataset_dir = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
+dataset_dir = "/iesl/canvas/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/phrase/"
 #dataset_list = [ [dataset_dir + "SemEval2013/en.trainSet", "SemEval2013" ], [dataset_dir + "SemEval2013/en.testSet", "SemEval2013"], [dataset_dir + "Turney2012/jair.data", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/train/en.trainSet.negativeInstances-v2", dataset_dir + "SemEval2013/train/en.trainSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_train.txt", "Turney"] ]
 #dataset_list = [ [dataset_dir + "SemEval2013/test/en.testSet.negativeInstances-v2", dataset_dir + "SemEval2013/test/en.testSet.positiveInstances-v2", "SemEval2013" ], [dataset_dir + "Turney2012/Turney_test.txt", "Turney"] ]
@@ -172,6 +173,8 @@ def test_BiRD(dataset, word2emb):
     rank_score_sum = 0
     weight_sum = 0.0
     for bigram in bigram_d2_pred:
+        if len(bigram_d2_pred[bigram]) < 2:
+            continue
         weight = len(bigram_d2_gt[bigram])
         weight_sum += weight
         pearson_score_sum += weight * stats.pearsonr(bigram_d2_pred[bigram], bigram_d2_gt[bigram])[0]
