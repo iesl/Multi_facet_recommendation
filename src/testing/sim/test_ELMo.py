@@ -18,13 +18,12 @@ root_dir = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embeddi
 #output_path = root_dir+"/gen_log/ELMo_large_sts-train_cased.json"
 #input_path = root_dir+"/dataset_testing/STS/stsbenchmark/sts-test_org"
 #output_path = root_dir+"/gen_log/ELMo_large_sts-test_cased.json"
-input_path = root_dir+"/dataset_testing/STS/sts_train_2012_org"
-output_path = root_dir+"/gen_log/ELMo_sts_2012_train_cased.json"
+#input_path = root_dir+"/dataset_testing/STS/sts_train_2012_org"
+#output_path = root_dir+"/gen_log/ELMo_sts_2012_train_cased.json"
 #input_path = root_dir+"/dataset_testing/STS/sts_test_all_org"
 #output_path = root_dir+"/gen_log/ELMo_sts_2012-6_test_cased.json"
-
-#input_path = root_dir+"/dataset_testing/phrase/BiRD_test"
-#output_path = root_dir+"/gen_log/ELMo_base_BiRD_phrase_test.json
+input_path = root_dir+"/dataset_testing/phrase/BiRD_test"
+output_path = root_dir+"/gen_log/ELMo_BiRD_phrase_test.json"
 #input_path = root_dir+"/dataset_testing/phrase/SemEval2013_Turney2012_phrase_test_org_unique"
 #output_path = root_dir+"/gen_log/ELMo_large_SemEval2013_Turney2012_phrase_test.json"
 #input_path = root_dir+"/dataset_testing/phrase/HypeNet_WordNet_val_org_unique"

@@ -15,7 +15,8 @@ method = "ELMo"
 #method = "ST"
 
 #sent_emb_file_name = "./gen_log/ELMo_large_sts-dev_cased.json"
-sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
+sent_emb_file_name = "./gen_log/ELMo_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
@@ -26,7 +27,8 @@ sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
 
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
-gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+gt_file_name = "./dataset_testing/STS/sts_all_years_test"
 
 print(sent_emb_file_name)
 sys.stdout.flush()
