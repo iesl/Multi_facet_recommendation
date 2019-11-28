@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from sklearn.metrics import average_precision_score, f1_score
+from sklearn.metrics import average_precision_score, f1_score, accuracy_score
 import sys
 sys.path.insert(0, sys.path[0]+'/../..')
 import utils
@@ -162,12 +162,49 @@ word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_
 with torch.no_grad():
     #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
     #pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
-    pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info)
+    pred_scores, method_names, OOV_value = utils_testing.predict_entail_scores(testing_pair_loader, L1_losss_B, device, word2emb, word_d2_idx_freq, other_info, compute_WMD = True, OOV_sim_zero = True)
 
 pair_d2_score = {}
 for i in range(len(all_pairs)):
     bigram, unigram, dataset = all_pairs[i]
     pair_d2_score[ (bigram, unigram) ] = pred_scores[i]
+
+
+def test_entail_single(dataset, method_idx, method_name, pair_d2_score):
+    sent1_d2_score_label = {}
+    #uni_OOV_count = 0
+    #bi_OOV_count = 0
+    direction_list = []
+    for sent1, sent2, label in dataset:
+        #score_pred, uni_OOV_count, bi_OOV_count = output_sim_score(bigram, unigram, word2emb, uni_OOV_count, bi_OOV_count)
+        score_pred = pair_d2_score[ (sent1, sent2) ][method_idx]
+        if sent1 not in sent1_d2_score_label:
+            sent1_d2_score_label[sent1] = []
+        sent1_d2_score_label[sent1].append( [score_pred, label] )
+
+        if label == 1 and 'diff' in method_name:
+            if score_pred == OOV_value or score_pred == 0:
+                direction_list.append(0.5)
+            elif score_pred > 0:
+                direction_list.append(1)
+            else:
+                direction_list.append(0)
+    pred_list = []
+    gt_list = []
+    for sent1 in sent1_d2_score_label:
+        score_label = sent1_d2_score_label[sent1]
+        score_list, label_list = zip(*score_label)
+        max_idx = np.argmax(score_list)
+        for idx, label in enumerate(label_list):
+            if idx == max_idx:
+                pred_list.append( 1 )
+            else:
+                pred_list.append( 0 )
+            gt_list.append(label)
+
+    F1 = f1_score(gt_list, pred_list)
+    acc = accuracy_score(gt_list, pred_list)
+    print(method_name + ': F1 ' + str(F1) + ', Accuracy ' + str(acc), ', Direction Accuracy ' + str(np.mean(direction_list)) )
 
 def test_hyper_single(dataset, method_idx, method_name, pair_d2_score):
     score_list = []
@@ -196,7 +233,7 @@ def test_all_methods(dataset, pair_d2_score, method_names, file_type):
         if file_type == "hyper":
             test_hyper_single(dataset, method_idx, method_name, pair_d2_score)
         elif file_type == "entail":
-            test_hyper_single(dataset, method_idx, method_name, pair_d2_score)
+            test_entail_single(dataset, method_idx, method_name, pair_d2_score)
             
 
 for file_info, dataset in zip(dataset_list, dataset_arr):
