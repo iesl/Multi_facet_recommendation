@@ -73,7 +73,7 @@ elif train_or_test == 'val_test':
 elif train_or_test == 'word':
     dataset_list = [ [ dataset_dir + 'word_hyper/BLESS.all', 'POS' , "hyper"], [ dataset_dir + 'word_hyper/EVALution.all' , "POS",  "hyper" ], [ dataset_dir + 'word_hyper/LenciBenotto.all' , "POS",  "hyper" ], [ dataset_dir + 'word_hyper/Weeds.all' , "POS",  "hyper" ] ]
 elif train_or_test == 'entail_dev':
-    dataset_list = [ [ dataset_dir + 'SNLI/snli_1.0_dev_useful.txt', 'raw' , "entail"] ]
+    dataset_list = [ [ dataset_dir + '../SNLI/snli_1.0_dev_useful.txt', 'raw' , "entail"] ]
 bsz = 100
 
 device = 'cuda'
@@ -118,7 +118,9 @@ def load_entail(file_name, all_pairs):
     not_noun_count = 0
     dataset = []
     with open(file_name) as f_in:
-        for line in f_in:
+        for line_idx, line in enumerate(f_in):
+            if line_idx == 0:
+                continue
             fields = line.rstrip().split('\t')
             hypo_candidate = fields[1]
             hyper_candidate = fields[2]
@@ -127,6 +129,7 @@ def load_entail(file_name, all_pairs):
                 label = 1
             dataset.append( [hypo_candidate, hyper_candidate, label] )
             all_pairs.append( [hypo_candidate, hyper_candidate, 'entail'] )
+    return dataset
 
 dataset_arr = []
 all_pairs = []
