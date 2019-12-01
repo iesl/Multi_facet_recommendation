@@ -27,8 +27,14 @@ lowercase = False
 #file_path = "./dataset_testing/STS/sts_train_2012_only_sent"
 #output_path = "./dataset_testing/STS/sts_train_2012_org"
 
-file_path = "./dataset_testing/SNLI/snli_1.0_dev_sent_only"
-output_path = "./dataset_testing/SNLI/snli_1.0_dev_org"
+#file_path = "./dataset_testing/SNLI/snli_1.0_dev_sent_only"
+#output_path = "./dataset_testing/SNLI/snli_1.0_dev_org"
+
+file_path = "./dataset_testing/SNLI/snli_1.0_test_sent_only"
+output_path = "./dataset_testing/SNLI/snli_1.0_test_org"
+
+#file_path = "./dataset_testing/sick_test_annotated/sick_test_sent_only"
+#output_path = "./dataset_testing/sick_test_annotated/sick_test_org"
 
 #file_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/WiC_dataset/dev/dev.data_only_sent"
 #output_path = "/mnt/nfs/scratch1/hschang/language_modeling/NSD_for_sentence_embedding/dataset_testing/WiC_dataset/dev/dev.data_org_lower"
