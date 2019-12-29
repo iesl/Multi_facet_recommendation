@@ -18,22 +18,30 @@ method = "BERT"
 #sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/ELMo_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
+sent_emb_file_name = "./gen_log/BERT_large_w_sts-dev_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_large_w_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_base_w_sts-dev_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_base_w_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_base_sts_2012_train_cased.json"
-sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_36k.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_final.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-test_36k.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts_2012-6_test_36k.json"
 
-#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
 #gt_file_name = "./dataset_testing/STS/sts_2012_train"
-gt_file_name = "./dataset_testing/STS/sts_all_years_test"
+#gt_file_name = "./dataset_testing/STS/sts_all_years_test"
 #gt_file_name = "./dataset_testing/STS/sts_test_year_2012"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2013"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2014"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2015"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2016"
 
 print(sent_emb_file_name)
 sys.stdout.flush()
@@ -93,9 +101,10 @@ for fields in testing_list:
     for j in range(len(method_names)):
         sent_emb_1 = sent2emb[sent_1][j]
         sent_emb_2 = sent2emb[sent_2][j]
+        #print(sent_emb_1)
         score_pred[j] = 1 - distance.cosine(sent_emb_1, sent_emb_2)
     pred_scores.append(score_pred)
-
+#print(pred_scores)
 
 def get_lower_half(score_list):
     sorted_ind = np.argsort(score_list)

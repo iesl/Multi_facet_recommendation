@@ -8,11 +8,12 @@ import json
 import sys
 import getopt
 
-help_msg = '-i <input_file_path> -o <output_file_path>'
+help_msg = '-i <input_file_path> -t <tokenize_sents> -o <output_file_path>'
 
+tokenize_sents = 1
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+    opts, args = getopt.getopt(sys.argv[1:], "i:t:o:")
 except getopt.GetoptError:
     print(help_msg)
     sys.exit(2)
@@ -22,6 +23,8 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("-i"):
         input_file_name = arg
+    elif opt in ("-t"):
+        tokenize_sents = int(arg)
     elif opt in ("-o"):
         output_file_name = arg
 
@@ -69,14 +72,26 @@ with gzip.open(input_file_name) as f_in:
     
         #doc = nlp(input_json['text'], disable=['parser', 'tagger', 'ner'])
 
-        for sent in doc.sents:
-            w_list = []
-            for w in sent:
-                if '\n' not in w.text and ' ' not in w.text:
+        if tokenize_sents == 1:
+            for sent in doc.sents:
+                w_list = []
+                for w in sent:
+                    if '\n' not in w.text and ' ' not in w.text:
+                        w_list.append(w.text)
+                    #print(w.text)
+                if len(w_list) > 0:
+                    output_corpus.append(w_list)
+        elif tokenize_sents == 0:
+            for sent in doc.sents:
+                output_corpus.append(sent.text.split())
+        elif tokenize_sents == 2:
+            for sent in doc.sents:
+                w_list = []
+                for w in sent:
+                    #if '\n' not in w.text and ' ' not in w.text and '\t' not in w.text:
                     w_list.append(w.text)
-                #print(w.text)
-            if len(w_list) > 0:
-                output_corpus.append(w_list)
+                    #print(w.text)
+                output_corpus.append( [sent.text.replace('\n',' ').replace('\t',' '), ' '.join(w_list).replace('\n',' ').replace('\t',' ')] )
         output_corpus.append([])
             #print('eos')
         #if i_text > 100:
@@ -84,7 +99,10 @@ with gzip.open(input_file_name) as f_in:
 
 with open(output_file_name,'w') as f_out:
     for w_list in output_corpus:
-        f_out.write(' '.join(w_list)+'\n')
+        if tokenize_sents == 2:
+            f_out.write('\t'.join(w_list)+'\n')
+        else:
+            f_out.write(' '.join(w_list)+'\n')
 #pipeline = ["sentencizer", "tokenizer"]
 #lang = "en"
 #data_path = "/home/hschang/anaconda3/lib/python3.7/site-packages/spacy/data/en/en_core_web_sm-2.1.0"
