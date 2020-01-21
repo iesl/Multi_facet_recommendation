@@ -15,6 +15,8 @@ parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sen
 ###path
 parser.add_argument('--data', type=str, default='./data/processed/wackypedia/',
                     help='location of the data corpus')
+parser.add_argument('--tensor_folder', type=str, default='tensors',
+                    help='location of the data corpus')
 parser.add_argument('--checkpoint', type=str, default='./models/',
                     help='model checkpoint to use')
 parser.add_argument('--emb_file', type=str, default='target_emb.pt',
@@ -59,7 +61,7 @@ device = torch.device("cuda" if args.cuda else "cpu")
 
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False )
-idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = True )
+idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = True, tensor_folder = args.tensor_folder )
 dataloader_train = dataloader_train_arr[0]
 
 ########################

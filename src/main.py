@@ -137,8 +137,6 @@ parser.add_argument('--valid_per_epoch', type=int, default=2,
                     help='Number of times we want to run through validation data and save model within an epoch')
 parser.add_argument('--copy_training', type=str2bool, nargs='?', default=True, 
                     help='turn off this option to save some cpu memory when loading training data')
-#parser.add_argument('--continue_train', action='store_true',
-#                    help='continue train from a checkpoint')
 
 ###system
 parser.add_argument('--seed', type=int, default=1111,
@@ -151,7 +149,8 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--continue_train', action='store_true',
                     help='continue train from a checkpoint')
-
+parser.add_argument('--start_training_split', type=int, default=0,
+                    help='We want to split training corpus into how many subsets. Splitting training dataset seems to make pytorch run much faster and we can store and eval the model more frequently')
 
 
 args = parser.parse_args()
@@ -176,7 +175,7 @@ assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisib
 
 if not args.continue_train:
     args.save = '{}-{}'.format(args.save, time.strftime("%Y%m%d-%H%M%S"))
-    create_exp_dir(args.save, scripts_to_save=['./src/main.py', './src/model.py', './src/nsd_loss.py'])
+create_exp_dir(args.save, scripts_to_save=['./src/main.py', './src/model.py', './src/nsd_loss.py'])
 
 def logging(s, print_=True, log_=True):
     if print_:
@@ -283,9 +282,9 @@ def initialize_weights(net, normal_std):
 #initialize_weights(encoder, 0.01)
 #initialize_weights(decoder, 0.01)
 
-#if args.continue_train:
-#    encoder.load_state_dict(torch.load(os.path.join(args.save, 'encoder.pt')))
-#    decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
+if args.continue_train:
+    encoder.load_state_dict(torch.load(os.path.join(args.save, 'encoder.pt')))
+    decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
 #load optimizers
 
 parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
@@ -456,6 +455,12 @@ else:
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
 
+if args.continue_train:
+    optimizer_e_state_dict = torch.load(os.path.join(args.save, 'optimizer_e.pt'), map_location=device)
+    optimizer_e.load_state_dict(optimizer_e_state_dict)
+    optimizer_d_state_dict = torch.load(os.path.join(args.save, 'optimizer_d.pt'), map_location=device)
+    optimizer_d.load_state_dict(optimizer_d_state_dict)
+
 lr = args.lr
 best_val_loss = None
 nonmono_count = 0
@@ -464,6 +469,9 @@ saving_freq = int(math.floor(args.training_split_num / args.valid_per_epoch))
 for epoch in range(1, args.epochs+1):
     epoch_start_time = time.time()
     for i in range(len(dataloader_train_arr)):
+        if epoch == 1 and i < args.start_training_split:
+            print("Skipping epoch "+str(epoch) + ' split '+str(i) )
+            continue
         current_coeff_opt = train_one_epoch(dataloader_train_arr[i], external_emb, lr, current_coeff_opt, i)
         
         if i != args.training_split_num - 1 and (i + 1) % saving_freq != 0:

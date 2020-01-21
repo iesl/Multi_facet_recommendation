@@ -74,6 +74,10 @@ elif train_or_test == 'word':
     dataset_list = [ [ dataset_dir + 'word_hyper/BLESS.all', 'POS' , "hyper"], [ dataset_dir + 'word_hyper/EVALution.all' , "POS",  "hyper" ], [ dataset_dir + 'word_hyper/LenciBenotto.all' , "POS",  "hyper" ], [ dataset_dir + 'word_hyper/Weeds.all' , "POS",  "hyper" ] ]
 elif train_or_test == 'entail_dev':
     dataset_list = [ [ dataset_dir + '../SNLI/snli_1.0_dev_useful.txt', 'raw' , "entail"] ]
+elif train_or_test == 'entail_test':
+    dataset_list = [ [ dataset_dir + '../SNLI/snli_1.0_test_useful.txt', 'raw' , "entail"] ]
+elif train_or_test == 'entail_sick':
+    dataset_list = [ [ dataset_dir + '../sick_test_annotated/sick_test_useful.txt', 'raw' , "entail_sick"] ]
 bsz = 100
 
 device = 'cuda'
@@ -119,11 +123,13 @@ def load_entail(file_name, all_pairs):
     dataset = []
     with open(file_name) as f_in:
         for line_idx, line in enumerate(f_in):
-            if line_idx == 0:
-                continue
+            #if line_idx == 0:
+            #    continue
             fields = line.rstrip().split('\t')
-            hypo_candidate = fields[1]
-            hyper_candidate = fields[2]
+            hypo_candidate = fields[1].rstrip()
+            hyper_candidate = fields[2].rstrip()
+            if hypo_candidate == 'sentence1':
+                continue
             label = 0
             if fields[0] == 'entailment':
                 label = 1
@@ -141,7 +147,7 @@ for file_info in dataset_list:
         if file_info[1] == "POS":
             POS_suffix = True
         dataset_arr.append( load_hyper(file_info[0], POS_suffix, all_pairs) )
-    elif file_type == "entail":
+    elif file_type == "entail" or file_type == "entail_sick":
         dataset_arr.append( load_entail(file_info[0], all_pairs) )
 
 with open(freq_file_name) as f_in:
@@ -161,7 +167,10 @@ word2emb, emb_size = utils.load_emb_file_to_dict(embedding_file_name, lowercase_
 
 with torch.no_grad():
     #pred_scores, method_names = utils_testing.predict_sim_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
-    #pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
+    #if file_type == 'hyper': #TODO the case where we want to test multiple file type at the same time
+    #    pred_scores, method_names, OOV_value = utils_testing.predict_hyper_scores(testing_pair_loader, L1_losss_B, device, word2emb, other_info, word_d2_idx_freq)
+    #elif file_type == "entail" or file_type == "entail_sick":   
+    #    pred_scores, method_names, OOV_value = utils_testing.predict_entail_scores(testing_pair_loader, L1_losss_B, device, word2emb, word_d2_idx_freq, other_info, compute_WMD = True, OOV_sim_zero = True)
     pred_scores, method_names, OOV_value = utils_testing.predict_entail_scores(testing_pair_loader, L1_losss_B, device, word2emb, word_d2_idx_freq, other_info, compute_WMD = True, OOV_sim_zero = True)
 
 pair_d2_score = {}
@@ -230,7 +239,7 @@ def test_hyper_single(dataset, method_idx, method_name, pair_d2_score):
 def test_all_methods(dataset, pair_d2_score, method_names, file_type):
     num_methods = len(method_names)
     for method_idx, method_name in enumerate(method_names):
-        if file_type == "hyper":
+        if file_type == "hyper" or file_type == "entail_sick":
             test_hyper_single(dataset, method_idx, method_name, pair_d2_score)
         elif file_type == "entail":
             test_entail_single(dataset, method_idx, method_name, pair_d2_score)

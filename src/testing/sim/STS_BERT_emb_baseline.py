@@ -10,18 +10,22 @@ from scipy.spatial import distance
 
 import getopt
 
-method = "BERT"
-#method = "ELMo"
+#method = "BERT"
+method = "ELMo"
 #method = "ST"
 
 #sent_emb_file_name = "./gen_log/ELMo_large_sts-dev_cased.json"
+#sent_emb_file_name = "./gen_log/ELMo_w_sts-dev_cased.json"
+#sent_emb_file_name = "./gen_log/ELMo_w_sim_n1_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
+#sent_emb_file_name = "./gen_log/ELMo_w_sts-test_cased.json"
+sent_emb_file_name = "./gen_log/ELMo_w_sim_n1_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/ELMo_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_base_sts_2012_train_cased.json"
-sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_36k.json"
 #sent_emb_file_name = "./gen_log/ST_d600_sts-dev_final.json"
@@ -30,10 +34,14 @@ sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
 
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-dev.csv"
 #gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-train.csv"
-#gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
+gt_file_name = "./dataset_testing/STS/stsbenchmark/sts-test.csv"
 #gt_file_name = "./dataset_testing/STS/sts_2012_train"
-gt_file_name = "./dataset_testing/STS/sts_all_years_test"
+#gt_file_name = "./dataset_testing/STS/sts_all_years_test"
 #gt_file_name = "./dataset_testing/STS/sts_test_year_2012"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2013"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2014"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2015"
+#gt_file_name = "./dataset_testing/STS/sts_test_year_2016"
 
 print(sent_emb_file_name)
 sys.stdout.flush()

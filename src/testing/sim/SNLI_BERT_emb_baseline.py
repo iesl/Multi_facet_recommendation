@@ -11,17 +11,18 @@ from scipy.spatial import distance
 
 import getopt
 
-method = "BERT"
-#method = "ELMo"
+#method = "BERT"
+method = "ELMo"
 #method = "ST"
 
 #sent_emb_file_name = "./gen_log/ELMo_snli-dev_cased.json"
+sent_emb_file_name = "./gen_log/ELMo_snli-test_cased.json"
 #sent_emb_file_name = "./gen_log/ELMo_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-dev_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_sts-train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_large_sts-test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_base_snli_dev_cased.json"
-sent_emb_file_name = "./gen_log/BERT_base_snli_test_cased.json"
+#sent_emb_file_name = "./gen_log/BERT_base_snli_test_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_base_sts_2012_train_cased.json"
 #sent_emb_file_name = "./gen_log/BERT_base_sts_2012-6_test_cased.json"
 #sent_emb_file_name = "./gen_log/ST_d300_sts-dev.json"
