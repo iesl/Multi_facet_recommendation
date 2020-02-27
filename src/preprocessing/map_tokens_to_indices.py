@@ -20,7 +20,7 @@ parser.add_argument('--save', type=str, default='./data/processed/wackypedia/',
                     help='path to save the output data')
 parser.add_argument('--min_freq', type=int, default='5',
                     help='map to <unk> if observe less than this number')
-parser.add_argument('--min_sent_length', type=int, default='5',
+parser.add_argument('--min_sent_length', type=int, default='-1',
                     help='skip the sentence if sentence length is less than this number')
 parser.add_argument('--max_sent_num', type=int, default='100000000000000',
                     help='load only this number of sentences from input corpus')
