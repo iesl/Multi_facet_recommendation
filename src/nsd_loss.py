@@ -71,14 +71,12 @@ def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device):
     XX = basis_pred_norm * basis_pred_norm
     XY = torch.bmm(basis_pred, C)
     coeff = XY / XX
-    cos_sim = XY / basis_pred_norm
     #coeff should have dimension ( n_batch, n_basis, n_set)
     max_v, max_i = torch.max(coeff, dim = 1, keepdim=True)
-    max_v_cos, max_i_cos = torch.max(cos_sim, dim = 1, keepdim=True)
     max_v[max_v<0] = 0
     
     coeff_mat_trans = torch.zeros(batch_size, basis_pred.size(1), target_embeddings.size(1), requires_grad= False, device=device )
-    coeff_mat_trans.scatter_(dim=1, index = max_i_cos, src = max_v)
+    coeff_mat_trans.scatter_(dim=1, index = max_i, src = max_v)
     return coeff_mat_trans.permute(0,2,1)
 
 def estimate_coeff_mat_batch_opt(target_embeddings, basis_pred, L1_losss_B, device, coeff_opt, lr, max_iter):
@@ -180,11 +178,11 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device, 
     #coeff_mat should have dimension (n_batch,n_set,n_basis)
     return coeff_mat
 
-def target_emb_preparation(target_index, w_embeddings, n_batch, n_set, rotate_shift):
-    target_embeddings = w_embeddings[target_index,:]
+def target_emb_preparation(target_index, embeddings, n_batch, n_set, rotate_shift):
+    target_embeddings = embeddings[target_index,:]
     #print( target_embeddings.size() )
     #target_embeddings should have dimension (n_batch, n_set, n_emb_size)
-    #should be the same as w_embeddings.select(0,target_set) and select should not copy the data
+    #should be the same as embeddings.select(0,target_set) and select should not copy the data
     target_embeddings = target_embeddings / (0.000000000001 + target_embeddings.norm(dim = 2, keepdim=True) ) # If this step is really slow, consider to do normalization before doing unfold
     
     #target_embeddings_4d = target_embeddings.view(-1,n_batch, n_set, target_embeddings.size(2))
@@ -195,7 +193,7 @@ def target_emb_preparation(target_index, w_embeddings, n_batch, n_set, rotate_sh
     return target_embeddings, target_embeddings_rotate
 
 #def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
-def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad, coeff_opt_algo):
+def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad, coeff_opt_algo, compute_div_reg = True):
 
     #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
     #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
@@ -207,10 +205,10 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
     n_batch = target_set.size(0)
     rotate_shift = random.randint(1,n_batch-1)
     if compute_target_grad:
-        target_embeddings, target_emb_neg = target_emb_preparation(target_set, w_embeddings, n_batch, n_set, rotate_shift)
+        target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, rotate_shift)
     else:
         with torch.no_grad():
-            target_embeddings, target_emb_neg = target_emb_preparation(target_set, w_embeddings, n_batch, n_set, rotate_shift)
+            target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, rotate_shift)
     #print( target_embeddings.size() )
 
     with torch.no_grad():
@@ -246,11 +244,6 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
     #    iter_coeff = 60
     #    coeff_mat = estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
     #    coeff_mat_neg = estimate_coeff_mat_batch_opt(target_emb_neg.detach(), basis_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
-    with torch.no_grad():
-        coeff_sum_basis = coeff_mat.sum(dim = 1)
-        coeff_sum_basis_neg = coeff_mat_neg.sum(dim = 1)
-        coeff_mean = (coeff_sum_basis.mean() + coeff_sum_basis_neg.mean()) / 2
-        #coeff_sum_basis should have dimension (n_batch,n_basis)
     
     pred_embeddings = torch.bmm(coeff_mat, basis_pred)
     pred_embeddings_neg = torch.bmm(coeff_mat_neg, basis_pred)
@@ -258,9 +251,18 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
     #loss_set = torch.mean( target_freq_inv_norm * torch.norm( pred_embeddings.cuda() - target_embeddings, dim = 2 ) )
     loss_set = torch.mean( target_freq_inv_norm * torch.pow( torch.norm( pred_embeddings - target_embeddings, dim = 2 ), 2) )
     loss_set_neg = - torch.mean( target_freq_inv_norm_neg * torch.pow( torch.norm( pred_embeddings_neg - target_emb_neg, dim = 2 ), 2) )
-    loss_coeff_pred = torch.mean( torch.pow( coeff_sum_basis/coeff_mean - coeff_pred[:,:,0].view_as(coeff_sum_basis), 2 ) )
-    loss_coeff_pred += torch.mean( torch.pow( coeff_sum_basis_neg/coeff_mean - coeff_pred[:,:,1].view_as(coeff_sum_basis_neg), 2 ) )
     
+    if coeff_pred != None:
+        basis_pred_mag = basis_pred.norm(dim = 2)
+        with torch.no_grad():
+            coeff_sum_basis = coeff_mat.sum(dim = 1)  / basis_pred_mag
+            coeff_sum_basis_neg = coeff_mat_neg.sum(dim = 1)  / basis_pred_mag
+            coeff_mean = (coeff_sum_basis.mean() + coeff_sum_basis_neg.mean()) / 2
+            #coeff_sum_basis should have dimension (n_batch,n_basis)
+        
+        loss_coeff_pred = torch.mean( torch.pow( coeff_sum_basis/coeff_mean - coeff_pred[:,:,0].view_as(coeff_sum_basis), 2 ) )
+        loss_coeff_pred += torch.mean( torch.pow( coeff_sum_basis_neg/coeff_mean - coeff_pred[:,:,1].view_as(coeff_sum_basis_neg), 2 ) )
+        
     #if random.randint(0,n_batch) == 1:
     #    print("coeff_sum_basis/coeff_mean", coeff_sum_basis/coeff_mean )
     #    print("coeff_sum_basis", coeff_sum_basis[0,:] )
@@ -276,12 +278,22 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, w_embeddings, target_se
         print("pred_embeddings", pred_embeddings.norm(dim = 2) )
         print("target_embeddings", target_embeddings.norm(dim = 2) )
 
-    basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
-    with torch.no_grad():
-        pred_mean = basis_pred_norm.mean(dim = 0, keepdim = True)
-        loss_set_reg = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
+    if compute_div_reg:
+        basis_pred_norm = basis_pred / basis_pred.norm(dim = 2, keepdim=True)
+        with torch.no_grad():
+            pred_mean = basis_pred_norm.mean(dim = 0, keepdim = True)
+            loss_set_reg = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
     
-    pred_mean = basis_pred_norm.mean(dim = 1, keepdim = True)
-    loss_set_div = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
+        pred_mean = basis_pred_norm.mean(dim = 1, keepdim = True)
+        loss_set_div = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
 
-    return loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred
+    if coeff_pred == None:
+        if not compute_div_reg:
+            return loss_set, loss_set_neg
+        else:
+            return loss_set, loss_set_neg, loss_set_reg, loss_set_div
+    else:
+        if not compute_div_reg:
+            return loss_set, loss_set_neg, loss_coeff_pred
+        else:
+            return loss_set, loss_set_neg, loss_set_div, loss_set_reg, loss_coeff_pred

@@ -7,7 +7,6 @@ import torch.nn as nn
 import numpy as np
 import random
 import sys
-import argparse
 
 UNK_IND = 1
 EOS_IND = 2
@@ -117,13 +116,12 @@ def load_idx2word_freq(f_in):
 
     return idx2word_freq
 
-class F2UserTagDataset(torch.utils.data.Dataset):
+class F2SetDataset(torch.utils.data.Dataset):
 #will need to handle the partial data loading if the dataset size is larger than cpu memory
 #We could also use this class to put all sentences with the same length together
-    def __init__(self, feature, user, tag, device):
+    def __init__(self, feature, target, device):
         self.feature = feature
-        self.user = user
-        self.tag = tag
+        self.target = target
         self.output_device = device
 
     def __len__(self):
@@ -131,18 +129,16 @@ class F2UserTagDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
-        if self.user is None:
-            user = []
-            tag = []
+        if self.target is None:
+            target = []
         else:
-            user = torch.tensor(self.user[idx, :], dtype = torch.long, device = self.output_device)
-            tag = torch.tensor(self.tag[idx, :], dtype = torch.long, device = self.output_device)
+            target = torch.tensor(self.target[idx, :], dtype = torch.long, device = self.output_device)
         #debug target[-1] = idx
-        return [feature, user, tag]
+        return [feature, target]
         #return [self.feature[idx, :], self.target[idx, :]]
 
 def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
-    feature, user, tag = torch.load(f_in, map_location='cpu')
+    feature, target = torch.load(f_in, map_location='cpu')
     max_sent_len = feature.size(1)
     if copy_training:
         #idx_arr= np.random.permutation(feature.size(0)).reshape(split_num,-1)
@@ -155,30 +151,29 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
                 end = feature.size(0)
             else:
                 end = (i+1) * split_size
-            dataset_arr.append(  F2UserTagDataset(feature[start:end], user[start:end], tag[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
+            dataset_arr.append(  F2SetDataset(feature[start:end],target[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
         #dataset_arr = [ F2SetDataset(feature[idx_arr[i,:],:], target[idx_arr[i,:],:], device) for i in range(split_num)]
     else:
-        dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], device) for i in range(split_num)]
+        dataset_arr = [ F2SetDataset(feature[i:feature.size(0):split_num,:], target[i:target.size(0):split_num,:], device) for i in range(split_num)]
 
     use_cuda = False
-    if device.type == 'cuda':
+    if device.type == 'cude':
         use_cuda = True
-    #dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=not use_cuda, drop_last=False) for i in range(split_num)]
-    dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=not use_cuda, drop_last=False) for i in range(split_num)]
+    #dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=False) for i in range(split_num)]
+    dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=use_cuda, drop_last=True) for i in range(split_num)]
     return dataloader_arr, max_sent_len
 
 def create_data_loader(f_in, bsz, device, want_to_shuffle = True):
-    feature, user, tag = torch.load(f_in, map_location='cpu')
+    feature, target = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
-    dataset = F2UserTagDataset(feature, user, tag, device)
+    dataset = F2SetDataset(feature, target, device)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
-    if device.type == 'cuda':
+    if device.type == 'cude':
         use_cuda = True
-    # pin_memory should be False - VERIFY
-    #return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = want_to_shuffle, pin_memory=not use_cuda, drop_last=False)
-    return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = want_to_shuffle, pin_memory=not use_cuda, drop_last=False)
+    #return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = want_to_shuffle, pin_memory=use_cuda, drop_last=False)
+    return torch.utils.data.DataLoader(dataset, batch_size = bsz, shuffle = want_to_shuffle, pin_memory=use_cuda, drop_last=True)
 
 def convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx):
     store_type = torch.int32
@@ -210,9 +205,9 @@ def load_testing_article_summ(word_d2_idx_freq, article, max_sent_len, eval_bsz,
     feature_tensor = convert_sent_to_tensor(article, max_sent_len, word_d2_idx_freq)
     dataset = F2SetDataset(feature_tensor, None, device)
     use_cuda = False
-    if device.type == 'cuda':
+    if device.type == 'cude':
         use_cuda = True
-    dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=not use_cuda, drop_last=False)
+    dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
     return dataloader_test
 
 def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
@@ -234,37 +229,25 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
     #feature_tensor = convert_sent_to_tensor(proc_sent_list, max_sent_len, word2idx)
     #dataset = F2SetDataset(feature_tensor, None, device)
     #use_cuda = False
-    #if device.type == 'cuda':
+    #if device.type == 'cude':
     #    use_cuda = True
     #dataloader_test = torch.utils.data.DataLoader(dataset, batch_size = eval_bsz, shuffle = False, pin_memory=use_cuda, drop_last=False)
 
     return dataloader_test, org_sent_list, idx2word_freq
 
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True):
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder = "tensors", training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True):
     train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
-    val_org_corpus_name = data_path +"/"+tensor_folder+"/val.pt"
-    dictionary_input_name = data_path + "/feature/dictionary_index"    
-    user_dictionary_input_name = data_path + "/user/dictionary_index"
-    tag_dictionary_input_name = data_path + "/tag/dictionary_index"
+    val_org_corpus_name = data_path +"/"+tensor_folder+"/val_org.pt"
+    val_shuffled_corpus_name = data_path + "/"+tensor_folder+"/val_shuffled.pt"
+    dictionary_input_name = data_path + "dictionary_index"
 
     with open(dictionary_input_name) as f_in:
         idx2word_freq = load_idx2word_freq(f_in)
     
-    with open(user_dictionary_input_name) as f_in:
-        user_idx2word_freq = load_idx2word_freq(f_in)
-    
-    with open(tag_dictionary_input_name) as f_in:
-        tag_idx2word_freq = load_idx2word_freq(f_in)
-
-    dataloader_val = None
-    # NOTE: Uncomment if you want evaluation on non-shuffled val data
     with open(val_org_corpus_name,'rb') as f_in:
         dataloader_val = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
-
-    #with open(val_shuffled_corpus_name,'rb') as f_in:
-    #    dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
-
+    
     max_sent_len = dataloader_val.dataset.feature.size(1)
     
     if skip_training:
@@ -274,7 +257,11 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
             dataloader_train_arr, max_sent_len_train = create_data_loader_split(f_in, train_bsz, device, split_num, copy_training)
         assert max_sent_len == max_sent_len_train
 
-    return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len
+    with open(val_shuffled_corpus_name,'rb') as f_in:
+        dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
+    
+
+    return idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len
 
 
 def load_emb_file_to_dict(emb_file, lowercase_emb = False, convert_np = True):
@@ -357,47 +344,40 @@ def load_emb_from_path(emb_file_path, device, idx2word_freq):
         word_emb = torch.load( emb_file_path, map_location=device )
         output_emb_size = word_emb.size(1)
     else:
-        word_emb, output_emb_size, oov_list = load_emb_file_to_tensor(emb_file_path,device,idx2word_freq)
+        word_emb, output_emb_size, oov_list = load_emb_file_tensor(emb_file_path,device,idx2word_freq)
     return word_emb, output_emb_size
 
-def loading_all_models(args, idx2word_freq, target_idx2word_freq, device, max_sent_len):
+def loading_all_models(args, idx2word_freq, device, max_sent_len):
 
-    if len(args.source_emb_file) > 0:
-        word_emb, source_emb_size = load_emb_from_path(args.source_emb_file, device, idx2word_freq)
-        word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True))
+    if len(args.emb_file) > 0:
+        word_emb, output_emb_size = load_emb_from_path(args.emb_file, device, idx2word_freq)
         #if args.emb_file[-3:] == '.pt':
         #    word_emb = torch.load( args.emb_file, map_location=device )
         #    output_emb_size = word_emb.size(1)
         #else:
-        #    word_emb, output_emb_size, oov_list = load_emb_file_to_tensor(args.emb_file,device,idx2word_freq)    
-    elif len(args.source_emb_file) == 0:
-        source_emb_size = args.source_emsize
-    if len(args.target_emb_file) > 0:
-        print(args.target_emb_file)
-        target_emb, target_emb_size = load_emb_from_path(args.target_emb_file, device, target_idx2word_freq)        
+        #    word_emb, output_emb_size, oov_list = load_emb_file_tensor(args.emb_file,device,idx2word_freq)
     else:
-        raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
+        output_emb_size = args.emsize
 
     if args.trans_nhid < 0:
-        if args.target_emsize > 0:
-            args.trans_nhid = args.target_emsize
+        if args.emsize > 0:
+            args.trans_nhid = args.emsize
         else:
-            args.trans_nhid = target_emb_size
+            args.trans_nhid = output_emb_size
 
     ntokens = len(idx2word_freq)
-    # external_emb = torch.tensor([0.])
-    # external_emb = torch.tensor(word_emb)
+    external_emb = torch.tensor([0.])
     #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_1
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, #model_old_2, model_old_3
     #               args.dropout, args.dropouti, args.dropoute, external_emb)
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer) #model_old_4
-    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.source_emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  word_norm_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid)
+    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid) 
 
     if args.nhidlast2 < 0:
         args.nhidlast2 = encoder.output_dim
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_2
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layer = args.trans_layer) #model_old_3, model_old_4
-    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, source_emb_size, target_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm) #model_old_5
+    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, output_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans) #model_old_5
     #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
     #if use_position_emb:
     #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)
@@ -407,17 +387,15 @@ def loading_all_models(args, idx2word_freq, target_idx2word_freq, device, max_se
     encoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'encoder.pt'), map_location=device))
     decoder.load_state_dict(torch.load(os.path.join(args.checkpoint, 'decoder.pt'), map_location=device))
 
-    if len(args.source_emb_file) == 0:
+    if len(args.emb_file) == 0:
         word_emb = encoder.encoder.weight.detach()
+
     word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     word_norm_emb[0,:] = 0
 
-    target_norm_emb = target_emb / (0.000000000001 + target_emb.norm(dim = 1, keepdim=True) )
-    target_norm_emb[0,:] = 0
-
     parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
-    return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb, target_norm_emb
+    return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb
 
 def seed_all_randomness(seed,use_cuda):
     random.seed(seed)
@@ -440,19 +418,16 @@ def create_exp_dir(path, scripts_to_save=None):
             dst_file = os.path.join(path, 'scripts', os.path.basename(script))
             shutil.copyfile(script, dst_file)
 
-def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, user_emb, tag_emb, path):
+def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, external_emb, path):
     torch.save(encoder.state_dict(), os.path.join(path, 'encoder.pt'))
     try:
         torch.save(decoder.state_dict(), os.path.join(path, 'decoder.pt'))
     except:
         pass
-    if user_emb.size(0) > 1:
-        torch.save(user_emb, os.path.join(path, 'user_emb.pt'))
-    if tag_emb.size(0) > 1:
-        torch.save(tag_emb, os.path.join(path, 'tag_emb.pt'))
+    if external_emb.size(0) > 1:
+        torch.save(external_emb, os.path.join(path, 'target_emb.pt'))
     torch.save(optimizer_e.state_dict(), os.path.join(path, 'optimizer_e.pt'))
     torch.save(optimizer_d.state_dict(), os.path.join(path, 'optimizer_d.pt'))
-    torch.save(optimizer_t.state_dict(), os.path.join(path, 'optimizer_t.pt'))
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):

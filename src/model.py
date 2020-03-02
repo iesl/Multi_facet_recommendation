@@ -24,10 +24,11 @@ class MatrixReconstruction(nn.Module):
         return result
 
 class RNN_decoder(nn.Module):
-    def __init__(self, model_type, emb_dim, ninp, nhid, nlayers):
+    def __init__(self, model_type, emb_dim, ninp, nhid, nlayers, dropout_prob):
         super(RNN_decoder, self).__init__()
         if model_type in ['LSTM', 'GRU']:
-            self.rnn = getattr(nn, model_type)(emb_dim, nhid, nlayers, dropout=0)
+            print("RNN decoder dropout:", dropout_prob)
+            self.rnn = getattr(nn, model_type)(emb_dim, nhid, nlayers, dropout=dropout_prob)
             #if linear_mapping_dim > 0:
             #    self.rnn = getattr(nn, model_type)(linear_mapping_dim, nhid, nlayers, dropout=0)
             #else:
@@ -39,7 +40,7 @@ class RNN_decoder(nn.Module):
                 raise ValueError( """An invalid option for `--model` was supplied,
                                  options are ['LSTM', 'GRU', 'RNN_TANH' or 'RNN_RELU']""")
             #self.rnn = nn.RNN(ninp+position_emb_size, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
-            self.rnn = nn.RNN(emb_dim, nhid, nlayers, nonlinearity=nonlinearity, dropout=0)
+            self.rnn = nn.RNN(emb_dim, nhid, nlayers, nonlinearity=nonlinearity, dropout=dropout_prob)
         
         if model_type == 'LSTM':
             self.init_hid_linear_1 = nn.ModuleList([nn.Linear(ninp, nhid) for i in range(nlayers)])
@@ -70,14 +71,14 @@ class RNN_decoder(nn.Module):
     
 
 class ext_emb_to_seq(nn.Module):
-    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans):
+    def __init__(self, model_type_list, emb_dim, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans, dropout_prob_lstm):
         super(ext_emb_to_seq, self).__init__()
         self.decoder_array = nn.ModuleList()
         input_dim = emb_dim
         self.trans_dim = None
         for model_type in model_type_list:
             if model_type == 'LSTM':
-                model = RNN_decoder(model_type, input_dim, ninp, nhid, nlayers)
+                model = RNN_decoder(model_type, input_dim, ninp, nhid, nlayers, dropout_prob_lstm)
                 input_dim = nhid
                 #output_dim = nhid
             elif model_type == 'TRANS':
@@ -108,7 +109,7 @@ class ext_emb_to_seq(nn.Module):
 class EMB2SEQ(nn.Module):
 
     #def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2, using_memory = False):
-    def __init__(self, model_type_list, coeff_model, ninp, nhid, outd, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False, dropout_prob_trans = 0.1):
+    def __init__(self, model_type_list, coeff_model, ninp, nhid, target_emb_sz, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False, dropout_prob_trans = 0.1,dropout_prob_lstm=0):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -147,24 +148,25 @@ class EMB2SEQ(nn.Module):
         #self.relu_layer = nn.ReLU()
         
         self.positional_option = positional_option
-        self.dep_learner = ext_emb_to_seq(model_type_list, input_size, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans)
+        self.dep_learner = ext_emb_to_seq(model_type_list, input_size, ninp, nhid, nlayers, n_basis, trans_layers, using_memory, add_position_emb, dropout_prob_trans, dropout_prob_lstm)
         
         self.trans_dim = self.dep_learner.trans_dim
 
         #self.out_linear = nn.Linear(nhid, outd, bias=False)
-        self.out_linear = nn.Linear(self.dep_learner.output_dim, outd)
+        self.out_linear = nn.Linear(self.dep_learner.output_dim, target_emb_sz)
+        self.final = nn.Linear(target_emb_sz, target_emb_sz)
         
         self.coeff_model = coeff_model
         if coeff_model == "LSTM":
             coeff_nlayers = 1
             #elf.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
-            self.coeff_rnn = nn.LSTM(input_size+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
+            self.coeff_rnn = nn.LSTM(input_size+target_emb_sz , nhid, num_layers = coeff_nlayers , bidirectional = True)
             output_dim = nhid*2
         elif coeff_model == "TRANS":
             coeff_nlayers = 2
-            self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
+            self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
             #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
-            output_dim = input_size+outd
+            output_dim = input_size+target_emb_sz
             #output_dim = ninp+outd
             
         #self.coeff_out_linear = nn.Linear(nhid*2, 2)
@@ -186,6 +188,7 @@ class EMB2SEQ(nn.Module):
         initrange = 0.1
         self.out_linear.bias.data.zero_()
         self.out_linear.weight.data.uniform_(-initrange, initrange)
+        self.final.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, input_init, memory = None, predict_coeff_sum = False):
         
@@ -230,6 +233,7 @@ class EMB2SEQ(nn.Module):
         #output = self.layernorm(output.permute(1,0,2)).permute(1,0,2)
         #output /= self.outd_sqrt
         output = self.out_linear(output)
+        output = self.final(output)
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
         output_batch_first = output.permute(1,0,2)
 
@@ -242,7 +246,6 @@ class EMB2SEQ(nn.Module):
             #hidden_init = (weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid), weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid))
             #coeff_input= torch.cat( (input, output), dim = 2)
             coeff_input= torch.cat( (emb, output), dim = 2)
-            self.coeff_rnn.flatten_parameters()
             if self.coeff_model == "LSTM":
                 #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
                 coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
@@ -341,7 +344,7 @@ class seq_to_emb(nn.Module):
                     add_position_emb = False
                 #model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
                 #model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
-                model = model_trans.Transformer(model_type = model_type, hidden_size = trans_nhid, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
+                model = model_trans.Transformer(model_type = model_type, hidden_size = trans_nhid, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb, dropout_prob=dropout)
                 input_dim = trans_nhid
             else:
                 print("model type must be either LSTM or TRANS")
@@ -384,7 +387,7 @@ class seq_to_emb(nn.Module):
 class SEQ2EMB(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, model_type_list, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, max_sent_len, external_emb, init_idx = [], trans_layers=2, trans_nhid = 300 ):
+    def __init__(self, model_type_list, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, max_sent_len, external_emb, init_idx = [], trans_layers=2, trans_nhid=300):
         #super(RNNModel_simple, self).__init__()
         super(SEQ2EMB, self).__init__()
         #self.drop = nn.Dropout(dropout)
