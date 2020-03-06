@@ -51,8 +51,8 @@ parser.add_argument('--target_emsize', type=int, default=200,
 parser.add_argument('--update_target_emb', type=str2bool, nargs='?', default=True,
                     help='Whether to update target embedding')
 #parser.add_argument('--target_emb_source', type=str, default='ext',
-parser.add_argument('--target_emb_source', type=str, default='rand',
-                    help='Could be ext (external), rand or ewe (encode word embedding)')
+#parser.add_argument('--target_emb_source', type=str, default='rand',
+#                    help='Could be ext (external), rand or ewe (encode word embedding)')
 parser.add_argument('--user_emb_file', type=str, default='',
                     help='Location of the user embedding file')
 parser.add_argument('--tag_emb_file', type=str, default='',
@@ -115,6 +115,8 @@ parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True
 parser.add_argument('--dropout_prob_trans', type=float, default=0.3,
                     help='hidden_dropout_prob and attention_probs_dropout_prob in Transformer')
 #coeff
+parser.add_argument('--neg_sample_w', type=float, default=1,
+                    help='Negative sampling weights')
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
                     help='weights for coefficient prediction loss')
 parser.add_argument('--L1_losss_B', type=float, default=0.2,
@@ -257,27 +259,60 @@ else:
 
 # Load target embeddings (for now target embeddings are assumed to be always loaded)
 # TODO: Add pretrained target embedding scenario?
-if args.target_emb_source == 'ext' and len(args.user_emb_file) > 0 and len(args.tag_emb_file) > 0:
-    target_emb_dict, target_emb_sz = load_emb_file_to_dict(args.target_emb_file)
-    num_entpairs = len(target_emb_dict)
-    target_emb = torch.empty(num_entpairs, target_emb_sz, device=device, requires_grad=False)
-    for entpair, emb in target_emb_dict.items():
-        index = int(entpair[2:])        
-        val = torch.tensor(emb, device = device, requires_grad = False)        
-        target_emb[index,:] = val
-    target_emb.requires_grad = args.update_target_emb
-elif args.target_emb_source == 'rand' and args.update_target_emb:
-    target_emb_sz = args.target_emsize
-    user_emb = torch.randn(len(user_idx2word_freq), target_emb_sz, device = device, requires_grad = False)
-    user_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True))
-    user_emb.requires_grad = True
-    tag_emb = torch.randn(len(tag_idx2word_freq), target_emb_sz, device = device, requires_grad = False)
-    tag_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True))
-    tag_emb.requires_grad = True
-    print("Initialize target embedding randomly")
-else:
-    print("We don't support such target_emb_source " + args.target_emb_source + ", update_target_emb ", args.update_target_emb, ", and user_emb_file " + args.user_emb_file)
-    sys.exit(1)
+#if args.target_emb_source == 'ext' and len(args.user_emb_file) > 0 and len(args.tag_emb_file) > 0:
+#    target_emb_dict, target_emb_sz = load_emb_file_to_dict(args.target_emb_file)
+#    num_entpairs = len(target_emb_dict)
+#    target_emb = torch.empty(num_entpairs, target_emb_sz, device=device, requires_grad=False)
+#    for entpair, emb in target_emb_dict.items():
+#        index = int(entpair[2:])        
+#        val = torch.tensor(emb, device = device, requires_grad = False)        
+#        target_emb[index,:] = val
+#    target_emb.requires_grad = args.update_target_emb
+#elif args.target_emb_source == 'rand' and args.update_target_emb:
+#    target_emb_sz = args.target_emsize
+#    user_emb = torch.randn(len(user_idx2word_freq), target_emb_sz, device = device, requires_grad = False)
+#    user_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True))
+#    user_emb.requires_grad = True
+#    tag_emb = torch.randn(len(tag_idx2word_freq), target_emb_sz, device = device, requires_grad = False)
+#    tag_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True))
+#    tag_emb.requires_grad = True
+#    print("Initialize target embedding randomly")
+#else:
+#    print("We don't support such target_emb_source " + args.target_emb_source + ", update_target_emb ", args.update_target_emb, ", and user_emb_file " + args.user_emb_file)
+#    sys.exit(1)
+
+def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
+    num_w = len(idx2word_freq)
+    if len(emb_file) > 0:
+        word2emb, emb_size = load_emb_file_to_dict(emb_file, convert_np = False)
+        target_emb_sz = emb_size
+        target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
+        num_special_token = 3
+        OOV_freq = 0
+        total_freq = 0
+        OOV_type = 0
+        for i in range(num_special_token, num_w):
+            w = idx2word_freq[i][0]
+            total_freq += idx2word_freq[i][1]
+            if w in word2emb:
+                val = torch.tensor(word2emb[w], device = device, requires_grad = False)
+                #val = np.array(word2emb[w])
+                target_emb[i,:] = val
+            else:
+                OOV_type += 1 
+                OOV_freq += idx2word_freq[i][1]
+        print("OOV word type percentage: {}%".format( OOV_type/float(num_w)*100 ))
+        print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
+    else:
+        target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
+    target_emb = target_emb / (0.000000000001 + target_emb.norm(dim = 1, keepdim=True))
+    target_emb.requires_grad = True
+    return target_emb, target_emb_sz
+
+tag_emb, target_emb_sz_tag = load_ext_emb(args.tag_emb_file, args.target_emsize, tag_idx2word_freq)
+user_emb, target_emb_sz = load_ext_emb(args.user_emb_file, args.target_emsize, user_idx2word_freq)
+
+assert target_emb_sz == target_emb_sz_tag
 
 if args.trans_nhid < 0:
     if args.target_emsize > 0:
@@ -380,7 +415,7 @@ def evaluate(dataloader, current_coeff_opt):
             loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo)
             loss_set_tag, loss_set_neg_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo, compute_div_reg = False)
             #loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
-            loss = loss_set_user + loss_set_neg_user + loss_set_tag + loss_set_neg_tag
+            loss = loss_set_user + args.neg_sample_w * loss_set_neg_user + loss_set_tag + args.neg_sample_w * loss_set_neg_tag
             batch_size = feature.size(0)
             total_loss += loss * batch_size
             total_loss_set_user += loss_set_user * batch_size
@@ -458,14 +493,14 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         loss = loss_set_user 
         if -loss_set_neg_user > 1:
-            loss -= loss_set_neg_user
+            loss -= args.neg_sample_w * loss_set_neg_user
         else:
-            loss += loss_set_neg_user
+            loss += args.neg_sample_w * loss_set_neg_user
         loss += loss_set_tag 
         if -loss_set_neg_tag > 1:
-            loss -= loss_set_neg_tag
+            loss -= args.neg_sample_w * loss_set_neg_tag
         else:
-            loss += loss_set_neg_tag
+            loss += args.neg_sample_w * loss_set_neg_tag
         
         loss *= args.small_batch_size / args.batch_size
         total_loss += loss.item()
@@ -484,6 +519,8 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
 
         if args.update_target_emb:
             optimizer_t.step()
+            #user_emb.data = user_emb.data / (0.000000000001 + user_emb.data.norm(dim = 1, keepdim=True))
+            #tag_emb.data = tag_emb.data / (0.000000000001 + tag_emb.data.norm(dim = 1, keepdim=True))
             #print(external_emb.requires_grad)
             #print(external_emb.grad)
             #if args.optimizer == 'SGD':
@@ -494,8 +531,6 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             #if args.target_emb_source != 'ewe':
             #    target_emb.data[0,:] = 0
             #user_emb.grad.data.zero_()
-            user_emb.data = user_emb.data / (0.000000000001 + user_emb.data.norm(dim = 1, keepdim=True))
-            tag_emb.data = tag_emb.data / (0.000000000001 + tag_emb.data.norm(dim = 1, keepdim=True))
         
         if args.optimizer == 'AdamW':
             scheduler_e.step()
@@ -513,9 +548,9 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             #cur_loss_coeff_pred = total_loss_coeff_pred / args.log_interval
             elapsed = time.time() - start_time
             logging('| e {:3d} {:3d} | {:5d}/{:5d} b | lr-enc {:.6f} | ms/batch {:5.2f} | '
-                    'l {:5.2f} | l_f_u {:5.4f} + {:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} '.format(
+                    'l {:5.2f} | l_f_u {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} '.format(
                 epoch, split_i, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
-                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set_user, cur_loss_set_neg_user, cur_loss_set_user + cur_loss_set_neg_user, cur_loss_set_tag, cur_loss_set_neg_tag, cur_loss_set_tag + cur_loss_set_neg_tag, cur_loss_set_reg, cur_loss_set_div))
+                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set_user, args.neg_sample_w, cur_loss_set_neg_user, cur_loss_set_user + args.neg_sample_w * cur_loss_set_neg_user, cur_loss_set_tag, args.neg_sample_w, cur_loss_set_neg_tag, cur_loss_set_tag + args.neg_sample_w * cur_loss_set_neg_tag, cur_loss_set_reg, cur_loss_set_div))
             #if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
             if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set_user + cur_loss_set_neg_user < -0.02:
                 current_coeff_opt = 'lc'
@@ -534,11 +569,13 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
 if args.optimizer == 'SGD':
     optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
+    #optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
+    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr)
 elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
+    #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
     optimizer_d = torch.optim.AdamW(decoder.parameters(), lr=args.lr/args.lr2_divide)
@@ -571,8 +608,8 @@ for epoch in range(1, args.epochs+1):
         if dataloader_val is not None:
             val_loss_all, val_loss_set_user, val_loss_set_neg_user, val_loss_set_tag, val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, current_coeff_opt)
             logging('-' * 89)
-            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.4f} + {:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
-                    .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, val_loss_set_neg_user, val_loss_set_user + val_loss_set_neg_user, val_loss_set_tag, val_loss_set_neg_tag, val_loss_set_tag + val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div))
+            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
+                    .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, args.neg_sample_w, val_loss_set_neg_user, val_loss_set_user + args.neg_sample_w * val_loss_set_neg_user, val_loss_set_tag, args.neg_sample_w, val_loss_set_neg_tag, val_loss_set_tag + args.neg_sample_w*val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div))
             logging('-' * 89)
 
         val_loss_important = val_loss_set_user + val_loss_set_neg_user

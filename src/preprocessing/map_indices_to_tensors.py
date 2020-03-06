@@ -55,11 +55,11 @@ def load_w_ind(f_in, max_sent_num, max_sent_len = -1):
         current_sent = line.rstrip()
         fields = current_sent.split(' ')
         end_idx = len(fields)
-        if max_sent_len > 0 and len(fields) > max_sent_len:
+        if max_sent_len > 0 and end_idx > max_sent_len:
             num_too_long_sent += 1
             end_idx = max_sent_len
 
-        w_ind_corpus.append([int(x) for x in fields[:end_idx]])
+        w_ind_corpus.append([int(x) for x in fields[:end_idx] if len(x) > 0])
         if len(w_ind_corpus) % 100000 == 0:
             print(len(w_ind_corpus))
             sys.stdout.flush()

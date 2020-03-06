@@ -26,6 +26,8 @@ parser.add_argument('--max_sent_num', type=int, default='100000000000000',
                     help='load only this number of sentences from input corpus')
 parser.add_argument('--lowercase', type=str2bool, nargs='?', default=False,
                     help='whether make all the words in corpus lowercased')
+parser.add_argument('--eos', type=str2bool, nargs='?', default=False,
+                    help='whether append eos')
 
 args = parser.parse_args()
 
@@ -60,7 +62,8 @@ with my_open(args.data, 'r') as f_in:
             w_ind = dict_c.dict_check_add(w)
             w_ind_list.append(w_ind)
             total_num_w += 1
-        dict_c.append_eos(w_ind_list)
+        if args.eos:
+            dict_c.append_eos(w_ind_list)
         w_ind_corpus.append(w_ind_list)
         if len(w_ind_corpus) % 1000000 == 0:
             print(len(w_ind_corpus))

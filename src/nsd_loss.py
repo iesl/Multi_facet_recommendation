@@ -178,7 +178,7 @@ def estimate_coeff_mat_batch(target_embeddings, basis_pred, L1_losss_B, device, 
     #coeff_mat should have dimension (n_batch,n_set,n_basis)
     return coeff_mat
 
-def target_emb_preparation(target_index, embeddings, n_batch, n_set, rotate_shift):
+def target_emb_preparation(target_index, embeddings, n_batch, n_set, target_index_shuffle, rand_neg_method):
     target_embeddings = embeddings[target_index,:]
     #print( target_embeddings.size() )
     #target_embeddings should have dimension (n_batch, n_set, n_emb_size)
@@ -186,7 +186,15 @@ def target_emb_preparation(target_index, embeddings, n_batch, n_set, rotate_shif
     target_embeddings = target_embeddings / (0.000000000001 + target_embeddings.norm(dim = 2, keepdim=True) ) # If this step is really slow, consider to do normalization before doing unfold
     
     #target_embeddings_4d = target_embeddings.view(-1,n_batch, n_set, target_embeddings.size(2))
-    target_embeddings_rotate = torch.cat( (target_embeddings[rotate_shift:,:,:], target_embeddings[:rotate_shift,:,:]), dim = 0)
+    if rand_neg_method == 'uniform':
+        target_embeddings_rotate = embeddings[target_index_shuffle,:]
+    elif rand_neg_method == 'shuffle':
+        #target_index_shuffle = target_index.view(-1)[shuffle_idx].view(target_index.size())
+        target_embeddings_rotate = embeddings[target_index_shuffle,:]
+        target_embeddings_rotate = target_embeddings_rotate / (0.000000000001 + target_embeddings_rotate.norm(dim = 2, keepdim=True) ) # If this step is really slow, consider to do normalization before doing unfold
+    else:
+        target_embeddings_rotate = torch.cat( (target_embeddings[target_index_shuffle:,:,:], target_embeddings[:target_index_shuffle,:,:]), dim = 0)
+
     #target_emb_neg = target_embeddings_rotate.view(-1,n_set, target_embeddings.size(2))
 
     #return target_embeddings, target_emb_neg
@@ -194,24 +202,7 @@ def target_emb_preparation(target_index, embeddings, n_batch, n_set, rotate_shif
 
 #def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
 def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_set, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad, coeff_opt_algo, compute_div_reg = True):
-
-    #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
-    #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
-    #print( basis_pred.size() )
-    #print( target_set.size() )
-    #target_set should have dimension (n_batch, n_set)
-
-    n_set = target_set.size(1)
-    n_batch = target_set.size(0)
-    rotate_shift = random.randint(1,n_batch-1)
-    if compute_target_grad:
-        target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, rotate_shift)
-    else:
-        with torch.no_grad():
-            target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, rotate_shift)
-    #print( target_embeddings.size() )
-
-    with torch.no_grad():
+    def compute_target_freq_inv_norm(w_freq, target_set):
         target_freq = w_freq[target_set]
         #target_freq = torch.masked_select( target_freq, target_freq.gt(0))
         target_freq_inv = 1 / target_freq
@@ -221,8 +212,45 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_se
             target_freq_inv_norm =  target_freq_inv / inv_mean
         else:
             target_freq_inv_norm =  target_freq_inv
-        
-        target_freq_inv_norm_neg = torch.cat( (target_freq_inv_norm[rotate_shift:,:], target_freq_inv_norm[:rotate_shift,:]), dim = 0)
+        return target_freq_inv_norm
+    #basis_pred, coeff_pred = predict_basis(model_set, n_basis, output_emb, predict_coeff_sum = True)
+    #basis_pred should have dimension ( n_batch, n_basis, n_emb_size)
+    #print( basis_pred.size() )
+    #print( target_set.size() )
+    #target_set should have dimension (n_batch, n_set)
+
+    n_set = target_set.size(1)
+    n_batch = target_set.size(0)
+    #rand_neg_method = 'rotate'
+    rand_neg_method = 'shuffle'
+    #rand_neg_method = 'uniform'
+    if rand_neg_method == 'uniform':
+        mask = torch.ge(target_set,1)
+        target_index_shuffle = torch.randint_like(target_set, low = 1, high = w_freq.size(0), device=device)
+        target_index_shuffle *= mask
+    elif rand_neg_method == 'shuffle':
+        shuffle_idx = torch.randperm(target_set.nelement())
+        target_index_shuffle = target_set.view(-1)[shuffle_idx].view(target_set.size())
+    else:
+        #rotate_shift = random.randint(1,n_batch-1)
+        #shuffle_idx = random.randint(1,n_batch-1)
+        target_index_shuffle = random.randint(1,n_batch-1)
+
+    if compute_target_grad:
+        target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, target_index_shuffle, rand_neg_method)
+    else:
+        with torch.no_grad():
+            target_embeddings, target_emb_neg = target_emb_preparation(target_set, entpair_embs, n_batch, n_set, target_index_shuffle, rand_neg_method)
+    #print( target_embeddings.size() )
+
+    with torch.no_grad():
+        target_freq_inv_norm = compute_target_freq_inv_norm(w_freq, target_set)
+        if rand_neg_method == 'uniform':
+            target_freq_inv_norm_neg = compute_target_freq_inv_norm(w_freq, target_index_shuffle)
+        elif rand_neg_method == 'shuffle':
+            target_freq_inv_norm_neg = target_freq_inv_norm.view(-1)[shuffle_idx].view(target_freq_inv_norm.size())
+        else:
+            target_freq_inv_norm_neg = torch.cat( (target_freq_inv_norm[target_index_shuffle:,:], target_freq_inv_norm[:target_index_shuffle,:]), dim = 0)
         
         #coeff_mat = estimate_coeff_mat_batch(target_embeddings.cpu(), basis_pred.detach(), L1_losss_B)
         if coeff_opt == 'lc':
@@ -291,7 +319,7 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_se
         if not compute_div_reg:
             return loss_set, loss_set_neg
         else:
-            return loss_set, loss_set_neg, loss_set_reg, loss_set_div
+            return loss_set, loss_set_neg, loss_set_div, loss_set_reg
     else:
         if not compute_div_reg:
             return loss_set, loss_set_neg, loss_coeff_pred

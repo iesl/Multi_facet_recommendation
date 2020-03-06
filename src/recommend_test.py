@@ -35,8 +35,8 @@ parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
 parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
-parser.add_argument('--max_batch_num', type=int, default=100, 
-                    help='number of batches for evaluation')
+#parser.add_argument('--max_batch_num', type=int, default=100, 
+#                    help='number of batches for evaluation')
 
 utils_testing.add_model_arguments(parser)
 
@@ -65,8 +65,7 @@ device = torch.device("cuda" if args.cuda else "cpu")
 
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False )
-#idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = True, tensor_folder = args.tensor_folder )
-idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, tensor_folder = args.tensor_folder )
+idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val_info, dataloader_test_info, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, load_test = True, deduplication = True, tensor_folder = args.tensor_folder )
 dataloader_train = dataloader_train_arr[0]
 
 ########################
@@ -74,6 +73,7 @@ print("Loading Models")
 ########################
 
 
+#parallel_encoder, parallel_decoder, encoder, decoder, target_norm_emb = loading_all_models(args, idx2word_freq, tag_idx2word_freq, device, max_sent_len)
 parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb = loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len)
 
 encoder.eval()
@@ -82,11 +82,10 @@ decoder.eval()
 with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
-    outf.write('Validation Topics:\n\n')
-    utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
-    if dataloader_train:
-        outf.write('Training Topics:\n\n')
-        utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+    outf.write('Test Recommendation:\n\n')
+    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, outf, device)
+    outf.write('Val Recommendation:\n\n')
+    utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, outf, device)
 
 #test_batch_size = 1
 #test_data = batchify(corpus.test, test_batch_size, args)
