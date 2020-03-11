@@ -120,10 +120,13 @@ def load_idx2word_freq(f_in):
 class F2UserTagDataset(torch.utils.data.Dataset):
 #will need to handle the partial data loading if the dataset size is larger than cpu memory
 #We could also use this class to put all sentences with the same length together
-    def __init__(self, feature, user, tag, device):
+    def __init__(self, feature, user, tag, repeat_num, user_len, tag_len, device):
         self.feature = feature
         self.user = user
         self.tag = tag
+        self.repeat_num = repeat_num
+        self.user_len = user_len
+        self.tag_len = tag_len
         self.output_device = device
 
     def __len__(self):
@@ -135,11 +138,17 @@ class F2UserTagDataset(torch.utils.data.Dataset):
         if self.user is None:
             user = []
             tag = []
+            repeat_num = []
+            user_len = []
+            tag_len = []
         else:
             user = self.user[idx, :].to( dtype = torch.long, device = self.output_device)
             tag = self.tag[idx, :].to( dtype = torch.long, device = self.output_device)
+            repeat_num = self.repeat_num[idx].to( dtype = torch.long, device = self.output_device)
+            user_len = self.user_len[idx].to( dtype = torch.long, device = self.output_device)
+            tag_len = self.tag_len[idx].to( dtype = torch.long, device = self.output_device)
         #debug target[-1] = idx
-        return [feature, user, tag]
+        return [feature, user, tag, repeat_num, user_len, tag_len]
         #return [self.feature[idx, :], self.target[idx, :]]
 
 class F2IdxDataset(torch.utils.data.Dataset):
@@ -157,7 +166,7 @@ class F2IdxDataset(torch.utils.data.Dataset):
         return [feature, item_idx]
 
 def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
-    feature, user, tag = torch.load(f_in, map_location='cpu')
+    feature, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     max_sent_len = feature.size(1)
     if copy_training:
         #idx_arr= np.random.permutation(feature.size(0)).reshape(split_num,-1)
@@ -170,10 +179,10 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
                 end = feature.size(0)
             else:
                 end = (i+1) * split_size
-            dataset_arr.append(  F2UserTagDataset(feature[start:end], user[start:end], tag[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
+            dataset_arr.append(  F2UserTagDataset(feature[start:end], user[start:end], tag[start:end], repeat_num[start:end], user_len[start:end], tag_len[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
         #dataset_arr = [ F2SetDataset(feature[idx_arr[i,:],:], target[idx_arr[i,:],:], device) for i in range(split_num)]
     else:
-        dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], device) for i in range(split_num)]
+        dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], repeat_num[i:repeat_num.size(0):split_num], user_len[i:user_len.size(0):split_num], tag_len[i:tag_len.size(0):split_num], device) for i in range(split_num)]
 
     use_cuda = False
     if device.type == 'cuda':
@@ -209,11 +218,11 @@ def create_uniq_paper_data(feature, user, tag, device):
     return dataset, all_user_tag
 
 def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False):
-    feature, user, tag = torch.load(f_in, map_location='cpu')
+    feature, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
     if not deduplication:
-        dataset = F2UserTagDataset(feature, user, tag, device)
+        dataset = F2UserTagDataset(feature, user, tag, repeat_num, user_len, tag_len, device)
     else:
         dataset, all_user_tag = create_uniq_paper_data(feature, user, tag, device)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
@@ -418,7 +427,7 @@ def load_emb_from_path(emb_file_path, device, idx2word_freq):
         word_emb, output_emb_size, oov_list = load_emb_file_to_tensor(emb_file_path,device,idx2word_freq)
     return word_emb, output_emb_size
 
-def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len):
+def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len, normalize_emb= True):
 
     #if len(args.source_emb_file) > 0:
     #    word_emb, source_emb_size = load_emb_from_path(args.source_emb_file, device, idx2word_freq)
@@ -480,10 +489,15 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     #word_norm_emb[0,:] = 0
 
-    tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
-    tag_norm_emb[0,:] = 0
     
-    user_norm_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True) )
+    if normalize_emb:
+        tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
+        user_norm_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True) )
+    else:
+        tag_norm_emb = tag_emb
+        user_norm_emb = user_emb
+
+    tag_norm_emb[0,:] = 0
     user_norm_emb[0,:] = 0
 
     parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)

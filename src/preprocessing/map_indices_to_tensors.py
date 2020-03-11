@@ -110,8 +110,8 @@ def random_cv_partition(user_corpus, cv_fold_num):
 
     return cv_partition_idx_np
 
-def store_tensors(f_out,tensor1, tensor2, tensor3):
-    torch.save([tensor1, tensor2, tensor3], f_out)
+def store_tensors(f_out,tensor1, tensor2, tensor3, tensor4, tensor5, tensor6):
+    torch.save([tensor1, tensor2, tensor3, tensor4, tensor5, tensor6], f_out)
     
 def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output_save_file):
     def save_to_tesnor(w_ind_corpus_dup_j, tensor_feature, i):
@@ -122,11 +122,14 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
         w_ind_corpus_dup = []
         user_corpus_dup = []
         tag_corpus_dup = []
+        num_repeat_corpus_dup = []
+        len_corpus_dup = []
 
         for j in save_idx:
             current_w_idx = w_ind_corpus[j]
             current_users = user_corpus[j]
             current_tags = tag_corpus[j]
+            num_repeat = 0
             while( len(current_users) > 0 or len(current_tags) > 0):
                 w_ind_corpus_dup.append(current_w_idx)
                 user_len = min(max_target_num, len(current_users))
@@ -135,10 +138,13 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
                 tag_corpus_dup.append(current_tags[:tag_len])
                 current_users = current_users[ user_len: ]
                 current_tags = current_tags[ tag_len: ]
+                len_corpus_dup.append( [user_len, tag_len] )
+                num_repeat += 1
+            num_repeat_corpus_dup += [num_repeat] * num_repeat
         
-        return w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup
+        return w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup
     
-    w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup = duplicate_for_long_targets(save_idx, w_ind_corpus, user_corpus, tag_corpus, args.max_target_num)
+    w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup = duplicate_for_long_targets(save_idx, w_ind_corpus, user_corpus, tag_corpus, args.max_target_num)
     
     store_type = torch.int32
     corpus_size = len(w_ind_corpus_dup)
@@ -146,6 +152,9 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
     tensor_feature = torch.zeros(corpus_size, args.max_sent_len, dtype = store_type)
     tensor_user = torch.zeros(corpus_size, args.max_target_num, dtype = store_type)
     tensor_tag = torch.zeros(corpus_size, args.max_target_num, dtype = store_type)
+    tensor_repeat_num = torch.zeros(corpus_size, dtype = store_type)
+    tensor_user_len = torch.zeros(corpus_size, dtype = store_type)
+    tensor_tag_len = torch.zeros(corpus_size, dtype = store_type)
     
     shuffled_order = list(range(corpus_size) )
     random.shuffle(shuffled_order)
@@ -153,9 +162,13 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
         save_to_tesnor(w_ind_corpus_dup[j], tensor_feature, i)
         save_to_tesnor(user_corpus_dup[j], tensor_user, i)
         save_to_tesnor(tag_corpus_dup[j], tensor_tag, i)
+        tensor_repeat_num[i] = num_repeat_corpus_dup[j]
+        tensor_user_len[i] = len_corpus_dup[j][0]
+        tensor_tag_len[i] = len_corpus_dup[j][1]
+        #save_to_tesnor(num_repeat_corpus_dup[j], tensor_repeat_num, i)
 
     with open(output_save_file,'wb') as f_out:
-        store_tensors(f_out, tensor_feature, tensor_user, tensor_tag)
+        store_tensors(f_out, tensor_feature, tensor_user, tensor_tag, tensor_repeat_num, tensor_user_len, tensor_tag_len)
 
 def compose_dataset(output_dir, test_indicator, w_ind_corpus, user_corpus, tag_corpus):
     corpus_size = len(w_ind_corpus)

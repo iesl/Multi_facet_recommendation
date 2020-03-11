@@ -19,6 +19,14 @@ class MatrixReconstruction(nn.Module):
     def compute_coeff_pos(self):
         self.coeff.data = self.coeff.clamp(0.0, 1.0)
     
+    def compute_coeff_pos_norm(self):
+        self.coeff.data = self.coeff.clamp(min = 0.0)
+        norm_value = torch.max( torch.ones(1, device=self.device) , self.coeff.data.sum(dim = 2, keepdim=True) )
+        self.coeff.data = self.coeff.data / norm_value
+        #Constraints the sum of all coefficient smaller than 1 -> directly normalize like clamping the maximal value 
+        #If denominator < 1 -> = 1
+        #-> When n_basis = 1, it is exactly the same as single embedding approach
+    
     def forward(self, input):
         result = self.coeff.matmul(input)
         return result
@@ -154,7 +162,8 @@ class EMB2SEQ(nn.Module):
 
         #self.out_linear = nn.Linear(nhid, outd, bias=False)
         self.out_linear = nn.Linear(self.dep_learner.output_dim, target_emb_sz)
-        self.final = nn.Linear(target_emb_sz, target_emb_sz)
+        #self.final = nn.Linear(target_emb_sz, target_emb_sz)
+        self.final_linear_arr = nn.ModuleList([nn.Linear(target_emb_sz, target_emb_sz) for i in range(n_basis)])
         
         self.coeff_model = coeff_model
         if coeff_model == "LSTM":
@@ -188,7 +197,7 @@ class EMB2SEQ(nn.Module):
         initrange = 0.1
         self.out_linear.bias.data.zero_()
         self.out_linear.weight.data.uniform_(-initrange, initrange)
-        self.final.weight.data.uniform_(-initrange, initrange)
+        #self.final.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, input_init, memory = None, predict_coeff_sum = False):
         
@@ -233,7 +242,8 @@ class EMB2SEQ(nn.Module):
         #output = self.layernorm(output.permute(1,0,2)).permute(1,0,2)
         #output /= self.outd_sqrt
         output = self.out_linear(output)
-        output = self.final(output)
+        #output = self.final(output)
+        output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
         output_batch_first = output.permute(1,0,2)
 

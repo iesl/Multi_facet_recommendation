@@ -69,30 +69,39 @@ def add_model_arguments(parser):
     parser.add_argument('--dropout_prob_lstm', type=float, default=0,
                     help='dropout_prob in LSTM')
 
-def predict_batch_simple(feature, parallel_encoder, parallel_decoder):
+    ##scoring
+    parser.add_argument('--coeff_opt', type=str, default='max',
+                        help='Could be prod or lc or max')
+    parser.add_argument('--loss_type', type=str, default='sim',
+                        help='Could be sim or dist')
+
+def predict_batch_simple(feature, parallel_encoder, parallel_decoder, normalize_emb = True):
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
     #output_emb_last = parallel_encoder(feature)
     output_emb_last, output_emb = parallel_encoder(feature)
-    basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
+    basis_pred =  parallel_decoder(output_emb_last, output_emb)
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
-
-    basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
-    return coeff_pred, basis_norm_pred, output_emb_last, output_emb
+    
+    if normalize_emb:
+        basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
+    else:
+        basis_norm_pred = basis_pred
+    return basis_norm_pred, output_emb_last, output_emb
     
 
 def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, top_k):
     
-    coeff_pred, basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
     #output_emb_last, output_emb = parallel_encoder(feature)
     #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
 
-    coeff_sum = coeff_pred.cpu().numpy()
+    #coeff_sum = coeff_pred.cpu().numpy()
     
-    coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
-    coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
-    coeff_sum_diff_cpu = coeff_sum_diff.cpu().numpy()
-    coeff_order = np.argsort(coeff_sum_diff_cpu, axis = 1)
-    coeff_order = np.flip( coeff_order, axis = 1 )
+    #coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
+    #coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
+    #coeff_sum_diff_cpu = coeff_sum_diff.cpu().numpy()
+    #coeff_order = np.argsort(coeff_sum_diff_cpu, axis = 1)
+    #coeff_order = np.flip( coeff_order, axis = 1 )
 
     #basis_pred = basis_pred.permute(0,2,1)
     #basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 1, keepdim=True) )
@@ -111,7 +120,8 @@ def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, to
         sent_len = (feature[i,:] != 0).sum()
         avg_out_emb[i,:] = output_emb[i,-sent_len:,:].mean(dim = 0)
 
-    return basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, output_emb_last, avg_out_emb 
+    #return basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, output_emb_last, avg_out_emb 
+    return basis_norm_pred, top_value, top_index, output_emb_last, avg_out_emb 
 
 def convert_feature_to_text(feature, idx2word_freq):
     if type(feature) is list:
@@ -128,8 +138,9 @@ def convert_feature_to_text(feature, idx2word_freq):
         feature_text.append(current_sent)
     return feature_text
 
-def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf, word_imp_sim = None):
-    n_basis = coeff_order.shape[1]
+def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf, word_imp_sim = None):
+    #n_basis = coeff_order.shape[1]
+    n_basis = top_index.shape[2]
     top_k = top_index.size(1)
     feature_text = convert_feature_to_text(feature, idx2word_freq)
     for i_sent in range(len(feature_text)):
@@ -141,8 +152,9 @@ def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coe
             outf.write(' '.join(feature_text[i_sent])+'\n')
 
         for j in range(n_basis):
-            org_ind = coeff_order[i_sent, j]
-            outf.write(str(j)+', org '+str(org_ind)+', '+str( coeff_sum[i_sent,org_ind,0] )+' - '+str( coeff_sum[i_sent,org_ind,1] )+': ')
+            #org_ind = coeff_order[i_sent, j]
+            org_ind = j
+            #outf.write(str(j)+', org '+str(org_ind)+', '+str( coeff_sum[i_sent,org_ind,0] )+' - '+str( coeff_sum[i_sent,org_ind,1] )+': ')
 
             for k in range(top_k):
                 word_nn = tag_idx2word_freq[top_index[i_sent,k,org_ind].item()][0]
@@ -150,135 +162,26 @@ def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coe
             outf.write('\n')
         outf.write('\n')
 
-def dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list, encoded_emb, avg_encoded_emb, word_imp_sim,  word_imp_sim_coeff, word_imp_coeff):
-    n_basis = coeff_order.shape[1]
-    top_k = top_index.size(1)
-    feature_text = convert_feature_to_text(feature, idx2word_freq)
-    for i_sent in range(len(feature_text)):
-        current_idx = len(basis_json)
-        proc_sent = feature_text[i_sent]
-        word_importance_sim = word_imp_sim[i_sent]
-        word_importance_sim_coeff = word_imp_sim_coeff[i_sent]
-        word_importance_coeff = word_imp_coeff[i_sent]
-        org_sent = org_sent_list[current_idx]
-        topic_list = []
-        for j in range(n_basis):
-            org_ind = coeff_order[i_sent, j]
-            topic_info = {}
-            topic_info['idx'] = str(j)
-            topic_info['org_idx'] = str(org_ind)
-            topic_info['coeff_pos'] = str( coeff_sum[i_sent,org_ind,0] )
-            topic_info['coeff_neg'] = str( coeff_sum[i_sent,org_ind,1] )
-            topic_info['v'] = [str(x) for x in basis_norm_pred[i_sent,:,j].tolist() ]
-            topic_vis = []
-            for k in range(top_k):
-                word_nn = idx2word_freq[top_index[i_sent,k,org_ind].item()][0]
-                topic_vis.append([word_nn, ' {:5.3f}'.format(top_value[i_sent,k,org_ind].item())])
-            topic_info['topk'] = topic_vis
-            topic_list.append(topic_info)
-        output_dict = {}
-        output_dict['idx'] = str(current_idx)
-        output_dict['org_sent'] = org_sent
-        output_dict['sent_emb'] = [str(x) for x in encoded_emb[i_sent,:].tolist()]
-        output_dict['avg_word_emb'] = [str(x) for x in avg_encoded_emb[i_sent,:].tolist()]
-        output_dict['proc_sent'] = ' '.join(proc_sent)
-        output_dict['w_imp_sim'] = [str(x) for x in word_importance_sim]
-        output_dict['w_imp_sim_coeff'] = [str(x) for x in word_importance_sim_coeff]
-        output_dict['w_imp_coeff'] = [str(x) for x in word_importance_coeff]
-        output_dict['topics'] = topic_list
-        basis_json.append(output_dict)
-        #basis_json.append([current_idx, org_sent, ' '.join(proc_sent)])
 
-def load_prediction_from_json(f_in):
-    sent_d2_topics = {}
-    input_json= json.load(f_in)
-    for input_dict in input_json:
-        org_sent = input_dict['org_sent']
-        topic_list = []
-        topic_weight_list = []
-        sent_emb = [float(x) for x in input_dict['sent_emb']]
-        if 'avg_word_emb' not in input_dict:
-            avg_word_emb = sent_emb
-        else:
-            avg_word_emb = [float(x) for x in input_dict['avg_word_emb']]
-        #w_imp_sim = input_dict['w_imp_sim']
-        #w_imp_sim_coeff = input_dict['w_imp_sim_coeff']
-        #w_imp_coeff = input_dict['w_imp_coeff']
-        proc_sent = input_dict['proc_sent'].split()
-        if 'w_imp_sim' not in input_dict:
-            w_imp_sim = np.ones(len(proc_sent))
-            w_imp_sim_coeff = np.ones(len(proc_sent))
-            w_imp_coeff = np.ones(len(proc_sent))
-        else:
-            w_imp_sim = np.array([float(x) for x in input_dict['w_imp_sim']])
-            w_imp_sim_coeff = np.array([float(x) for x in input_dict['w_imp_sim_coeff']])
-            w_imp_coeff = np.array([float(x) for x in input_dict['w_imp_coeff']])
-        for topic in input_dict['topics']:
-            if 'coeff_pos' not in topic:
-                weight = 0
-            else:
-                weight = max( 0, float(topic['coeff_pos']) - float(topic['coeff_neg']))
-            vector = [float(x) for x in topic['v']]
-            topic_weight_list.append(weight)
-            topic_list.append(vector)
-        sent_d2_topics[org_sent] = [topic_list, topic_weight_list, sent_emb, avg_word_emb,  (w_imp_sim, w_imp_sim_coeff, w_imp_coeff), proc_sent]
-    return sent_d2_topics
 
-#def output_sent_basis_summ(dataloader, org_sent_list, parallel_encoder, parallel_decoder, n_basis, idx2word_freq):
-def output_sent_basis_summ(dataloader, parallel_encoder, parallel_decoder, n_basis, idx2word_freq):
-    sent_d2_basis = {}
-    with torch.no_grad():
-        #current_idx = 0
-        proc_sent_list = []
-        basis_coeff_list = []
-        for i_batch, sample_batched in enumerate(dataloader):
-            #assuming dataloader is not shuffled
-            feature, target = sample_batched
-            coeff_pred, basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
-            coeff_sum_diff = coeff_pred[:,:,0] - coeff_pred[:,:,1]
-            coeff_sum_diff_pos = coeff_sum_diff.clamp(min = 0)
-
-            feature_text = convert_feature_to_text(feature, idx2word_freq)
-            for i in range(feature.size(0)):
-                #sent_d2_basis[ org_sent_list[current_idx] ] = [ basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :] ]
-                basis_coeff_list.append( [basis_norm_pred[i, :, :], coeff_sum_diff_pos[i, :]] )
-                proc_sent_list.append(' '.join(feature_text[i]))
-                #current_idx += 1
-            
-    #return sent_d2_basis
-    return basis_coeff_list, proc_sent_list
-
-def output_sent_basis(dataloader, org_sent_list, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, n_basis, outf_vis):
-    basis_json = []
-    top_k = 5
-    with torch.no_grad():
-        for i_batch, sample_batched in enumerate(dataloader):
-            if i_batch % 100 == 0:
-                sys.stdout.write('b'+str(i_batch)+' ')
-                sys.stdout.flush()
-            feature, target = sample_batched
-            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, encoded_emb, avg_encoded_emb, word_imp_sim, word_imp_sim_coeff, word_imp_coeff = predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, n_basis, top_k)
-            print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf_vis)
-            dump_prediction_to_json(feature, basis_norm_pred, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, basis_json, org_sent_list, encoded_emb, avg_encoded_emb, word_imp_sim,  word_imp_sim_coeff, word_imp_coeff)
-    return basis_json
 
 def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, tag_idx2word_freq, outf, max_batch_num):
     #topics_num = 0
     top_k = 5
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
-            feature, user, tag = sample_batched
+            feature, user, tag, repeat_num, user_len, tag_len = sample_batched
 
-            basis_norm_pred, coeff_order, coeff_sum, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
+            basis_norm_pred, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
             #print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf, word_imp_sim)
-            print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf)
+            print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf)
 
             if i_batch >= max_batch_num:
                 break
 
 num_special_token = 3
-def compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, device):
-    def compute_dist(user_norm_emb, basis_norm_pred, device):
+def compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device):
+    def compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device):
         lr_coeff = 0.05
         iter_coeff = 60
         coeff_opt_algo = "rmsprop"
@@ -287,21 +190,33 @@ def compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb,
         vocab_size, emb_size = user_norm_emb.size()
         target_embeddings = user_norm_emb.expand( (bsz, vocab_size, emb_size) )
         with torch.enable_grad():
-            coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_norm_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+            if coeff_opt == 'prod':
+                coeff_mat_user = nsd_loss.estimate_prod_coeff_mat_batch_opt(target_embeddings.detach(), basis_norm_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+            elif coeff_opt == 'lc':
+                coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_norm_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
+            elif coeff_opt == 'max':
+                coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type)
         
         pred_embeddings_user = torch.bmm(coeff_mat_user, basis_norm_pred)
-        dist_all_user_tensor = torch.pow( torch.norm( pred_embeddings_user - target_embeddings, dim = 2 ), 2)
+        if loss_type == 'sim':
+            dist_all_user_tensor = - torch.sum( pred_embeddings_user * target_embeddings, dim = 2 )
+        elif loss_type == 'dist':
+            dist_all_user_tensor = torch.pow( torch.norm( pred_embeddings_user - target_embeddings, dim = 2 ), 2)
         #To exclude <null>, <eos>, <unk>, just give it a super high distance
         dist_all_user_tensor[:,:num_special_token] = 100
         return dist_all_user_tensor.tolist()
-
-    coeff_pred, basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
-    all_dist_user = compute_dist(user_norm_emb, basis_norm_pred, device)
-    all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred, device)
+    
+    normalize_emb = True
+    if loss_type != 'dist':
+        normalize_emb = False
+        
+    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder, normalize_emb)
+    all_dist_user = compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
+    all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
 
     return all_dist_user, all_dist_tag
 
-def print_rank(feature_text_j, user_text_j, tag_text_j, gt_rank_user_j, gt_rank_tag_j, top_user_text_j, top_tag_text_j, paper_id, outf):
+def print_rank(feature_text_j, user_text_j, tag_text_j, gt_rank_user_j, gt_rank_tag_j, top_user_text_j, top_tag_text_j, top_values_user_j, top_values_tag_j, paper_id, outf):
     outf.write(str(paper_id) + ', ' + ' '.join(feature_text_j)+'\n')
     
     for k in range(len(user_text_j)):
@@ -313,15 +228,15 @@ def print_rank(feature_text_j, user_text_j, tag_text_j, gt_rank_user_j, gt_rank_
     outf.write('\n\n')
     
     for k in range(len(top_user_text_j)):
-        outf.write( top_user_text_j[k] + ' ' )
+        outf.write( top_user_text_j[k] + ':v' + str(top_values_user_j[k])+ ' ' )
     outf.write('\n')
     
     for k in range(len(top_tag_text_j)):
-        outf.write( top_tag_text_j[k] + ' ' )
-    outf.write('\n\n')
+        outf.write( top_tag_text_j[k] + ':v' + str(top_values_tag_j[k])+ ' ' )
+    outf.write('\n\n\n')
 
 
-def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, outf, device):
+def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, outf, device):
     def update_user_dict(user_batch_list, user_d2_paper_id, paper_id):
         for k in range(len(user_batch_list)):
             user_id = user_batch_list[k]
@@ -347,17 +262,20 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
         bsz = len(user_batch_list)
         gt_rank_user = []
         top_prediction_user = []
+        top_values_user = []
         recall_list_user = []
         for j in range(bsz):
             #pred_user_rank = np.argsort(all_dist_user[j])
             #gt_rank_j = [user_rank[x] for x in user_batch_list[j]]
             gt_rank_j = gt_rank_from_list(all_dist_user[j], user_batch_list[j], num_special_token = num_special_token)
-            top_prediction_user.append( np.argsort(all_dist_user[j])[:recall_at_th] )
+            top_pred_j = np.argsort(all_dist_user[j])[:recall_at_th]
+            top_prediction_user.append( top_pred_j )
+            top_values_user.append( [all_dist_user[j][x] for x in top_pred_j] )
             gt_rank_user.append(gt_rank_j)
             if len(gt_rank_j) > 0:
                 recall_list_user.append( np.sum([int(x <= recall_at_th) for x in gt_rank_j ]) / min(len(gt_rank_j), recall_at_th) )
 
-        return gt_rank_user, recall_list_user, top_prediction_user
+        return gt_rank_user, recall_list_user, top_prediction_user, top_values_user
     
     def paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th):
         user_paper_dist = list(zip(*paper_user_dist))
@@ -391,11 +309,11 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
             
-            all_dist_user, all_dist_tag = compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, device)
+            all_dist_user, all_dist_tag = compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device)
             #user_batch_list = user.tolist()
             #tag_batch_list = tag.tolist()
-            gt_rank_user, recall_list_user, top_prediction_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th)
-            gt_rank_tag, recall_list_tag, top_prediction_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th)
+            gt_rank_user, recall_list_user, top_prediction_user, top_values_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th)
+            gt_rank_tag, recall_list_tag, top_prediction_tag, top_values_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th)
             recall_all_user += recall_list_user
             recall_all_tag += recall_list_tag
 
@@ -416,7 +334,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 paper_user_dist.append(all_dist_user[j])
                 paper_tag_dist.append(all_dist_tag[j])
 
-                print_rank(feature_text[j], user_text[j], tag_text[j], gt_rank_user[j], gt_rank_tag[j], top_user_text[j], top_tag_text[j], paper_id, outf)
+                print_rank(feature_text[j], user_text[j], tag_text[j], gt_rank_user[j], gt_rank_tag[j], top_user_text[j], top_tag_text[j], top_values_user[j], top_values_tag[j], paper_id, outf)
             #if i_batch > 3:
             #    break
             #print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf)
