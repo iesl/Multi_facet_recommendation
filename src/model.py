@@ -340,7 +340,7 @@ class seq_to_emb(nn.Module):
         self.encoder_array = nn.ModuleList()
         input_dim = ninp
         for i, model_type in enumerate(model_type_list):
-            if model_type == 'LSTM':
+            if model_type == 'LSTM' or model_type == 'GRU':
                 model = RNN_encoder(model_type, input_dim, nhid, nlayers, dropout)
                 input_dim = nhid * 2
             elif model_type == 'TRANS':
@@ -360,7 +360,7 @@ class seq_to_emb(nn.Module):
                 print("model type must be either LSTM or TRANS")
                 sys.exit(1)
             self.encoder_array.append( model )
-        if model_type_list[-1] == 'LSTM':
+        if model_type_list[-1] == 'LSTM' or model_type_list[-1] == 'GRU':
             self.pooler = RNN_pooler(nhid)
         else:
             self.pooler = TRANS_pooler(method = 'last')
@@ -376,7 +376,7 @@ class seq_to_emb(nn.Module):
         hidden_states = emb
         for model in self.encoder_array:
             model_type = model.model_type
-            if model_type == 'LSTM':
+            if model_type == 'LSTM' or model_type == 'GRU':
                 hidden_states = model(hidden_states)
             elif model_type == 'TRANS':
                 #If we want to use transformer by default at the end, we will want to reconsider reducing the number of permutes
@@ -385,7 +385,7 @@ class seq_to_emb(nn.Module):
                 hidden_states = hidden_states.permute(1,0,2)
                 hidden_states = model(hidden_states)
                 hidden_states = hidden_states[0].permute(1,0,2)
-        if self.model_type_list[-1] == 'LSTM':
+        if self.model_type_list[-1] == 'LSTM' or self.model_type_list[-1] == 'GRU':
             output_emb = self.pooler(hidden_states, bsz)
         else:
             output_emb = self.pooler(hidden_states)
