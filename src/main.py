@@ -298,24 +298,29 @@ num_special_token = 3
 def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
     num_w = len(idx2word_freq)
     if len(emb_file) > 0:
-        word2emb, emb_size = load_emb_file_to_dict(emb_file, convert_np = False)
-        target_emb_sz = emb_size
-        target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
-        OOV_freq = 0
-        total_freq = 0
-        OOV_type = 0
-        for i in range(num_special_token, num_w):
-            w = idx2word_freq[i][0]
-            total_freq += idx2word_freq[i][1]
-            if w in word2emb:
-                val = torch.tensor(word2emb[w], device = device, requires_grad = False)
-                #val = np.array(word2emb[w])
-                target_emb[i,:] = val
-            else:
-                OOV_type += 1 
-                OOV_freq += idx2word_freq[i][1]
-        print("OOV word type percentage: {}%".format( OOV_type/float(num_w)*100 ))
-        print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
+        if emb_file[-3:] == '.pt':
+            target_emb = torch.load(emb_file).to(device = device)
+            target_emb.requires_grad = False
+            target_emb_sz = target_emb.size(1)
+        else:
+            word2emb, emb_size = load_emb_file_to_dict(emb_file, convert_np = False)
+            target_emb_sz = emb_size
+            target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
+            OOV_freq = 0
+            total_freq = 0
+            OOV_type = 0
+            for i in range(num_special_token, num_w):
+                w = idx2word_freq[i][0]
+                total_freq += idx2word_freq[i][1]
+                if w in word2emb:
+                    val = torch.tensor(word2emb[w], device = device, requires_grad = False)
+                    #val = np.array(word2emb[w])
+                    target_emb[i,:] = val
+                else:
+                    OOV_type += 1 
+                    OOV_freq += idx2word_freq[i][1]
+            print("OOV word type percentage: {}%".format( OOV_type/float(num_w)*100 ))
+            print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
     else:
         target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
     #if args.coeff_opt != 'prod':
@@ -663,8 +668,11 @@ for epoch in range(1, args.epochs+1):
             logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
                     .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, args.neg_sample_w, val_loss_set_neg_user, val_loss_set_user + args.neg_sample_w * val_loss_set_neg_user, val_loss_set_tag, args.neg_sample_w, val_loss_set_neg_tag, val_loss_set_tag + args.neg_sample_w*val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div))
             logging('-' * 89)
-
-        val_loss_important = val_loss_set_user + val_loss_set_neg_user
+        if args.user_w >= args.tag_w:
+            val_loss_important = val_loss_set_user + val_loss_set_neg_user
+        else:
+            val_loss_important = val_loss_set_tag + val_loss_set_neg_tag
+            
         if not best_val_loss or val_loss_important < best_val_loss:
             #save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, source_emb, target_emb, args.save)
             save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, optimizer_t, user_emb, tag_emb, args.save)
