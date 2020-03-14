@@ -307,8 +307,11 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
     user_dictionary_input_name = data_path + "/user/dictionary_index"
     tag_dictionary_input_name = data_path + "/tag/dictionary_index"
 
-    with open(dictionary_input_name) as f_in:
-        idx2word_freq = load_idx2word_freq(f_in)
+    if os.path.exists(dictionary_input_name):
+        with open(dictionary_input_name) as f_in:
+            idx2word_freq = load_idx2word_freq(f_in)
+    else:
+        idx2word_freq = []
     
     with open(user_dictionary_input_name) as f_in:
         user_idx2word_freq = load_idx2word_freq(f_in)

@@ -267,10 +267,10 @@ class Decode_Layer(nn.Module):
 
 #class BertEncoder(nn.Module):
 class Transformer(nn.Module):
-    def __init__(self, model_type, hidden_size, max_position_embeddings, num_hidden_layers=2, add_position_emb = False, decoder = False, dropout_prob = 0.1):
+    def __init__(self, model_type, hidden_size, max_position_embeddings, num_hidden_layers=2, add_position_emb = False, decoder = False, dropout_prob = 0.1, num_attention_heads=10):
         super(Transformer, self).__init__()
         
-        config = BertConfig(hidden_size = hidden_size, max_position_embeddings = max_position_embeddings, num_hidden_layers = num_hidden_layers, hidden_dropout_prob = dropout_prob, attention_probs_dropout_prob = dropout_prob)
+        config = BertConfig(hidden_size = hidden_size, max_position_embeddings = max_position_embeddings, num_hidden_layers = num_hidden_layers, hidden_dropout_prob = dropout_prob, attention_probs_dropout_prob = dropout_prob, num_attention_heads=num_attention_heads)
         self.emb_layer = BertEmbeddings(config, add_position_emb)
         if decoder:
             layer = Decode_Layer(config)
