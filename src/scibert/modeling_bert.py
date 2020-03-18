@@ -32,7 +32,8 @@ from .modeling_utils import PreTrainedModel, prune_linear_layer
 logger = logging.getLogger(__name__)
 
 BERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
-    "scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/pytorch_model.bin",
+    #"scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/pytorch_model.bin",
+    "scibert-scivocab-uncased": "/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/scibert/pytorch_model.bin",
     "bert-base-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-pytorch_model.bin",
     "bert-large-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased-pytorch_model.bin",
     "bert-base-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-pytorch_model.bin",

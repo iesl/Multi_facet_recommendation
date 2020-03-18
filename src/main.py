@@ -149,6 +149,8 @@ parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--lr2_divide', type=float, default=1.0,
                     help='drop this ratio for the learning rate of the second LSTM')
+parser.add_argument('--lr_target', type=float, default=-1,
+                    help='learning rate of target embedding')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=20,
@@ -205,6 +207,9 @@ else:
 #    args.dropoutl = args.dropouth
 if args.small_batch_size < 0:
     args.small_batch_size = args.batch_size
+
+if args.lr_target < 0:
+    args.lr_target = lr
 
 assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisible by small_batch_size'
 
@@ -651,17 +656,17 @@ if args.optimizer == 'SGD':
     optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr_target)
 elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
     optimizer_d = torch.optim.AdamW(decoder.parameters(), lr=args.lr/args.lr2_divide)
-    optimizer_t = torch.optim.AdamW([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.AdamW([user_emb, tag_emb], lr=args.lr_target)
     num_training_steps = sum([len(train_split) for train_split in dataloader_train_arr]) * args.epochs
     num_warmup_steps = args.warmup_proportion * num_training_steps
     print("Warmup steps:{}, Total steps:{}".format(num_warmup_steps, num_training_steps))
@@ -721,4 +726,4 @@ for epoch in range(1, args.epochs+1):
                 param_group['lr'] = lr/args.lr2_divide
             for param_group in optimizer_t.param_groups:
                 #param_group['lr'] = lr/5.0
-                param_group['lr'] = lr
+                param_group['lr'] = lr / args.lr * args.lr_target
