@@ -12,10 +12,14 @@ import torch.cuda as cutorch
 import gc
 import random
 
+
 import model as model_code
 import nsd_loss
 from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file_to_dict, load_emb_file_to_tensor, load_corpus, output_parallel_models, str2bool
 from transformers import get_linear_schedule_with_warmup
+
+from scibert.modeling_bert import BertModel
+from scibert.configuration_bert import BertConfig
 
 parser = argparse.ArgumentParser(description='PyTorch Neural Set Decoder for Sentnece Embedding')
 
@@ -145,6 +149,8 @@ parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--lr2_divide', type=float, default=1.0,
                     help='drop this ratio for the learning rate of the second LSTM')
+parser.add_argument('--lr_target', type=float, default=-1,
+                    help='learning rate of target embedding')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=20,
@@ -202,6 +208,9 @@ else:
 if args.small_batch_size < 0:
     args.small_batch_size = args.batch_size
 
+if args.lr_target < 0:
+    args.lr_target = lr
+
 assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisible by small_batch_size'
 
 if not args.continue_train:
@@ -254,20 +263,22 @@ if len(args.source_emb_file) > 0:
     source_emb = source_emb / (0.000000000001 + source_emb.norm(dim = 1, keepdim=True))
     source_emb.requires_grad = args.update_target_emb
     print("loading ", args.source_emb_file)
-else:
+#else:
     #if args.source_emb_source == 'ewe':
     #    source_emb_size = args.source_emsize
     #    print("Using word embedding from encoder")
-    if args.source_emb_source == 'rand': #and args.update_source_emb == True:
-        source_emb_size = args.source_emsize
-        source_emb = torch.randn(len(idx2word_freq), source_emb_size, device = device, requires_grad = False)
-        source_emb = source_emb / (0.000000000001 + source_emb.norm(dim = 1, keepdim=True))
-        source_emb.requires_grad = True
-        print("Initialize source embedding randomly")
-    else:
-        #print("We don't support such source_emb_source " + args.source_emb_source + ", update_source_emb ", args.update_source_emb, ", and source_emb_file "+ args.source_emb_file)
-        print("We don't support such source_emb_source " + args.source_emb_source + ", and source_emb_file "+ args.source_emb_file)
-        sys.exit(1)
+elif args.source_emb_source == 'rand': #and args.update_source_emb == True:
+    source_emb_size = args.source_emsize
+    source_emb = torch.randn(len(idx2word_freq), source_emb_size, device = device, requires_grad = False)
+    source_emb = source_emb / (0.000000000001 + source_emb.norm(dim = 1, keepdim=True))
+    source_emb.requires_grad = True
+    print("Initialize source embedding randomly")
+elif args.source_emb_source == 'scibert':
+    print("do not need to initialize word embedding")
+else:
+    #print("We don't support such source_emb_source " + args.source_emb_source + ", update_source_emb ", args.update_source_emb, ", and source_emb_file "+ args.source_emb_file)
+    print("We don't support such source_emb_source " + args.source_emb_source + ", and source_emb_file "+ args.source_emb_file)
+    sys.exit(1)
 
 # Load target embeddings (for now target embeddings are assumed to be always loaded)
 # TODO: Add pretrained target embedding scenario?
@@ -353,15 +364,24 @@ tag_freq[:num_special_token] = 0
 print("Building models")
 ########################
 
-ntokens = len(idx2word_freq)
 #if args.en_model == "LSTM":
 #encoder = model_code.RNNModel(args.en_model, ntokens, args.source_emsize, args.nhid, args.nhidlast, args.nlayers,
 #               args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop,
 #               args.tied, args.dropoutl, args.n_experts)
 
-#encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.source_emsize, args.nhid, args.nlayers,
-encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.source_emsize, args.nhid, args.nlayers,
-                             args.dropout, args.dropouti, args.dropoute, max_sent_len, source_emb, extra_init_idx, args.encode_trans_layers, args.trans_nhid)
+
+if args.en_model == 'scibert':
+    model_name = 'scibert-scivocab-uncased'
+    bert_config = BertConfig.from_pretrained(model_name)
+    bert_config.hidden_dropout_prob = args.dropout
+    bert_config.attention_probs_dropout_prob = args.dropout
+    encoder = BertModel.from_pretrained(model_name, config = bert_config)
+    encoder.output_dim = bert_config.hidden_size
+else:
+    ntokens = len(idx2word_freq)
+    #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.source_emsize, args.nhid, args.nlayers,
+    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.source_emsize, args.nhid, args.nlayers,
+                                 args.dropout, args.dropouti, args.dropoute, max_sent_len, source_emb, extra_init_idx, args.encode_trans_layers, args.trans_nhid)
 
 if args.nhidlast2 < 0:
     #args.nhidlast2 = source_emb_size
@@ -433,7 +453,10 @@ def evaluate(dataloader, current_coeff_opt):
             feature, user, tag, repeat_num, user_len, tag_len = sample_batched
             
             #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-            output_emb_last, output_emb = parallel_encoder(feature)
+            if args.en_model == 'scibert':
+                output_emb, output_emb_last = parallel_encoder(feature)
+            else:
+                output_emb_last, output_emb = parallel_encoder(feature)
             #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
             basis_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
             #if len(args.target_emb_file) > 0 or args.target_emb_source == 'rand':
@@ -497,7 +520,10 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #decoder.zero_grad()
         #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
         #output_emb, hidden, output_emb_last = parallel_encoder(feature)
-        output_emb_last, output_emb = parallel_encoder(feature)
+        if args.en_model == 'scibert':
+            output_emb, output_emb_last = parallel_encoder(feature)
+        else:
+            output_emb_last, output_emb = parallel_encoder(feature)
         #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
         basis_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
         #if len(args.target_emb_file) > 0  or args.target_emb_source == 'rand':
@@ -626,17 +652,17 @@ if args.optimizer == 'SGD':
     optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr_target)
 elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target)
+    #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
     optimizer_d = torch.optim.AdamW(decoder.parameters(), lr=args.lr/args.lr2_divide)
-    optimizer_t = torch.optim.AdamW([user_emb, tag_emb], lr=args.lr)
+    optimizer_t = torch.optim.AdamW([user_emb, tag_emb], lr=args.lr_target)
     num_training_steps = sum([len(train_split) for train_split in dataloader_train_arr]) * args.epochs
     num_warmup_steps = args.warmup_proportion * num_training_steps
     print("Warmup steps:{}, Total steps:{}".format(num_warmup_steps, num_training_steps))
@@ -695,4 +721,5 @@ for epoch in range(1, args.epochs+1):
             for param_group in optimizer_d.param_groups:
                 param_group['lr'] = lr/args.lr2_divide
             for param_group in optimizer_t.param_groups:
-                param_group['lr'] = lr
+                #param_group['lr'] = lr/5.0
+                param_group['lr'] = lr / args.lr * args.lr_target

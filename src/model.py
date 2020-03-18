@@ -91,7 +91,11 @@ class ext_emb_to_seq(nn.Module):
                 #output_dim = nhid
             elif model_type == 'TRANS':
                 #model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers)
-                model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers, add_position_emb = add_position_emb,  decoder = using_memory, dropout_prob = dropout_prob_trans)
+                if input_dim == 768:
+                    num_attention_heads = 12
+                else:
+                    num_attention_heads = 10
+                model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = n_basis, num_hidden_layers=trans_layers, add_position_emb = add_position_emb,  decoder = using_memory, dropout_prob = dropout_prob_trans, num_attention_heads = num_attention_heads)
                 self.trans_dim = input_dim
                 #output_dim = input_dim
             else:
@@ -176,13 +180,16 @@ class EMB2SEQ(nn.Module):
             self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
             #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
             output_dim = input_size+target_emb_sz
+        elif coeff_model == "None":
+            pass
             #output_dim = ninp+outd
             
         #self.coeff_out_linear = nn.Linear(nhid*2, 2)
-        half_output_dim = int(output_dim / 2)
-        self.coeff_out_linear_1 = nn.Linear(output_dim, half_output_dim)
-        self.coeff_out_linear_2 = nn.Linear(half_output_dim, half_output_dim)
-        self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
+        if coeff_model != "None":
+            half_output_dim = int(output_dim / 2)
+            self.coeff_out_linear_1 = nn.Linear(output_dim, half_output_dim)
+            self.coeff_out_linear_2 = nn.Linear(half_output_dim, half_output_dim)
+            self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
         #self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
         #self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
         #self.coeff_out_linear_3 = nn.Linear(nhid, 2)

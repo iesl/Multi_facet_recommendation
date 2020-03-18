@@ -258,12 +258,20 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 gt_rank_j.append(user_rank[user_id])
         return gt_rank_j
 
+    def compute_AP(gt_rank_j):
+        gt_rank_j_sorted = sorted(gt_rank_j)
+        AP_list = []
+        for i, x in enumerate(gt_rank_j_sorted):
+            AP_list.append( (i+1) / float(x) )
+        return np.mean(AP_list)
+
     def pred_per_paper(all_dist_user, user_batch_list, recall_at_th):
         bsz = len(user_batch_list)
         gt_rank_user = []
         top_prediction_user = []
         top_values_user = []
         recall_list_user = []
+        MAP_list_user = []
         for j in range(bsz):
             #pred_user_rank = np.argsort(all_dist_user[j])
             #gt_rank_j = [user_rank[x] for x in user_batch_list[j]]
@@ -274,20 +282,28 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             gt_rank_user.append(gt_rank_j)
             if len(gt_rank_j) > 0:
                 recall_list_user.append( np.sum([int(x <= recall_at_th) for x in gt_rank_j ]) / min(len(gt_rank_j), recall_at_th) )
+                AP = compute_AP(gt_rank_j)
+                MAP_list_user.append( AP )
 
-        return gt_rank_user, recall_list_user, top_prediction_user, top_values_user
+        return gt_rank_user, recall_list_user, top_prediction_user, top_values_user, MAP_list_user
     
     def paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th):
         user_paper_dist = list(zip(*paper_user_dist))
         recall_list_paper = []
+        MAP_list_paper = []
         for user_id in user_d2_paper_id:
             paper_dist = user_paper_dist[user_id]
             paper_id_list = user_d2_paper_id[user_id]
             gt_rank_paper = gt_rank_from_list(paper_dist, paper_id_list, num_special_token = -1)
             recall_list_paper.append( np.sum([int(x <= recall_at_th) for x in gt_rank_paper ]) / min(len(gt_rank_paper), recall_at_th) )
+            AP = compute_AP(gt_rank_paper)
+            MAP_list_paper.append( AP )
+
+
         #print(recall_list_paper)
         recall_avg = np.mean(recall_list_paper)
-        return recall_avg
+        MAP = np.mean(MAP_list_paper)
+        return recall_avg, MAP
     
     with torch.no_grad():
         paper_user_dist = []
@@ -297,6 +313,8 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
         recall_at_th = 50
         recall_all_user = []
         recall_all_tag = []
+        MAP_all_user = []
+        MAP_all_tag = []
 
         dataloader, all_user_tag = dataloader_info
         for i_batch, sample_batched in enumerate(dataloader):
@@ -312,10 +330,12 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             all_dist_user, all_dist_tag = compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device)
             #user_batch_list = user.tolist()
             #tag_batch_list = tag.tolist()
-            gt_rank_user, recall_list_user, top_prediction_user, top_values_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th)
-            gt_rank_tag, recall_list_tag, top_prediction_tag, top_values_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th)
+            gt_rank_user, recall_list_user, top_prediction_user, top_values_user, MAP_list_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th)
+            gt_rank_tag, recall_list_tag, top_prediction_tag, top_values_tag, MAP_list_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th)
             recall_all_user += recall_list_user
             recall_all_tag += recall_list_tag
+            MAP_all_user += MAP_list_user
+            MAP_all_tag += MAP_list_tag
 
             bsz = feature.size(0)
             #user_max = user.size(1)
@@ -338,12 +358,12 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             #if i_batch > 3:
             #    break
             #print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf)
-        print("\nUser recall per paper at {} is {}".format(recall_at_th,np.mean(recall_all_user)))
-        print("Tag recall per paper at {} is {}".format(recall_at_th,np.mean(recall_all_tag)))
-        recall_avg_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
-        print("Paper recall per user at {} is {}".format(recall_at_th, recall_avg_user))
-        recall_avg_tag = paper_recall_per_user(tag_d2_paper_id, paper_tag_dist, recall_at_th)
-        print("Paper recall per tag at {} is {}".format(recall_at_th, recall_avg_tag))
+        print("\nUser recall per paper at {} is {}, MAP is {}".format(recall_at_th,np.mean(recall_all_user), np.mean(MAP_all_user)))
+        print("Tag recall per paper at {} is {}, MAP is {}".format(recall_at_th,np.mean(recall_all_tag),  np.mean(MAP_all_tag)))
+        recall_avg_user, MAP_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
+        print("Paper recall per user at {} is {}, MAP is {}".format(recall_at_th, recall_avg_user, MAP_user))
+        recall_avg_tag, MAP_tag = paper_recall_per_user(tag_d2_paper_id, paper_tag_dist, recall_at_th)
+        print("Paper recall per tag at {} is {}, MAP is {}".format(recall_at_th, recall_avg_tag, MAP_tag))
             #if i_batch >= max_batch_num:
             #    break
 
