@@ -21,6 +21,8 @@ parser.add_argument('--data_user', type=str, default='',
                     help='location of the data corpus')
 parser.add_argument('--data_tag', type=str, default='',
                     help='location of the data corpus')
+parser.add_argument('--data_type', type=str, default='',
+                    help='location of the type corpus')
 parser.add_argument('--save', type=str, default='',
                     help='path to save the output data')
 parser.add_argument('--max_sent_len', type=int, default=512,
@@ -33,10 +35,14 @@ parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cv_fold_num', type=int, default=5,
                     help='how many cross validation patitions')
+parser.add_argument('--only_first_fold', type=utils.str2bool, nargs='?', default=False,
+                    help='Only store the first fold (when the dataset is large)')
 parser.add_argument('--val_size_ratio', type=float, default=0.1,
                     help='The ratio of validation size and all size (train + val + test) ')
 parser.add_argument('--min_test_user', type=int, default=5,
                     help='If number of users is smaller than this number, the paper will belong the training data')
+parser.add_argument('--push_to_right', type=utils.str2bool, nargs='?', default=True,
+                    help='Whether we want to push the index in features to the end')
 
 
 args = parser.parse_args()
@@ -57,9 +63,14 @@ def load_w_ind(f_in, max_sent_num, max_sent_len = -1):
         end_idx = len(fields)
         if max_sent_len > 0 and end_idx > max_sent_len:
             num_too_long_sent += 1
-            end_idx = max_sent_len
-
-        w_ind_corpus.append([int(x) for x in fields[:end_idx] if len(x) > 0])
+            if args.push_to_right:
+                end_idx = max_sent_len - 1
+                w_ind_corpus.append([int(x) for x in fields[:end_idx] + [fields[-1]] if len(x) > 0]) #make sure to include eos as the last word index
+            else:
+                end_idx = max_sent_len
+                w_ind_corpus.append([int(x) for x in fields[:end_idx] if len(x) > 0])
+        else:
+            w_ind_corpus.append([int(x) for x in fields[:end_idx] if len(x) > 0])
         if len(w_ind_corpus) % 100000 == 0:
             print(len(w_ind_corpus))
             sys.stdout.flush()
@@ -75,7 +86,6 @@ corpus_user_name = args.data_user + "corpus_index"
 corpus_tag_name = args.data_tag + "corpus_index"
 #dictionary_tag_name = args.data_tag + "dictionary_index"
 
-
 #if max_ind >= 2147483648:
 #    print("Will cause overflow")
 #    sys.exit()
@@ -89,6 +99,14 @@ with open(corpus_user_name) as f_in:
 
 with open(corpus_tag_name) as f_in:
     tag_corpus = load_w_ind(f_in, args.max_sent_num)
+
+
+if len(args.data_type) > 0:
+    corpus_type_name = args.data_type + "corpus_index"
+    with open(corpus_type_name) as f_in:
+        type_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
+else:
+    type_corpus = []
 
 assert len(w_ind_corpus) == len(user_corpus)
 assert len(w_ind_corpus) == len(tag_corpus)
@@ -110,18 +128,22 @@ def random_cv_partition(user_corpus, cv_fold_num):
 
     return cv_partition_idx_np
 
-def store_tensors(f_out,tensor1, tensor2, tensor3, tensor4, tensor5, tensor6):
-    torch.save([tensor1, tensor2, tensor3, tensor4, tensor5, tensor6], f_out)
+def store_tensors(f_out,tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, tensor7):
+    torch.save([tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, tensor7], f_out)
     
-def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output_save_file):
-    def save_to_tesnor(w_ind_corpus_dup_j, tensor_feature, i):
+def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_save_file):
+    def save_to_tesnor(w_ind_corpus_dup_j, tensor_feature, i, store_right = False):
         sent_len = len(w_ind_corpus_dup_j)
-        tensor_feature[i,:sent_len] = torch.tensor(w_ind_corpus_dup_j, dtype = store_type)
+        if store_right:
+            tensor_feature[i,-(sent_len):] = torch.tensor(w_ind_corpus_dup_j, dtype = store_type)
+        else:
+            tensor_feature[i,:sent_len] = torch.tensor(w_ind_corpus_dup_j, dtype = store_type)
 
-    def duplicate_for_long_targets(save_idx, w_ind_corpus, user_corpus, tag_corpus, max_target_num):
+    def duplicate_for_long_targets(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, max_target_num):
         w_ind_corpus_dup = []
         user_corpus_dup = []
         tag_corpus_dup = []
+        type_corpus_dup = []
         num_repeat_corpus_dup = []
         len_corpus_dup = []
 
@@ -132,6 +154,8 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
             num_repeat = 0
             while( len(current_users) > 0 or len(current_tags) > 0):
                 w_ind_corpus_dup.append(current_w_idx)
+                if len(type_corpus) > 0:
+                    type_corpus_dup.append(type_corpus[j])
                 user_len = min(max_target_num, len(current_users))
                 tag_len = min(max_target_num, len(current_tags))
                 user_corpus_dup.append(current_users[:user_len])
@@ -142,14 +166,17 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
                 num_repeat += 1
             num_repeat_corpus_dup += [num_repeat] * num_repeat
         
-        return w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup
+        return w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup, type_corpus_dup
     
-    w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup = duplicate_for_long_targets(save_idx, w_ind_corpus, user_corpus, tag_corpus, args.max_target_num)
+    w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup, type_corpus_dup = duplicate_for_long_targets(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, args.max_target_num)
     
     store_type = torch.int32
     corpus_size = len(w_ind_corpus_dup)
-    
     tensor_feature = torch.zeros(corpus_size, args.max_sent_len, dtype = store_type)
+    if len(type_corpus) > 0:
+        tensor_type = torch.zeros(corpus_size, args.max_sent_len, dtype = store_type)
+    else:
+        tensor_type = torch.zeros(0, dtype = store_type)
     tensor_user = torch.zeros(corpus_size, args.max_target_num, dtype = store_type)
     tensor_tag = torch.zeros(corpus_size, args.max_target_num, dtype = store_type)
     tensor_repeat_num = torch.zeros(corpus_size, dtype = store_type)
@@ -159,7 +186,13 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
     shuffled_order = list(range(corpus_size) )
     random.shuffle(shuffled_order)
     for i, j in enumerate(shuffled_order):
-        save_to_tesnor(w_ind_corpus_dup[j], tensor_feature, i)
+        if args.push_to_right:
+            store_right = True
+        else:
+            store_right = False
+        save_to_tesnor(w_ind_corpus_dup[j], tensor_feature, i, store_right)
+        if len(type_corpus) > 0:
+            save_to_tesnor(type_corpus_dup[j], tensor_type, i)
         save_to_tesnor(user_corpus_dup[j], tensor_user, i)
         save_to_tesnor(tag_corpus_dup[j], tensor_tag, i)
         tensor_repeat_num[i] = num_repeat_corpus_dup[j]
@@ -168,9 +201,9 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, user_corpus, tag_corpus, output
         #save_to_tesnor(num_repeat_corpus_dup[j], tensor_repeat_num, i)
 
     with open(output_save_file,'wb') as f_out:
-        store_tensors(f_out, tensor_feature, tensor_user, tensor_tag, tensor_repeat_num, tensor_user_len, tensor_tag_len)
+        store_tensors(f_out, tensor_feature, tensor_type, tensor_user, tensor_tag, tensor_repeat_num, tensor_user_len, tensor_tag_len)
 
-def compose_dataset(output_dir, test_indicator, w_ind_corpus, user_corpus, tag_corpus):
+def compose_dataset(output_dir, test_indicator, w_ind_corpus, type_corpus, user_corpus, tag_corpus):
     corpus_size = len(w_ind_corpus)
     val_size = int(corpus_size * args.val_size_ratio)
     
@@ -188,9 +221,9 @@ def compose_dataset(output_dir, test_indicator, w_ind_corpus, user_corpus, tag_c
     #print(val_size)
     #print(train_idx[0])
     #print(val_idx[0])
-    squeeze_into_tensors(train_idx, w_ind_corpus, user_corpus, tag_corpus, output_dir + "/train.pt")
-    squeeze_into_tensors(val_idx, w_ind_corpus, user_corpus, tag_corpus, output_dir + "/val.pt")
-    squeeze_into_tensors(test_idx, w_ind_corpus, user_corpus, tag_corpus, output_dir + "/test.pt")
+    squeeze_into_tensors(train_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_dir + "/train.pt")
+    squeeze_into_tensors(val_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_dir + "/val.pt")
+    squeeze_into_tensors(test_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_dir + "/test.pt")
 
 cv_partition_idx_np = random_cv_partition(user_corpus, args.cv_fold_num)
 
@@ -202,5 +235,6 @@ for k in range(args.cv_fold_num):
     output_dir = args.save + '_' + str(k)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    compose_dataset(output_dir, test_indicator, w_ind_corpus, user_corpus, tag_corpus)
-
+    compose_dataset(output_dir, test_indicator, w_ind_corpus, type_corpus, user_corpus, tag_corpus)
+    if args.only_first_fold:
+        break

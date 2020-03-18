@@ -75,10 +75,10 @@ def add_model_arguments(parser):
     parser.add_argument('--loss_type', type=str, default='sim',
                         help='Could be sim or dist')
 
-def predict_batch_simple(feature, parallel_encoder, parallel_decoder, normalize_emb = True):
+def predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb = True):
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
     #output_emb_last = parallel_encoder(feature)
-    output_emb_last, output_emb = parallel_encoder(feature)
+    output_emb_last, output_emb = parallel_encoder(feature, feature_type)
     basis_pred =  parallel_decoder(output_emb_last, output_emb)
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
     
@@ -89,9 +89,9 @@ def predict_batch_simple(feature, parallel_encoder, parallel_decoder, normalize_
     return basis_norm_pred, output_emb_last, output_emb
     
 
-def predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, top_k):
+def predict_batch(feature, feature_type, parallel_encoder, parallel_decoder, word_norm_emb, top_k):
     
-    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder)
+    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder)
     #output_emb_last, output_emb = parallel_encoder(feature)
     #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
 
@@ -170,9 +170,9 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
     top_k = 5
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
-            feature, user, tag, repeat_num, user_len, tag_len = sample_batched
+            feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
 
-            basis_norm_pred, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
+            basis_norm_pred, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, feature_type, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
             #print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf, word_imp_sim)
             print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf)
 
@@ -180,7 +180,7 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
                 break
 
 num_special_token = 3
-def compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device):
+def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device):
     def compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device):
         lr_coeff = 0.05
         iter_coeff = 60
@@ -210,7 +210,7 @@ def compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb,
     if loss_type != 'dist':
         normalize_emb = False
         
-    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, parallel_encoder, parallel_decoder, normalize_emb)
+    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb)
     all_dist_user = compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
     all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
 
@@ -304,12 +304,12 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             sys.stdout.write( str(i_batch) + ' ' )
             sys.stdout.flush()
 
-            feature, paper_id_tensor = sample_batched
+            feature, feature_type, paper_id_tensor = sample_batched
             paper_id_list = paper_id_tensor.tolist()
             user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
             
-            all_dist_user, all_dist_tag = compute_all_dist(feature, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device)
+            all_dist_user, all_dist_tag = compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, device)
             #user_batch_list = user.tolist()
             #tag_batch_list = tag.tolist()
             gt_rank_user, recall_list_user, top_prediction_user, top_values_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th)

@@ -113,7 +113,7 @@ class ext_emb_to_seq(nn.Module):
             elif model_type == 'TRANS':
                 #If we want to use transformer by default at the end, we will want to reconsider reducing the number of permutes
                 hidden_states = hidden_states.permute(1,0,2)
-                hidden_states = model(hidden_states, memory)
+                hidden_states = model(hidden_states, memory_tensors = memory)
                 hidden_states = hidden_states[0].permute(1,0,2)
         return hidden_states
 
@@ -342,7 +342,7 @@ class TRANS_pooler(nn.Module):
 
 
 class seq_to_emb(nn.Module):
-    def __init__(self, model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers, trans_nhid):
+    def __init__(self, model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers, trans_nhid, num_type_feature):
         super(seq_to_emb, self).__init__()
         self.encoder_array = nn.ModuleList()
         input_dim = ninp
@@ -361,7 +361,7 @@ class seq_to_emb(nn.Module):
                     add_position_emb = False
                 #model = model_trans.BertEncoder(model_type = model_type, hidden_size = input_dim, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
                 #model = model_trans.Transformer(model_type = model_type, hidden_size = input_dim, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb)
-                model = model_trans.Transformer(model_type = model_type, hidden_size = trans_nhid, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb, dropout_prob=dropout)
+                model = model_trans.Transformer(model_type = model_type, hidden_size = trans_nhid, max_position_embeddings = max_sent_len, num_hidden_layers=trans_layers, add_position_emb = add_position_emb, num_type_feature=num_type_feature, dropout_prob=dropout)
                 input_dim = trans_nhid
             else:
                 print("model type must be either LSTM or TRANS")
@@ -378,7 +378,7 @@ class seq_to_emb(nn.Module):
         #    self.dim_adjuster = nn.Linear(input_dim, nhid * 2)
         self.output_dim = input_dim
 
-    def forward(self, emb):
+    def forward(self, emb, input_type):
         bsz = emb.size(1)
         hidden_states = emb
         for model in self.encoder_array:
@@ -390,7 +390,7 @@ class seq_to_emb(nn.Module):
                 if self.linear_trans_dim is not None:
                     hidden_states = self.linear_trans_dim(hidden_states)
                 hidden_states = hidden_states.permute(1,0,2)
-                hidden_states = model(hidden_states)
+                hidden_states = model(hidden_states, token_type_ids = input_type)
                 hidden_states = hidden_states[0].permute(1,0,2)
         if self.model_type_list[-1] == 'LSTM' or self.model_type_list[-1] == 'GRU':
             output_emb = self.pooler(hidden_states, bsz)
@@ -404,7 +404,7 @@ class seq_to_emb(nn.Module):
 class SEQ2EMB(nn.Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, model_type_list, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, max_sent_len, external_emb, init_idx = [], trans_layers=2, trans_nhid=300):
+    def __init__(self, model_type_list, ntoken, ninp, nhid, nlayers, dropout, dropouti, dropoute, max_sent_len, external_emb, init_idx = [], trans_layers=2, trans_nhid=300, num_type_feature=6):
         #super(RNNModel_simple, self).__init__()
         super(SEQ2EMB, self).__init__()
         #self.drop = nn.Dropout(dropout)
@@ -425,7 +425,7 @@ class SEQ2EMB(nn.Module):
         self.use_dropout = True
 
         #self.init_weights()
-        self.seq_summarizer =  seq_to_emb(model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers, trans_nhid)
+        self.seq_summarizer =  seq_to_emb(model_type_list, ninp, nhid, nlayers, dropout, max_sent_len, trans_layers, trans_nhid, num_type_feature)
         self.output_dim = self.seq_summarizer.output_dim
 
         #self.model_type = model_type
@@ -441,7 +441,7 @@ class SEQ2EMB(nn.Module):
     #    self.encoder.weight.data[0,:] = 0
     #    self.decoder.bias.data.zero_()
 
-    def forward(self, input):
+    def forward(self, input, input_type):
         
         #bsz = input.size(1)
         bsz = input.size(0)
@@ -455,7 +455,7 @@ class SEQ2EMB(nn.Module):
         emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)
         #emb = self.drop(self.encoder(input))
         
-        output_last, output = self.seq_summarizer(emb)
+        output_last, output = self.seq_summarizer(emb, input_type)
         #return output, hidden, output_last #If we want to output output, hidden, we need to shift the batch dimension to the first dim in order to use nn.DataParallel correctly
         return output_last, output.permute(1,0,2)
 

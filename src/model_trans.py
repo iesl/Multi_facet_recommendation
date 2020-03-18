@@ -31,7 +31,7 @@ class BertConfig(object):
                  hidden_act="gelu",
                  hidden_dropout_prob=0.1,
                  attention_probs_dropout_prob=0.1,
-                 #type_vocab_size=2,
+                 type_vocab_size=2,
                  initializer_range=0.02):
         """Constructs BertConfig.
         Args:
@@ -65,7 +65,7 @@ class BertConfig(object):
         self.intermediate_size = intermediate_factor * hidden_size
         self.hidden_dropout_prob = hidden_dropout_prob
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
-        #self.type_vocab_size = type_vocab_size
+        self.type_vocab_size = type_vocab_size
         self.initializer_range = initializer_range
 
 
@@ -98,14 +98,15 @@ class BertEmbeddings(nn.Module):
         if add_position_emb:
             self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.add_position_emb = add_position_emb
-        #self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        if config.type_vocab_size>0:
+            self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=1e-12)
         #self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, words_embeddings):
+    def forward(self, words_embeddings, token_type_ids=None):
         if self.add_position_emb:
             seq_length = words_embeddings.size(1)
             bsz = words_embeddings.size(0)
@@ -117,12 +118,16 @@ class BertEmbeddings(nn.Module):
 
             #words_embeddings = self.word_embeddings(input_ids)
             position_embeddings = self.position_embeddings(position_ids)
-            #token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
             #embeddings = words_embeddings + position_embeddings + token_type_embeddings
             embeddings = words_embeddings + position_embeddings 
         else:
             embeddings = words_embeddings
+
+        if token_type_ids is not None:
+            token_type_embeddings = self.token_type_embeddings(token_type_ids)
+            embeddings += token_type_embeddings
+
         embeddings = self.LayerNorm(embeddings)
         #embeddings = self.dropout(embeddings)
         return embeddings
@@ -267,10 +272,10 @@ class Decode_Layer(nn.Module):
 
 #class BertEncoder(nn.Module):
 class Transformer(nn.Module):
-    def __init__(self, model_type, hidden_size, max_position_embeddings, num_hidden_layers=2, add_position_emb = False, decoder = False, dropout_prob = 0.1, num_attention_heads=10):
+    def __init__(self, model_type, hidden_size, max_position_embeddings, num_hidden_layers=2, add_position_emb = False, num_type_feature=0, decoder = False, dropout_prob = 0.1, num_attention_heads=10):
         super(Transformer, self).__init__()
         
-        config = BertConfig(hidden_size = hidden_size, max_position_embeddings = max_position_embeddings, num_hidden_layers = num_hidden_layers, hidden_dropout_prob = dropout_prob, attention_probs_dropout_prob = dropout_prob, num_attention_heads=num_attention_heads)
+        config = BertConfig(hidden_size = hidden_size, max_position_embeddings = max_position_embeddings, num_hidden_layers = num_hidden_layers, hidden_dropout_prob = dropout_prob, attention_probs_dropout_prob = dropout_prob, type_vocab_size=num_type_feature, num_attention_heads=num_attention_heads)
         self.emb_layer = BertEmbeddings(config, add_position_emb)
         if decoder:
             layer = Decode_Layer(config)
@@ -282,8 +287,8 @@ class Transformer(nn.Module):
         self.model_type = model_type
         #self.add_position_emb = add_position_emb
 
-    def forward(self, hidden_states, memory_tensors = None, attention_mask = None, output_all_encoded_layers=False):
-        hidden_states = self.emb_layer(hidden_states)
+    def forward(self, hidden_states, token_type_ids=None, memory_tensors = None, attention_mask = None, output_all_encoded_layers=False):
+        hidden_states = self.emb_layer(hidden_states, token_type_ids)
         #hidden_states should have dimension [n_batch, n_seq_len, emb_size]
         #attention_mask should have the same dimension and 0 means not masking while -10000.0 means masking
         all_encoder_layers = []

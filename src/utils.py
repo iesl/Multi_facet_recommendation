@@ -120,8 +120,9 @@ def load_idx2word_freq(f_in):
 class F2UserTagDataset(torch.utils.data.Dataset):
 #will need to handle the partial data loading if the dataset size is larger than cpu memory
 #We could also use this class to put all sentences with the same length together
-    def __init__(self, feature, user, tag, repeat_num, user_len, tag_len, device):
+    def __init__(self, feature, feature_type, user, tag, repeat_num, user_len, tag_len, device):
         self.feature = feature
+        self.feature_type = feature_type
         self.user = user
         self.tag = tag
         self.repeat_num = repeat_num
@@ -135,6 +136,10 @@ class F2UserTagDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         #feature = torch.tensor(self.feature[idx, :], dtype = torch.long, device = self.output_device)
         feature = self.feature[idx, :].to(dtype = torch.long, device = self.output_device)
+        if self.feature_type.size(0) > 0:
+            feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
+        else:
+            feature_type = None
         if self.user is None:
             user = []
             tag = []
@@ -148,12 +153,13 @@ class F2UserTagDataset(torch.utils.data.Dataset):
             user_len = self.user_len[idx].to( dtype = torch.long, device = self.output_device)
             tag_len = self.tag_len[idx].to( dtype = torch.long, device = self.output_device)
         #debug target[-1] = idx
-        return [feature, user, tag, repeat_num, user_len, tag_len]
+        return [feature, feature_type, user, tag, repeat_num, user_len, tag_len]
         #return [self.feature[idx, :], self.target[idx, :]]
 
 class F2IdxDataset(torch.utils.data.Dataset):
-    def __init__(self, feature, item_idx, device):
+    def __init__(self, feature, feature_type, item_idx, device):
         self.feature = feature
+        self.feature_type = feature_type
         self.item_idx = item_idx
         self.output_device = device
 
@@ -162,11 +168,15 @@ class F2IdxDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         feature = self.feature[idx, :].to( dtype = torch.long, device = self.output_device)
+        if self.feature_type.size(0) > 0:
+            feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
+        else:
+            feature_type = None
         item_idx = self.item_idx[idx].to( dtype = torch.long)
-        return [feature, item_idx]
+        return [feature, feature_type, item_idx]
 
 def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
-    feature, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
+    feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     max_sent_len = feature.size(1)
     if copy_training:
         #idx_arr= np.random.permutation(feature.size(0)).reshape(split_num,-1)
@@ -179,10 +189,17 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
                 end = feature.size(0)
             else:
                 end = (i+1) * split_size
-            dataset_arr.append(  F2UserTagDataset(feature[start:end], user[start:end], tag[start:end], repeat_num[start:end], user_len[start:end], tag_len[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
+            if feature_type.size(0) > 0:
+                feature_type_i = feature_type[start:end]
+            else:
+                feature_type_i = feature_type
+            dataset_arr.append(  F2UserTagDataset(feature[start:end], feature_type_i, user[start:end], tag[start:end], repeat_num[start:end], user_len[start:end], tag_len[start:end], device ) ) #assume that the dataset are randomly shuffled beforehand
         #dataset_arr = [ F2SetDataset(feature[idx_arr[i,:],:], target[idx_arr[i,:],:], device) for i in range(split_num)]
     else:
-        dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], repeat_num[i:repeat_num.size(0):split_num], user_len[i:user_len.size(0):split_num], tag_len[i:tag_len.size(0):split_num], device) for i in range(split_num)]
+        if feature_type.size(0) > 0:
+            dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], feature_type[i:feature_type.size(0):split_num,:], user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], repeat_num[i:repeat_num.size(0):split_num], user_len[i:user_len.size(0):split_num], tag_len[i:tag_len.size(0):split_num], device) for i in range(split_num)]
+        else:
+            dataset_arr = [ F2UserTagDataset(feature[i:feature.size(0):split_num,:], feature_type, user[i:user.size(0):split_num,:], tag[i:tag.size(0):split_num,:], repeat_num[i:repeat_num.size(0):split_num], user_len[i:user_len.size(0):split_num], tag_len[i:tag_len.size(0):split_num], device) for i in range(split_num)]
 
     use_cuda = False
     if device.type == 'cuda':
@@ -191,10 +208,12 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=not use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
 
-def create_uniq_paper_data(feature, user, tag, device):
+def create_uniq_paper_data(feature, feature_type, user, tag, device):
     print("removing duplicated features")
     feature_d2_user_tag = {}
+    feature_d2_type = {}
     feature_list = feature.tolist()
+    feature_type_list = feature_type.tolist()
     user_list = user.tolist()
     tag_list = tag.tolist()
     for i in range( len(feature_list) ):
@@ -205,26 +224,34 @@ def create_uniq_paper_data(feature, user, tag, device):
         user_tag_list[0] += user_list_i_no_0
         user_tag_list[1] += tag_list_i_no_0
         feature_d2_user_tag[f_tuple] = user_tag_list
+        if len(feature_type_list) > 0:
+            feature_d2_type[f_tuple] = feature_type_list[i]
 
     all_user_tag = []
     uniq_feature_num = len(feature_d2_user_tag)
     feature_uniq = torch.empty(uniq_feature_num, feature.size(1), dtype = torch.int32)
+    if len(feature_type_list) > 0:
+        feature_type_uniq = torch.empty(uniq_feature_num, feature.size(1), dtype = torch.int32)
+    else:
+        feature_type_uniq = torch.zeros(0)
     paper_id_tensor = torch.tensor( list(range(uniq_feature_num)), dtype = torch.int32)
     for paper_id, (f_tuple, user_tag_list) in enumerate(feature_d2_user_tag.items()):
         feature_uniq[paper_id,:] = torch.tensor(f_tuple, dtype = torch.int32)
+        if len(feature_type_list) > 0:
+            feature_type_uniq[paper_id,:] = torch.tensor(feature_d2_type[f_tuple], dtype = torch.int32)
         all_user_tag.append(user_tag_list)
 
-    dataset = F2IdxDataset(feature_uniq, paper_id_tensor, device)
+    dataset = F2IdxDataset(feature_uniq, feature_type_uniq, paper_id_tensor, device)
     return dataset, all_user_tag
 
 def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False):
-    feature, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
+    feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
     if not deduplication:
-        dataset = F2UserTagDataset(feature, user, tag, repeat_num, user_len, tag_len, device)
+        dataset = F2UserTagDataset(feature, feature_type, user, tag, repeat_num, user_len, tag_len, device)
     else:
-        dataset, all_user_tag = create_uniq_paper_data(feature, user, tag, device)
+        dataset, all_user_tag = create_uniq_paper_data(feature, feature_type, user, tag, device)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
     if device.type == 'cuda':

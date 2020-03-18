@@ -18,8 +18,8 @@ convert_numbers = True
 
 num_token = "<NUM>"
 
-file_format = 'a'
-#file_format = 't'
+#file_format = 'a'
+file_format = 't'
 
 scibert_tokenization = True
 if scibert_tokenization:
@@ -64,7 +64,7 @@ def tokenize_paper(input_text):
 
 def tokenize_paper_scibert(input_text):
     proc_text = input_text.replace('{','').replace('}','')
-    w_idx_list = tokenizer.encode(proc_text)
+    w_idx_list = tokenizer.encode(proc_text, add_special_tokens=True, max_length=512, truncation_strategy = 'only_first', pad_to_max_length=True)
     output_text = ' '.join([str(x) for x in w_idx_list])
     return output_text
 #filter_set = set(['<b>','</b>','</font','style>'])

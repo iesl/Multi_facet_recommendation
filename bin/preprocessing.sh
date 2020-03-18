@@ -5,8 +5,8 @@ MIN_FREQ_TARGET=0
 LOWERCASE=True
 LOWERCASE_TARGET=FALSE
 #LOWERCASE=False
-#INPUT_NAME=citeulike-a
-INPUT_NAME=citeulike-t
+INPUT_NAME=citeulike-a
+#INPUT_NAME=citeulike-t
 echo $MIN_FREQ
 INPUT_FILE="./data/raw/$INPUT_NAME/paper_text"
 INPUT_FILE_USER="./data/raw/$INPUT_NAME/user"

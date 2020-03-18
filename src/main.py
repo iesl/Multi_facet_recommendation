@@ -334,8 +334,12 @@ def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
     target_emb.requires_grad = True
     return target_emb, target_emb_sz
 
-tag_emb, target_emb_sz_tag = load_ext_emb(args.tag_emb_file, args.target_emsize, tag_idx2word_freq)
 user_emb, target_emb_sz = load_ext_emb(args.user_emb_file, args.target_emsize, user_idx2word_freq)
+if args.tag_w > 0:
+    tag_emb, target_emb_sz_tag = load_ext_emb(args.tag_emb_file, args.target_emsize, tag_idx2word_freq)
+else:
+    tag_emb = torch.zeros(0)
+    target_emb_sz_tag = target_emb_sz
 
 assert target_emb_sz == target_emb_sz_tag
 
@@ -445,13 +449,13 @@ def evaluate(dataloader, current_coeff_opt):
     #total_loss_coeff_pred = 0.
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
-            feature, user, tag, repeat_num, user_len, tag_len = sample_batched
+            feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
             
             #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
             if args.en_model == 'scibert':
                 output_emb, output_emb_last = parallel_encoder(feature)
             else:
-                output_emb_last, output_emb = parallel_encoder(feature)
+                output_emb_last, output_emb = parallel_encoder(feature, feature_type)
             #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
             basis_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
             #if len(args.target_emb_file) > 0 or args.target_emb_source == 'rand':
@@ -504,7 +508,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
     encoder.train()
     decoder.train()
     for i_batch, sample_batched in enumerate(dataloader_train):
-        feature, user, tag, repeat_num, user_len, tag_len = sample_batched
+        feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
         #print(target)
         #print(feature.size())
         #print(target.size())
@@ -518,7 +522,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         if args.en_model == 'scibert':
             output_emb, output_emb_last = parallel_encoder(feature)
         else:
-            output_emb_last, output_emb = parallel_encoder(feature)
+            output_emb_last, output_emb = parallel_encoder(feature, feature_type)
         #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
         basis_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
         #if len(args.target_emb_file) > 0  or args.target_emb_source == 'rand':
