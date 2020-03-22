@@ -390,6 +390,8 @@ class seq_to_emb(nn.Module):
                 if self.linear_trans_dim is not None:
                     hidden_states = self.linear_trans_dim(hidden_states)
                 hidden_states = hidden_states.permute(1,0,2)
+                if len(input_type) == 0:
+                    input_type = None
                 hidden_states = model(hidden_states, token_type_ids = input_type)
                 hidden_states = hidden_states[0].permute(1,0,2)
         if self.model_type_list[-1] == 'LSTM' or self.model_type_list[-1] == 'GRU':

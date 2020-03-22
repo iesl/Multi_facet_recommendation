@@ -139,7 +139,7 @@ class F2UserTagDataset(torch.utils.data.Dataset):
         if self.feature_type.size(0) > 0:
             feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
         else:
-            feature_type = None
+            feature_type = []
         if self.user is None:
             user = []
             tag = []
@@ -171,7 +171,7 @@ class F2IdxDataset(torch.utils.data.Dataset):
         if self.feature_type.size(0) > 0:
             feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
         else:
-            feature_type = None
+            feature_type = []
         item_idx = self.item_idx[idx].to( dtype = torch.long)
         return [feature, feature_type, item_idx]
 
@@ -470,19 +470,22 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #elif len(args.source_emb_file) == 0:
     #    source_emb_size = args.source_emsize
     source_emb_size = args.source_emsize
-    if len(args.tag_emb_file) > 0:
-        print(args.tag_emb_file)
-        tag_emb, tag_emb_size = load_emb_from_path(args.tag_emb_file, device, tag_idx2word_freq)        
-        target_emb_size = tag_emb_size
-    else:
-        raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
     
     if len(args.user_emb_file) > 0:
         print(args.user_emb_file)
         user_emb, user_emb_size = load_emb_from_path(args.user_emb_file, device, user_idx2word_freq)        
+    
+    if len(args.tag_emb_file) > 0 and args.tag_emb_file != 'None':
+        print(args.tag_emb_file)
+        tag_emb, tag_emb_size = load_emb_from_path(args.tag_emb_file, device, tag_idx2word_freq)        
+        assert tag_emb_size == user_emb_size
+        target_emb_size = tag_emb_size
+    else:
+        tag_emb = []
+        tag_emb_size = user_emb_size
+        target_emb_size = tag_emb_size
+        #raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
 
-    assert tag_emb_size == user_emb_size
-    target_emb_size = tag_emb_size
 
     if args.trans_nhid < 0:
         if args.target_emsize > 0:
@@ -498,7 +501,7 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #               args.dropout, args.dropouti, args.dropoute, external_emb)
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer) #model_old_4
     word_norm_emb = []
-    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, source_emb_size, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  word_norm_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid)
+    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, source_emb_size, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  word_norm_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid, num_type_feature = args.num_type_feature)
 
     if args.nhidlast2 < 0:
         args.nhidlast2 = encoder.output_dim
@@ -521,13 +524,17 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
 
     
     if normalize_emb:
-        tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
+        if len(tag_emb) > 0:
+            tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
+        else:
+            tag_norm_emb = tag_emb
         user_norm_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True) )
     else:
         tag_norm_emb = tag_emb
         user_norm_emb = user_emb
-
-    tag_norm_emb[0,:] = 0
+    
+    if len(tag_norm_emb) > 0:
+        tag_norm_emb[0,:] = 0
     user_norm_emb[0,:] = 0
 
     parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
