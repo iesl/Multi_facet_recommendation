@@ -50,7 +50,7 @@ def add_model_arguments(parser):
                     help='type of decoder model to predict coefficients (LSTM, TRANS)')
     parser.add_argument('--trans_layers', type=int, default=3,
                         help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
-    parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True,
+    parser.add_argument('--de_en_connection', type=str3bool, nargs='?', default=True,
                         help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
     parser.add_argument('--nhidlast2', type=int, default=-1,
                         help='hidden embedding size of the second LSTM')
