@@ -139,7 +139,7 @@ class F2UserTagDataset(torch.utils.data.Dataset):
         if self.feature_type.size(0) > 0:
             feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
         else:
-            feature_type = None
+            feature_type = []
         if self.user is None:
             user = []
             tag = []
@@ -171,7 +171,7 @@ class F2IdxDataset(torch.utils.data.Dataset):
         if self.feature_type.size(0) > 0:
             feature_type = self.feature_type[idx, :].to( dtype = torch.long, device = self.output_device)
         else:
-            feature_type = None
+            feature_type = []
         item_idx = self.item_idx[idx].to( dtype = torch.long)
         return [feature, feature_type, item_idx]
 
@@ -498,7 +498,7 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #               args.dropout, args.dropouti, args.dropoute, external_emb)
     #encoder = model_code.SEQ2EMB(args.en_model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  external_emb, [], trans_layer = args.encode_trans_layer) #model_old_4
     word_norm_emb = []
-    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, source_emb_size, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  word_norm_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid)
+    encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, source_emb_size, args.nhid, args.nlayers, args.dropout, args.dropouti, args.dropoute, max_sent_len,  word_norm_emb, [], trans_layers = args.encode_trans_layers, trans_nhid = args.trans_nhid, num_type_feature = args.num_type_feature)
 
     if args.nhidlast2 < 0:
         args.nhidlast2 = encoder.output_dim

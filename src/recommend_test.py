@@ -27,6 +27,10 @@ parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
 
 ###system
+parser.add_argument('--test_user', type=str2bool, nargs='?', default=True,
+                    help='Whether we want to test user embeddings')
+parser.add_argument('--test_tag', type=str2bool, nargs='?', default=True,
+                    help='Whether we want to test tag embeddings')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--cuda', type=str2bool, nargs='?', default=True,
@@ -35,6 +39,8 @@ parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
 parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
+parser.add_argument('--most_popular_baseline', type=str2bool, nargs='?', default=True,
+                    help='Whether to test most popular baseline')
 #parser.add_argument('--max_batch_num', type=int, default=100, 
 #                    help='number of batches for evaluation')
 
@@ -85,9 +91,9 @@ with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
     outf.write('Test Recommendation:\n\n')
-    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, outf, device)
-    outf.write('Val Recommendation:\n\n')
-    utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, outf, device)
+    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline)
+    #outf.write('Val Recommendation:\n\n')
+    #utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device)
 
 #test_batch_size = 1
 #test_data = batchify(corpus.test, test_batch_size, args)

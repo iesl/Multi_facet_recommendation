@@ -209,7 +209,7 @@ if args.small_batch_size < 0:
     args.small_batch_size = args.batch_size
 
 if args.lr_target < 0:
-    args.lr_target = lr
+    args.lr_target = args.lr
 
 assert args.batch_size % args.small_batch_size == 0, 'batch_size must be divisible by small_batch_size'
 
