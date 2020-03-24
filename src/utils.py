@@ -208,7 +208,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=not use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
 
-def create_uniq_paper_data(feature, feature_type, user, tag, device):
+def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx):
     print("removing duplicated features")
     feature_d2_user_tag = {}
     feature_d2_type = {}
@@ -216,10 +216,21 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device):
     feature_type_list = feature_type.tolist()
     user_list = user.tolist()
     tag_list = tag.tolist()
+    user_idx_old_d2_new = {}
+    tag_idx_old_d2_new = {}
+    if len(user_subsample_idx) > 0:
+        for new_idx, old_idx in enumerate(user_subsample_idx):
+            user_idx_old_d2_new[old_idx] = new_idx
+        for new_idx, old_idx in enumerate(tag_subsample_idx):
+            tag_idx_old_d2_new[old_idx] = new_idx
     for i in range( len(feature_list) ):
         f_tuple = tuple(feature_list[i])
-        user_list_i_no_0 = [user_id for user_id in user_list[i] if user_id >= num_special_token]
-        tag_list_i_no_0 = [tag_id for tag_id in tag_list[i] if tag_id >= num_special_token]
+        if len(user_subsample_idx) > 0:
+            user_list_i_no_0 = [user_idx_old_d2_new[user_id] for user_id in user_list[i] if user_id >= num_special_token and user_id in user_idx_old_d2_new]
+            tag_list_i_no_0 = [tag_idx_old_d2_new[tag_id] for tag_id in tag_list[i] if tag_id >= num_special_token and tag_id in tag_idx_old_d2_new]
+        else:
+            user_list_i_no_0 = [user_id for user_id in user_list[i] if user_id >= num_special_token]
+            tag_list_i_no_0 = [tag_id for tag_id in tag_list[i] if tag_id >= num_special_token]
         user_tag_list = feature_d2_user_tag.get(f_tuple,[[],[]])
         user_tag_list[0] += user_list_i_no_0
         user_tag_list[1] += tag_list_i_no_0
@@ -244,14 +255,14 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device):
     dataset = F2IdxDataset(feature_uniq, feature_type_uniq, paper_id_tensor, device)
     return dataset, all_user_tag
 
-def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False):
+def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False, user_subsample_idx = [], tag_subsample_idx = []):
     feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
     if not deduplication:
         dataset = F2UserTagDataset(feature, feature_type, user, tag, repeat_num, user_len, tag_len, device)
     else:
-        dataset, all_user_tag = create_uniq_paper_data(feature, feature_type, user, tag, device)
+        dataset, all_user_tag = create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
     if device.type == 'cuda':
@@ -324,8 +335,18 @@ def load_testing_sent(dict_path, input_path, max_sent_len, eval_bsz, device):
 
     return dataloader_test, org_sent_list, idx2word_freq
 
+def create_subsample_idx(total_w_num, subsample_ratio, num_special_token):
+    used_w_num = int( (total_w_num-num_special_token) * subsample_ratio)
+    user_subsample_idx = list(range(num_special_token)) + (num_special_token + np.random.choice(total_w_num - num_special_token, used_w_num, replace = False)).tolist()
+    return user_subsample_idx
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True, load_test = False, deduplication = False):
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True, load_test = False, deduplication = False, subsample_ratio = 1):
+    
+    if subsample_ratio < 1:
+        assert deduplication
+        assert skip_training 
+        assert load_test
+    
     train_corpus_name = data_path + "/"+tensor_folder+"/" + training_file
     val_org_corpus_name = data_path +"/"+tensor_folder+"/val.pt"
     test_org_corpus_name = data_path +"/"+tensor_folder+"/test.pt"
@@ -342,14 +363,24 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
     
     with open(user_dictionary_input_name) as f_in:
         user_idx2word_freq = load_idx2word_freq(f_in)
+        if subsample_ratio < 1:
+            user_subsample_idx = create_subsample_idx(len(user_idx2word_freq), subsample_ratio, num_special_token)
+            user_idx2word_freq = [user_idx2word_freq[x] for x in user_subsample_idx]
+        else:
+            user_subsample_idx = []
     
     with open(tag_dictionary_input_name) as f_in:
         tag_idx2word_freq = load_idx2word_freq(f_in)
+        if subsample_ratio < 1:
+            tag_subsample_idx = create_subsample_idx(len(tag_idx2word_freq), subsample_ratio, num_special_token)
+            tag_idx2word_freq = [tag_idx2word_freq[x] for x in tag_subsample_idx]
+        else:
+            tag_subsample_idx = []
 
     dataloader_val = None
     # NOTE: Uncomment if you want evaluation on non-shuffled val data
     with open(val_org_corpus_name,'rb') as f_in:
-        dataloader_val = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication)
+        dataloader_val = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication, user_subsample_idx=user_subsample_idx, tag_subsample_idx=tag_subsample_idx)
 
     #with open(val_shuffled_corpus_name,'rb') as f_in:
     #    dataloader_val_shuffled = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val)
@@ -359,6 +390,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
     else:
         max_sent_len = dataloader_val.dataset.feature.size(1)
     
+
     if skip_training:
         dataloader_train_arr = [0]
     else:
@@ -368,8 +400,11 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
     
     if load_test:
         with open(test_org_corpus_name,'rb') as f_in:
-            dataloader_test = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication)
-        return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_test, max_sent_len
+            dataloader_test = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication, user_subsample_idx=user_subsample_idx, tag_subsample_idx=tag_subsample_idx)
+        if subsample_ratio == 1:
+            return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_test, max_sent_len
+        else:
+            return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_test, max_sent_len, user_subsample_idx, tag_subsample_idx
     else:
         return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len
 
@@ -470,19 +505,22 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #elif len(args.source_emb_file) == 0:
     #    source_emb_size = args.source_emsize
     source_emb_size = args.source_emsize
-    if len(args.tag_emb_file) > 0:
-        print(args.tag_emb_file)
-        tag_emb, tag_emb_size = load_emb_from_path(args.tag_emb_file, device, tag_idx2word_freq)        
-        target_emb_size = tag_emb_size
-    else:
-        raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
     
     if len(args.user_emb_file) > 0:
         print(args.user_emb_file)
         user_emb, user_emb_size = load_emb_from_path(args.user_emb_file, device, user_idx2word_freq)        
+    
+    if len(args.tag_emb_file) > 0 and args.tag_emb_file != 'None':
+        print(args.tag_emb_file)
+        tag_emb, tag_emb_size = load_emb_from_path(args.tag_emb_file, device, tag_idx2word_freq)        
+        assert tag_emb_size == user_emb_size
+        target_emb_size = tag_emb_size
+    else:
+        tag_emb = []
+        tag_emb_size = user_emb_size
+        target_emb_size = tag_emb_size
+        #raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
 
-    assert tag_emb_size == user_emb_size
-    target_emb_size = tag_emb_size
 
     if args.trans_nhid < 0:
         if args.target_emsize > 0:
@@ -521,13 +559,17 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
 
     
     if normalize_emb:
-        tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
+        if len(tag_emb) > 0:
+            tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
+        else:
+            tag_norm_emb = tag_emb
         user_norm_emb = user_emb / (0.000000000001 + user_emb.norm(dim = 1, keepdim=True) )
     else:
         tag_norm_emb = tag_emb
         user_norm_emb = user_emb
-
-    tag_norm_emb[0,:] = 0
+    
+    if len(tag_norm_emb) > 0:
+        tag_norm_emb[0,:] = 0
     user_norm_emb[0,:] = 0
 
     parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)

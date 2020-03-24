@@ -3,15 +3,42 @@ import json
 import gzip
 import sys
 
+help_msg = '-a <asin_user_file> -m <meta_data_file> -o <output_file>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "a:m:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-a"):
+        asin_user_file = arg
+    elif opt in ("-m"):
+        meta_data_file = arg
+    elif opt in ("-o"):
+        output_file = arg
+
 #asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/book/asin_to_user.tsv"
 #meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/book/meta_Books.json.gz"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/book/all_book_data"
 #asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/toy/asin_to_user.tsv"
 #meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/toy/meta_Toys_and_Games.json.gz"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/toy/all_toy_data"
-asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/asin_to_user.tsv"
-meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/meta_Movies_and_TV.json.gz"
-output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/all_movie_data"
+#asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/asin_to_user.tsv"
+#meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/meta_Movies_and_TV.json.gz"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/movie/all_movie_data"
+#asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/phone/asin_to_user.tsv"
+#meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/phone/meta_Cell_Phones_and_Accessories.json.gz"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/phone/all_phone_data"
+#asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/cloth/asin_to_user.tsv"
+#meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/cloth/meta_Clothing_Shoes_and_Jewelry.json.gz"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/cloth/all_cloth_data"
+#asin_user_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/electronics/asin_to_user.tsv"
+#meta_data_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/electronics/meta_Electronics.json.gz"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/amazon/electronics/all_electronics_data"
 
 nlp = English()
 

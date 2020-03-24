@@ -41,6 +41,8 @@ parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
 parser.add_argument('--most_popular_baseline', type=str2bool, nargs='?', default=True,
                     help='Whether to test most popular baseline')
+parser.add_argument('--subsample_ratio', type=float, default=1,
+                    help='ratio of subsampling the user or tag')
 #parser.add_argument('--max_batch_num', type=int, default=100, 
 #                    help='number of batches for evaluation')
 
@@ -71,7 +73,12 @@ device = torch.device("cuda" if args.cuda else "cpu")
 
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False )
-idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val_info, dataloader_test_info, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, load_test = True, deduplication = True, tensor_folder = args.tensor_folder )
+
+all_corpus = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, load_test = True, deduplication = True, tensor_folder = args.tensor_folder, subsample_ratio = args.subsample_ratio )
+if args.subsample_ratio < 1:
+    idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val_info, dataloader_test_info, max_sent_len, user_subsample_idx, tag_subsample_idx = all_corpus
+else:
+    idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val_info, dataloader_test_info, max_sent_len = all_corpus
 dataloader_train = dataloader_train_arr[0]
 
 ########################
@@ -83,6 +90,13 @@ if args.loss_type != 'dist':
     normalize_emb = False
 #parallel_encoder, parallel_decoder, encoder, decoder, target_norm_emb = loading_all_models(args, idx2word_freq, tag_idx2word_freq, device, max_sent_len)
 parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb = loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len, normalize_emb)
+
+if args.subsample_ratio < 1:
+    #print(user_subsample_idx[:10])
+    #print(user_norm_emb[:10,:])
+    user_norm_emb = user_norm_emb[user_subsample_idx, :]
+    if len(tag_norm_emb) > 0:
+        tag_norm_emb = tag_norm_emb[tag_subsample_idx, :] 
 
 encoder.eval()
 decoder.eval()
