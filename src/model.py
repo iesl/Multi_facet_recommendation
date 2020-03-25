@@ -175,7 +175,7 @@ class EMB2SEQ(nn.Module):
             #elf.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
             self.coeff_rnn = nn.LSTM(input_size+target_emb_sz , nhid, num_layers = coeff_nlayers , bidirectional = True)
             output_dim = nhid*2
-        elif coeff_model == "TRANS":
+        elif coeff_model == "TRANS" or coeff_model == "TRANS_old":
             coeff_nlayers = 2
             self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
             #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
@@ -189,7 +189,10 @@ class EMB2SEQ(nn.Module):
             half_output_dim = int(output_dim / 2)
             self.coeff_out_linear_1 = nn.Linear(output_dim, half_output_dim)
             self.coeff_out_linear_2 = nn.Linear(half_output_dim, half_output_dim)
-            self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
+            if coeff_model == "TRANS_old":
+                self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
+            else:
+                self.coeff_out_linear_3 = nn.Linear(half_output_dim, 1)
         #self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
         #self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
         #self.coeff_out_linear_3 = nn.Linear(nhid, 2)
@@ -252,7 +255,19 @@ class EMB2SEQ(nn.Module):
         #output = self.final(output)
         output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
+        if self.coeff_model == "TRANS":
+            coeff_input= torch.cat( (emb, output), dim = 2)
+            hidden_states = coeff_input.permute(1,0,2)
+            hidden_states = self.coeff_trans(hidden_states)
+            coeff_output = hidden_states[0].permute(1,0,2)
+            coeff_pred_1 = F.relu(self.coeff_out_linear_1(coeff_output))
+            coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))
+            coeff_pred = self.coeff_out_linear_3(coeff_pred_2)
+            output = output * coeff_pred
+
         output_batch_first = output.permute(1,0,2)
+
+        return output_batch_first
 
         if not predict_coeff_sum:
             #output has dimension (n_batch, n_seq_len, n_emb_size)
@@ -462,129 +477,3 @@ class SEQ2EMB(nn.Module):
         return output_last, output.permute(1,0,2)
 
 
-class RNNModel(nn.Module):
-    """Container module with an encoder, a recurrent module, and a decoder."""
-
-    def __init__(self, rnn_type, ntoken, ninp, nhid, nhidlast, nlayers, 
-                 dropout=0.5, dropouth=0.5, dropouti=0.5, dropoute=0.1, wdrop=0, 
-                 tie_weights=False, ldropout=0.5, n_experts=10):
-        super(RNNModel, self).__init__()
-        self.use_dropout = True
-        self.lockdrop = LockedDropout()
-        self.encoder = nn.Embedding(ntoken, ninp)
-        
-        self.rnns = [torch.nn.LSTM(ninp if l == 0 else nhid, nhid if l != nlayers - 1 else nhidlast, 1, dropout=0) for l in range(nlayers)]
-        if wdrop:
-            self.rnns = [WeightDrop(rnn, ['weight_hh_l0'], dropout=wdrop if self.use_dropout else 0) for rnn in self.rnns]
-        self.rnns = torch.nn.ModuleList(self.rnns)
-
-        self.prior = nn.Linear(nhidlast, n_experts, bias=False)
-        self.latent = nn.Sequential(nn.Linear(nhidlast, n_experts*ninp), nn.Tanh())
-        self.decoder = nn.Linear(ninp, ntoken)
-
-        # Optionally tie weights as in:
-        # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
-        # https://arxiv.org/abs/1608.05859
-        # and
-        # "Tying Word Vectors and Word Classifiers: A Loss Framework for Language Modeling" (Inan et al. 2016)
-        # https://arxiv.org/abs/1611.01462
-        if tie_weights:
-            #if nhid != ninp:
-            #    raise ValueError('When using the tied flag, nhid must be equal to emsize')
-            self.decoder.weight = self.encoder.weight
-
-        self.init_weights(tie_weights)
-
-        self.rnn_type = rnn_type
-        self.ninp = ninp
-        self.nhid = nhid
-        self.nhidlast = nhidlast
-        self.nlayers = nlayers
-        self.dropout = dropout
-        self.dropouti = dropouti
-        self.dropouth = dropouth
-        self.dropoute = dropoute
-        self.ldropout = ldropout
-        self.dropoutl = ldropout
-        self.n_experts = n_experts
-        self.ntoken = ntoken
-
-        size = 0
-        for p in self.parameters():
-            size += p.nelement()
-        print('param size: {}'.format(size))
-
-    def init_weights(self, tie_weights):
-        initrange = 0.1
-        self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.encoder.weight.data[0,:] = 0
-        self.decoder.bias.data.fill_(0)
-        if tie_weights:
-            self.decoder.weight.data.uniform_(-initrange, initrange)
-
-    def forward(self, input, hidden, return_h=False, return_prob=False):
-        batch_size = input.size(1)
-
-        emb = embedded_dropout(self.encoder, input, dropout=self.dropoute if (self.training and self.use_dropout) else 0)
-        #emb = self.idrop(emb)
-
-        emb = self.lockdrop(emb, self.dropouti if self.use_dropout else 0)
-
-        raw_output = emb
-        new_hidden = []
-        #raw_output, hidden = self.rnn(emb, hidden)
-        raw_outputs = []
-        outputs = []
-        for l, rnn in enumerate(self.rnns):
-            current_input = raw_output
-            #print raw_output.size()
-            #print hidden[l][0].size()
-            raw_output, new_h = rnn(raw_output, hidden[l])
-            new_hidden.append(new_h)
-            raw_outputs.append(raw_output)
-            if l != self.nlayers - 1:
-                #self.hdrop(raw_output)
-                raw_output = self.lockdrop(raw_output, self.dropouth if self.use_dropout else 0)
-                outputs.append(raw_output)
-        hidden = new_hidden
-
-        output = self.lockdrop(raw_output, self.dropout if self.use_dropout else 0)
-        outputs.append(output)
-
-        latent = self.latent(output)
-        latent = self.lockdrop(latent, self.dropoutl if self.use_dropout else 0)
-        logit = self.decoder(latent.view(-1, self.ninp))
-
-        prior_logit = self.prior(output).contiguous().view(-1, self.n_experts)
-        prior = nn.functional.softmax(prior_logit, -1)
-
-        prob = nn.functional.softmax(logit.view(-1, self.ntoken), -1).view(-1, self.n_experts, self.ntoken)
-        prob = (prob * prior.unsqueeze(2).expand_as(prob)).sum(1)
-
-        if return_prob:
-            model_output = prob
-        else:
-            log_prob = torch.log(prob.add_(1e-8))
-            model_output = log_prob
-
-        model_output = model_output.view(-1, batch_size, self.ntoken)
-
-        if return_h:
-            return model_output, hidden, raw_outputs, outputs
-        return model_output, hidden
-
-    def init_hidden(self, bsz):
-        weight = next(self.parameters()).data
-        return [(Variable(weight.new(1, bsz, self.nhid if l != self.nlayers - 1 else self.nhidlast).zero_()),
-                 Variable(weight.new(1, bsz, self.nhid if l != self.nlayers - 1 else self.nhidlast).zero_()))
-                for l in range(self.nlayers)]
-
-if __name__ == '__main__':
-    model = RNNModel('LSTM', 10, 12, 12, 12, 2)
-    input = Variable(torch.LongTensor(13, 9).random_(0, 10))
-    hidden = model.init_hidden(9)
-    model(input, hidden)
-
-    # input = Variable(torch.LongTensor(13, 9).random_(0, 10))
-    # hidden = model.init_hidden(9)
-    # print(model.sample(input, hidden, 5, 6, 1, 2, sample_latent=True).size())
