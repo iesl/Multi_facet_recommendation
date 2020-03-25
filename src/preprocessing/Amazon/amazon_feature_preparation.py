@@ -2,6 +2,7 @@ from spacy.lang.en import English
 import json
 import gzip
 import sys
+import getopt
 
 help_msg = '-a <asin_user_file> -m <meta_data_file> -o <output_file>'
 

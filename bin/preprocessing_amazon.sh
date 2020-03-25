@@ -1,12 +1,16 @@
 #!/bin/bash
 #MIN_FREQ=$1
-#MIN_FREQ=5
-MIN_FREQ=50
+MIN_FREQ=5
+#MIN_FREQ=50
 MIN_FREQ_TARGET=0
 #LOWERCASE=True
 LOWERCASE=False
 LOWERCASE_TARGET=FALSE
-INPUT_NAME=cloth
+#INPUT_NAME=home
+#INPUT_NAME=electronics
+#INPUT_NAME=sport
+INPUT_NAME=tool
+#INPUT_NAME=cloth
 #INPUT_NAME=phone
 #INPUT_NAME=toy
 #INPUT_NAME=movie
@@ -14,9 +18,13 @@ INPUT_NAME=cloth
 #echo $MIN_FREQ
 
 #DOWNLOAD_NAME="Cell_Phones_and_Accessories"
-#REVIEW_ONLY="data/raw/amazon/${INPUT_NAME}/${DOWNLOAD_NAME}.csv"
-#PRODUCT_INFO="data/raw/amazon/${INPUT_NAME}/meta_${DOWNLOAD_NAME}.json.gz"
-#ASIN_USER_FILE="./data/raw/amazon/$INPUT_NAME/asin_to_user.tsv"
+#DOWNLOAD_NAME="Electronics"
+#DOWNLOAD_NAME="Home_and_Kitchen"
+#DOWNLOAD_NAME="Sports_and_Outdoors"
+DOWNLOAD_NAME="Tools_and_Home_Improvement"
+REVIEW_ONLY="data/raw/amazon/${INPUT_NAME}/${DOWNLOAD_NAME}.csv"
+PRODUCT_INFO="data/raw/amazon/${INPUT_NAME}/meta_${DOWNLOAD_NAME}.json.gz"
+ASIN_USER_FILE="./data/raw/amazon/$INPUT_NAME/asin_to_user.tsv"
 INPUT_FILE_ALL="./data/raw/amazon/$INPUT_NAME/all_${INPUT_NAME}_data"
 INPUT_FILE="./data/raw/amazon/$INPUT_NAME/meta"
 #INPUT_FILE_TYPE="./data/raw/amazon/$INPUT_NAME/type"
@@ -46,8 +54,8 @@ TENSOR_FOLDER="tensors_cold"
 MAX_SENT_LEN="128"
 
 echo "convert words to indices"
-#~/anaconda3/bin/python src/preprocessing/Amazon/amazon_feature_stats.py -i $REVIEW_ONLY -o $ASIN_USER_FILE
-#~/anaconda3/bin/python src/preprocessing/Amazon/amazon_feature_preparation.py -a $ASIN_USER_FILE -m $PRODUCT_INFO -o $INPUT_FILE_ALL
+~/anaconda3/bin/python src/preprocessing/Amazon/amazon_stats.py -i $REVIEW_ONLY -o $ASIN_USER_FILE
+~/anaconda3/bin/python src/preprocessing/Amazon/amazon_feature_preparation.py -a $ASIN_USER_FILE -m $PRODUCT_INFO -o $INPUT_FILE_ALL
 
 #cut -d$'\t' -f 1 $INPUT_FILE_ALL > $INPUT_FILE
 #cut -d$'\t' -f 3 $INPUT_FILE_ALL > $INPUT_FILE_USER
