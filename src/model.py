@@ -177,7 +177,7 @@ class EMB2SEQ(nn.Module):
             output_dim = nhid*2
         elif coeff_model == "TRANS" or coeff_model == "TRANS_old":
             coeff_nlayers = 2
-            self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
+            self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False, dropout_prob = 0.3)
             #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
             output_dim = input_size+target_emb_sz
         elif coeff_model == "None":
