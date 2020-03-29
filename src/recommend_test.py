@@ -39,7 +39,7 @@ parser.add_argument('--single_gpu', default=False, action='store_true',
                     help='use single GPU')
 parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
-parser.add_argument('--most_popular_baseline', type=str2bool, nargs='?', default=True,
+parser.add_argument('--most_popular_baseline', type=str2bool, nargs='?', default=False,
                     help='Whether to test most popular baseline')
 parser.add_argument('--subsample_ratio', type=float, default=1,
                     help='ratio of subsampling the user or tag')

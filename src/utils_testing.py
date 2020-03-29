@@ -294,7 +294,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
 
         return np.mean(AP_list), best_F1
 
-    def pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user, batch_dist = True):
+    def pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user, weight_all_user, batch_dist = True):
         bsz = len(user_batch_list)
         gt_rank_user = []
         top_prediction_user = []
@@ -322,7 +322,9 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 pred_score = -np.array(dist_j).reshape((1,len(dist_j)))
                 ndcg = ndcg_score(gt_rel.reshape(1,len(dist_j)), pred_score)
                 for m in range(len(recall_at_th)):
-                    recall_all_user[m].append( np.sum([int(x <= recall_at_th[m]) for x in gt_rank_j ]) / min(len(gt_rank_j), recall_at_th[m]) )
+                    weight = min(len(gt_rank_j), recall_at_th[m])
+                    recall_all_user[m].append( np.sum([int(x <= recall_at_th[m]) for x in gt_rank_j ]) / weight )
+                    weight_all_user[m].append( weight )
                 gt_rank_j_sorted = sorted(gt_rank_j)
                 AP, best_F1 = compute_AP_best_F1(gt_rank_j_sorted)
                 F1_list_user.append(best_F1)
@@ -398,6 +400,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
         #if dist_matrix:
         #    user_paper_dist = list(zip(*paper_user_dist))
         recall_list_paper = [[] for k in range(len(recall_at_th))]
+        weight_list_paper = [[] for k in range(len(recall_at_th))]
         MAP_list_paper = []
         F1_list_paper = []
         AUC_list_paper = []
@@ -416,7 +419,9 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             NDCG_list_paper.append(ndcg)
             gt_rank_paper = gt_rank_from_list(paper_dist, paper_id_list, num_special_token = -1)
             for k in range(len(recall_at_th)):
-                recall_list_paper[k].append( np.sum([int(x <= recall_at_th[k]) for x in gt_rank_paper ]) / min(len(gt_rank_paper), recall_at_th[k]) )
+                weight = min(len(gt_rank_paper), recall_at_th[k])
+                recall_list_paper[k].append( np.sum([int(x <= recall_at_th[k]) for x in gt_rank_paper ]) / weight )
+                weight_list_paper[k].append( weight )
             gt_rank_paper_sorted = sorted(gt_rank_paper)
             AP, best_F1 = compute_AP_best_F1(gt_rank_paper_sorted)
             F1_list_paper.append(best_F1)
@@ -425,12 +430,13 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             AUC_list_paper.append( AUC )
 
         #print(recall_list_paper)
-        recall_avg = [np.mean(recall_list_paper[k]) for k in range(len(recall_at_th))]
+        recall_avg = [np.average(recall_list_paper[k]) for k in range(len(recall_at_th))]
+        recall_avg_w = [np.average(recall_list_paper[k], weights=weight_list_paper[k]) for k in range(len(recall_at_th))]
         F1 = np.mean(F1_list_paper)
         MAP = np.mean(MAP_list_paper)
         AUC = np.mean(AUC_list_paper)
         NDCG = np.mean(NDCG_list_paper)
-        return recall_avg, MAP, AUC, NDCG, F1
+        return recall_avg, recall_avg_w, MAP, AUC, NDCG, F1
     
     def extract_category(feature, feature_type, paper_id_list, paper_id_d2_categories):
         bsz = feature.size(0)
@@ -472,6 +478,8 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
         #recall_all_tag = []
         recall_all_user = [[] for k in range(len(recall_at_th))]
         recall_all_tag = [[] for k in range(len(recall_at_th))]
+        weight_all_user = [[] for k in range(len(recall_at_th))]
+        weight_all_tag = [[] for k in range(len(recall_at_th))]
         F1_all_user = []
         F1_all_tag = []
         MAP_all_user = []
@@ -492,6 +500,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 user_neg_freq = [-x[1]  for x in user_idx2word_freq]
                 #p_recall_all_user = []
                 p_recall_all_user = [[] for k in range(len(recall_at_th))]
+                p_weight_all_user = [[] for k in range(len(recall_at_th))]
                 p_F1_all_user = []
                 p_MAP_all_user = []
                 p_AUC_all_user = []
@@ -500,6 +509,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 tag_neg_freq = [-x[1]  for x in tag_idx2word_freq]
                 #p_recall_all_tag = []
                 p_recall_all_tag = [[] for k in range(len(recall_at_th))]
+                p_weight_all_tag = [[] for k in range(len(recall_at_th))]
                 p_F1_all_tag = []
                 p_MAP_all_tag = []
                 p_AUC_all_tag = []
@@ -528,7 +538,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             #user_batch_list = user.tolist()
             #tag_batch_list = tag.tolist()
             if test_user:
-                gt_rank_user, top_prediction_user, top_values_user, MAP_list_user, AUC_list_user, NDCG_list_user, F1_list_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user)
+                gt_rank_user, top_prediction_user, top_values_user, MAP_list_user, AUC_list_user, NDCG_list_user, F1_list_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user, weight_all_user)
                 #recall_all_user += recall_list_user
                 F1_all_user += F1_list_user
                 MAP_all_user += MAP_list_user
@@ -537,7 +547,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 user_text = convert_feature_to_text(user_batch_list, user_idx2word_freq)
                 top_user_text = convert_feature_to_text(top_prediction_user, user_idx2word_freq)
                 if most_popular_baseline:
-                    p_gt_rank_user, p_top_prediction_user, p_top_values_user, p_MAP_list_user, p_AUC_list_user, p_NDCG_list_user, p_F1_list_user = pred_per_paper(user_neg_freq, user_batch_list, recall_at_th, p_recall_all_user, batch_dist = False)
+                    p_gt_rank_user, p_top_prediction_user, p_top_values_user, p_MAP_list_user, p_AUC_list_user, p_NDCG_list_user, p_F1_list_user = pred_per_paper(user_neg_freq, user_batch_list, recall_at_th, p_recall_all_user, p_weight_all_user, batch_dist = False)
                     #p_recall_all_user += p_recall_list_user
                     p_F1_all_user += p_F1_list_user
                     p_MAP_all_user += p_MAP_list_user
@@ -545,7 +555,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                     p_NDCG_all_user += p_NDCG_list_user
             
             if test_tag:
-                gt_rank_tag, top_prediction_tag, top_values_tag, MAP_list_tag, AUC_list_tag, NDCG_list_tag, F1_list_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th, recall_all_tag)
+                gt_rank_tag, top_prediction_tag, top_values_tag, MAP_list_tag, AUC_list_tag, NDCG_list_tag, F1_list_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th, recall_all_tag, weight_all_tag)
                 #recall_all_tag += recall_list_tag
                 F1_all_tag += F1_list_tag
                 MAP_all_tag += MAP_list_tag
@@ -554,7 +564,7 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 tag_text = convert_feature_to_text(tag_batch_list, tag_idx2word_freq)
                 top_tag_text = convert_feature_to_text(top_prediction_tag, tag_idx2word_freq)
                 if most_popular_baseline:
-                    p_gt_rank_tag, p_top_prediction_tag, p_top_values_tag, p_MAP_list_tag, p_AUC_list_tag, p_NDCG_list_tag, p_F1_list_tag = pred_per_paper(tag_neg_freq, tag_batch_list, recall_at_th, p_recall_all_tag, batch_dist = False)
+                    p_gt_rank_tag, p_top_prediction_tag, p_top_values_tag, p_MAP_list_tag, p_AUC_list_tag, p_NDCG_list_tag, p_F1_list_tag = pred_per_paper(tag_neg_freq, tag_batch_list, recall_at_th, p_recall_all_tag, p_weight_all_tag, batch_dist = False)
                     #p_recall_all_tag += p_recall_list_tag
                     p_F1_all_tag += p_F1_list_tag
                     p_MAP_all_tag += p_MAP_list_tag
@@ -607,9 +617,9 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
         div_th = recall_at_th
         div_th_str = recall_at_th_str
         if test_user:
-            print("\nUser recall per paper at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
-            recall_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
-            print("Paper recall per user at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
+            print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
+            recall_avg_user, recall_w_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
+            print("Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, recall_w_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
             if len(paper_id_d2_categories) > 0:
                 div_avg, div_course_avg, ent_avg, ent_course_avg = div_by_categories(paper_user_dist, paper_id_d2_categories, div_th)
                 print("Diversification metric of user by category at {} is {}. Entropy is {}. Div of course layer is {}. Entorpy is {}".format(div_th_str, div_avg, ent_avg, div_course_avg, ent_course_avg))
@@ -617,22 +627,22 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 div_avg = div_by_tags(paper_user_dist, paper_id_d2_tags, div_th)
                 print("Diversification metric of user by tag difference at {} is {}".format(div_th_str, div_avg))
             if most_popular_baseline:
-                print("Popularity GT baseline. User recall per paper at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_user))], np.mean(p_MAP_all_user), np.mean(p_F1_all_user), np.mean(p_AUC_all_user), np.mean(p_NDCG_all_user)))
-                p_recall_avg_user, p_MAP_user, p_AUC_user, p_NDCG_user, p_F1_user = paper_recall_per_user(user_d2_paper_id, paper_id_l2_neg_user_freq, recall_at_th, dist_matrix=False)
-                print("Popularity GT baseline. Paper recall per user at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_user, p_MAP_user, p_F1_user, p_AUC_user, p_NDCG_user))
+                print("Popularity GT baseline. User recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_user))], [np.average(p_recall_all_user[m], weights= p_weight_all_user[m]) for m in range(len(p_recall_all_user))], np.mean(p_MAP_all_user), np.mean(p_F1_all_user), np.mean(p_AUC_all_user), np.mean(p_NDCG_all_user)))
+                p_recall_avg_user, p_weight_recall_avg_user, p_MAP_user, p_AUC_user, p_NDCG_user, p_F1_user = paper_recall_per_user(user_d2_paper_id, paper_id_l2_neg_user_freq, recall_at_th, dist_matrix=False)
+                print("Popularity GT baseline. Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_user, p_weight_recall_avg_user, p_MAP_user, p_F1_user, p_AUC_user, p_NDCG_user))
                 
         
         if test_tag:
-            print("\nTag recall per paper at {} is {}, MAP is {}, F1 is {}, AUC is {}".format(recall_at_th_str, [np.mean(recall_all_tag[m]) for m in range(len(recall_all_tag))],  np.mean(MAP_all_tag), np.mean(F1_all_tag), np.mean(AUC_all_tag), np.mean(NDCG_all_tag) ))
-            recall_avg_tag, MAP_tag, AUC_tag, NDCG_tag, F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_tag_dist, recall_at_th)
-            print("Paper recall per tag at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_tag, MAP_tag, F1_tag, AUC_tag, NDCG_tag, ss.pearsonr(paper_id_l2_neg_tag_freq, paper_id_l2_pred_tag_dist)[0]))
+            print("\nTag recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}".format(recall_at_th_str, [np.mean(recall_all_tag[m]) for m in range(len(recall_all_tag))], [np.average(recall_all_tag[m], weights=weight_all_tag[m]) for m in range(len(recall_all_tag))],  np.mean(MAP_all_tag), np.mean(F1_all_tag), np.mean(AUC_all_tag), np.mean(NDCG_all_tag) ))
+            recall_avg_tag, recall_w_avg_tag, MAP_tag, AUC_tag, NDCG_tag, F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_tag_dist, recall_at_th)
+            print("Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_tag, recall_w_avg_tag, MAP_tag, F1_tag, AUC_tag, NDCG_tag, ss.pearsonr(paper_id_l2_neg_tag_freq, paper_id_l2_pred_tag_dist)[0]))
             if len(paper_id_d2_categories) > 0:
                 div_avg, div_course_avg, ent_avg, ent_course_avg = div_by_categories(paper_tag_dist, paper_id_d2_categories, div_th)
                 print("Diversification metric of tag by category at {} is {}. Entropy is {}. Div of course layer is {}. Entorpy is {}".format(div_th_str, div_avg, ent_avg, div_course_avg, ent_course_avg))
             if most_popular_baseline:
-                print("Popularity baseline. Tag recall per paper at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_tag))], np.mean(p_MAP_all_tag), np.mean(p_F1_all_tag), np.mean(p_AUC_all_tag), np.mean(p_NDCG_all_tag)))
-                p_recall_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
-                print("Popularity GT baseline. Paper recall per tag at {} is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
+                print("Popularity baseline. Tag recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_tag))], [np.average(p_recall_all_tag[m], weights=p_weight_all_tag[m]) for m in range(len(p_recall_all_tag))], np.mean(p_MAP_all_tag), np.mean(p_F1_all_tag), np.mean(p_AUC_all_tag), np.mean(p_NDCG_all_tag)))
+                p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
+                print("Popularity GT baseline. Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
 
             #if i_batch >= max_batch_num:
             #    break

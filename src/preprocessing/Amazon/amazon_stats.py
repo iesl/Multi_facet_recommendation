@@ -1,4 +1,5 @@
-
+import sys
+import getopt
 import numpy as np
 
 help_msg = '-i <input_file> -o <output_file>'
