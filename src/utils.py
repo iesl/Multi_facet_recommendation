@@ -9,6 +9,7 @@ import random
 import sys
 import argparse
 
+NULL_IND = 0
 UNK_IND = 1
 EOS_IND = 2
 
@@ -34,6 +35,7 @@ class Dictionary(object):
         self.w_d2_ind = w_d2_ind_init
         self.ind_l2_w_freq = ind_l2_w_freq_init
         self.num_special_token = num_special_token
+        self.NULL_IND = NULL_IND
         self.UNK_IND = UNK_IND
         self.EOS_IND = EOS_IND
         self.byte_mode = byte_mode
@@ -55,7 +57,7 @@ class Dictionary(object):
         w_ind_list.append(self.EOS_IND) # append <eos>
         self.ind_l2_w_freq[self.EOS_IND][1] += 1
 
-    def densify_index(self,min_freq):
+    def densify_index(self,min_freq,ignore_unk=False):
         vocab_size = len(self.ind_l2_w_freq)
         compact_mapping = [0]*vocab_size
         for i in range(self.num_special_token):
@@ -71,9 +73,14 @@ class Dictionary(object):
         for i in range(self.num_special_token,vocab_size):
             w, w_freq, w_ind_org = self.ind_l2_w_freq[i]
             if w_freq < min_freq:
-                compact_mapping[i] = self.UNK_IND
-                self.ind_l2_w_freq[i][-1] = self.UNK_IND
-                self.ind_l2_w_freq[i].append('unk')
+                if not ignore_unk:
+                    compact_mapping[i] = self.UNK_IND
+                    self.ind_l2_w_freq[i][-1] = self.UNK_IND
+                    self.ind_l2_w_freq[i].append('unk')
+                else:
+                    compact_mapping[i] = self.NULL_IND
+                    self.ind_l2_w_freq[i][-1] = self.NULL_IND
+                    self.ind_l2_w_freq[i].append('null')
                 #total_num_filtering += 1
                 total_freq_filtering += w_freq
             else:

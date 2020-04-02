@@ -43,6 +43,7 @@ with open(input_path) as f_in:
             cut_line_num += 1
             continue
         meta_info, type_info, user_list_str, user_list_high_str = fields
+        #meta_info = ' '.join(meta_info.split())
         weird_title_prefix = "var aPageStart"
         if meta_info[:len(weird_title_prefix)] == weird_title_prefix:
             weird_title_num += 1
@@ -61,8 +62,8 @@ with open(input_path) as f_in:
         sucessful_num += 1
         feature_list.append(meta_info)
         type_list.append(type_info)
-        user_list.append(user_list_str.replace(',',' '))
-        tag_list.append(user_list_high_str.replace(',',' '))
+        user_list.append(user_list_str.replace(' ','_').replace(',',' '))
+        tag_list.append(user_list_high_str.replace(' ','_').replace(',',' '))
 
 print("weird title rate: ", weird_title_num / float(total_line_num-cut_line_num))
 print("cut line rate: ", cut_line_num / float(total_line_num))

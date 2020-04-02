@@ -111,6 +111,7 @@ def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device, loss_typ
         #coeff should have dimension ( n_batch, n_basis, n_set)
         max_v, max_i = torch.max(coeff, dim = 1, keepdim=True)
         max_v[max_v<0] = 0
+        max_v[max_v>1] = 1
     else:
         max_v_cos, max_i_cos = torch.max(XY, dim = 1, keepdim=True)
         max_v = torch.ones(max_v_cos.size(), requires_grad= False, device=device)
@@ -436,13 +437,27 @@ def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_se
         pred_mean = basis_pred_norm.mean(dim = 1, keepdim = True)
         loss_set_div = - torch.mean( (basis_pred_norm - pred_mean).norm(dim = 2) )
 
+        if target_norm:
+            target_embeddings_norm = target_embeddings
+            target_emb_neg_norm = target_emb_neg
+        else:
+            target_embeddings_norm = target_embeddings / (0.000000000001 + target_embeddings.norm(dim = 2, keepdim=True) )
+            target_emb_neg_norm = target_emb_neg / (0.000000000001 + target_emb_neg.norm(dim = 2, keepdim=True) )
+        mask = (target_set > 0).unsqueeze(dim=-1)
+        pred_mean = target_embeddings_norm.sum(dim = 1, keepdim = True) / (0.000000000001 + torch.sum(mask, dim=1, keepdim=True).to(device=target_embeddings_norm.device) ).detach()
+        loss_set_div_target = - torch.sum( ((target_embeddings_norm - pred_mean) * mask).norm(dim = 2) ) / (0.000000000001 + torch.sum(mask))
+        assert rand_neg_method == 'shuffle'
+        mask = (target_index_shuffle > 0).unsqueeze(dim=-1)
+        pred_mean = target_emb_neg_norm.sum(dim = 1, keepdim = True) / (0.000000000001 + torch.sum(mask, dim=1, keepdim=True).to(device=target_emb_neg_norm.device) ).detach()
+        loss_set_div_target += - torch.sum( ((target_emb_neg_norm - pred_mean) * mask).norm(dim = 2) ) / (0.000000000001 + torch.sum(mask))
+
     if coeff_pred == None:
         if not compute_div_reg:
             return loss_set, loss_set_neg
         else:
-            return loss_set, loss_set_neg, loss_set_div, loss_set_reg
+            return loss_set, loss_set_neg, loss_set_div, loss_set_reg, loss_set_div_target
     else:
         if not compute_div_reg:
             return loss_set, loss_set_neg, loss_coeff_pred
         else:
-            return loss_set, loss_set_neg, loss_set_div, loss_set_reg, loss_coeff_pred
+            return loss_set, loss_set_neg, loss_set_div, loss_set_reg, loss_set_div_target, loss_coeff_pred

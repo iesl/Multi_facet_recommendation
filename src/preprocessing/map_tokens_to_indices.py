@@ -28,6 +28,8 @@ parser.add_argument('--lowercase', type=str2bool, nargs='?', default=False,
                     help='whether make all the words in corpus lowercased')
 parser.add_argument('--eos', type=str2bool, nargs='?', default=False,
                     help='whether append eos')
+parser.add_argument('--ignore_unk', type=str2bool, nargs='?', default=False,
+                    help='when lower than min_freq, do not append unk')
 
 args = parser.parse_args()
 
@@ -75,7 +77,7 @@ print("total number of lines: "+str(len(w_ind_corpus)))
 elapsed = time.time() - start_time
 print("time of loading file: "+str(elapsed)+'s')
 
-compact_mapping, total_freq_filtering = dict_c.densify_index(args.min_freq)
+compact_mapping, total_freq_filtering = dict_c.densify_index(args.min_freq, args.ignore_unk)
 print("{}/{} tokens are filtered".format(total_freq_filtering, total_num_w) )
 
 if not os.path.exists(args.save):
@@ -89,7 +91,7 @@ with open(dictionary_output_name, 'w') as f_out:
 
 with open(corpus_output_name, 'w') as f_out:
     for w_ind_list in w_ind_corpus:
-         f_out.write(' '.join([str(compact_mapping[x]) for x in w_ind_list])+'\n')
+         f_out.write(' '.join([str(compact_mapping[x]) for x in w_ind_list if compact_mapping[x] > 0])+'\n')
 
 elapsed = time.time() - start_time
 print("time of total word to index: "+str(elapsed)+'s')
