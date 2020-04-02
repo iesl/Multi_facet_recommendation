@@ -634,7 +634,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             #cur_loss_coeff_pred = total_loss_coeff_pred / args.log_interval
             elapsed = time.time() - start_time
             logging('| e {:3d} {:3d} | {:5d}/{:5d} b | lr-enc {:.6f} | ms/batch {:5.2f} | '
-                    'l {:5.2f} | l_f_u {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} '.format(
+                    'l {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} '.format(
                 epoch, split_i, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
                 elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set_user, args.neg_sample_w, cur_loss_set_neg_user, cur_loss_set_user + args.neg_sample_w * cur_loss_set_neg_user, cur_loss_set_tag, args.neg_sample_w, cur_loss_set_neg_tag, cur_loss_set_tag + args.neg_sample_w * cur_loss_set_neg_tag, cur_loss_set_reg, cur_loss_set_div))
             #if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
@@ -695,7 +695,7 @@ for epoch in range(1, args.epochs+1):
         if dataloader_val is not None:
             val_loss_all, val_loss_set_user, val_loss_set_neg_user, val_loss_set_tag, val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div = evaluate(dataloader_val, current_coeff_opt)
             logging('-' * 89)
-            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
+            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
                     .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, args.neg_sample_w, val_loss_set_neg_user, val_loss_set_user + args.neg_sample_w * val_loss_set_neg_user, val_loss_set_tag, args.neg_sample_w, val_loss_set_neg_tag, val_loss_set_tag + args.neg_sample_w*val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div))
             logging('-' * 89)
         if args.user_w >= args.tag_w:
