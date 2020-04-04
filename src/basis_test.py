@@ -23,6 +23,8 @@ parser.add_argument('--tag_emb_file', type=str, default='tag_emb.pt',
                     help='path to the file of a word embedding file')
 parser.add_argument('--user_emb_file', type=str, default='user_emb.pt',
                     help='path to the file of a word embedding file')
+parser.add_argument('--testing_target', type=str, default='tag',
+                    help='testing tag or user')
 parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
 
@@ -82,11 +84,18 @@ decoder.eval()
 with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
-    outf.write('Validation Topics:\n\n')
-    utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
-    if dataloader_train:
-        outf.write('Training Topics:\n\n')
-        utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+    if args.testing_target == 'tag':
+        outf.write('Validation Topics:\n\n')
+        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+        if dataloader_train:
+            outf.write('Training Topics:\n\n')
+            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+    elif args.testing_target == 'user':
+        outf.write('Validation Topics:\n\n')
+        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num)
+        if dataloader_train:
+            outf.write('Training Topics:\n\n')
+            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num)
 
 #test_batch_size = 1
 #test_data = batchify(corpus.test, test_batch_size, args)

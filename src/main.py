@@ -599,7 +599,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             else:
                 loss += args.tag_w * args.neg_sample_w * loss_set_neg_tag
         
-        loss += 0.01 * (loss_set_div_target_user + loss_set_div_target_tag)
+        #loss += 0.01 * (loss_set_div_target_user + loss_set_div_target_tag)
 
         loss *= args.small_batch_size / args.batch_size
         total_loss += loss.item()
