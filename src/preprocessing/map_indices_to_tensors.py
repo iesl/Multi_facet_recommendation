@@ -43,7 +43,8 @@ parser.add_argument('--min_test_user', type=int, default=5,
                     help='If number of users is smaller than this number, the paper will belong the training data')
 parser.add_argument('--push_to_right', type=utils.str2bool, nargs='?', default=True,
                     help='Whether we want to push the index in features to the end')
-
+parser.add_argument('--input_file_name', type=str, default='corpus_index',
+                    help='The file name where we load the indices')
 
 args = parser.parse_args()
 
@@ -79,37 +80,6 @@ def load_w_ind(f_in, max_sent_num, max_sent_len = -1):
     print( "Finish loading {} sentences. While truncating {} long sentences".format(len(w_ind_corpus), num_too_long_sent) )
     return w_ind_corpus
 
-corpus_input_name = args.data_feature + "corpus_index"
-#dictionary_input_name = args.data_feature + "dictionary_index"
-corpus_user_name = args.data_user + "corpus_index"
-#dictionary_user_name = args.data_user + "dictionary_index"
-corpus_tag_name = args.data_tag + "corpus_index"
-#dictionary_tag_name = args.data_tag + "dictionary_index"
-
-#if max_ind >= 2147483648:
-#    print("Will cause overflow")
-#    sys.exit()
-
-
-with open(corpus_input_name) as f_in:
-    w_ind_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
-
-with open(corpus_user_name) as f_in:
-    user_corpus = load_w_ind(f_in, args.max_sent_num)
-
-with open(corpus_tag_name) as f_in:
-    tag_corpus = load_w_ind(f_in, args.max_sent_num)
-
-
-if len(args.data_type) > 0:
-    corpus_type_name = args.data_type + "corpus_index"
-    with open(corpus_type_name) as f_in:
-        type_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
-else:
-    type_corpus = []
-
-assert len(w_ind_corpus) == len(user_corpus)
-assert len(w_ind_corpus) == len(tag_corpus)
 
 def random_cv_partition(user_corpus, cv_fold_num):
     corpus_size = len(user_corpus)
@@ -146,11 +116,16 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
         type_corpus_dup = []
         num_repeat_corpus_dup = []
         len_corpus_dup = []
+        
+        num_no_label_item = 0
 
         for j in save_idx:
             current_w_idx = w_ind_corpus[j]
             current_users = user_corpus[j]
             current_tags = tag_corpus[j]
+            if sum(current_users) == 0 and sum(current_tags) == 0:
+                num_no_label_item += 1
+                continue
             num_repeat = 0
             while( len(current_users) > 0 or len(current_tags) > 0):
                 w_ind_corpus_dup.append(current_w_idx)
@@ -166,6 +141,8 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
                 num_repeat += 1
             num_repeat_corpus_dup += [num_repeat] * num_repeat
         
+        print("Remove {} empty items with no label".format(num_no_label_item))
+
         return w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup, type_corpus_dup
     
     w_ind_corpus_dup, user_corpus_dup, tag_corpus_dup, num_repeat_corpus_dup, len_corpus_dup, type_corpus_dup = duplicate_for_long_targets(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, args.max_target_num)
@@ -225,16 +202,55 @@ def compose_dataset(output_dir, test_indicator, w_ind_corpus, type_corpus, user_
     squeeze_into_tensors(val_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_dir + "/val.pt")
     squeeze_into_tensors(test_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, output_dir + "/test.pt")
 
-cv_partition_idx_np = random_cv_partition(user_corpus, args.cv_fold_num)
 
-for k in range(args.cv_fold_num):
-    #test_indicator = (cv_partition_idx_np == k)
-    test_indicator = np.equal(cv_partition_idx_np, k).astype(int)
-    print(test_indicator[:10])
-    #print(cv_partition_idx_np[:10])
-    output_dir = args.save + '_' + str(k)
+corpus_input_name = args.data_feature + args.input_file_name
+corpus_user_name = args.data_user + args.input_file_name
+corpus_tag_name = args.data_tag + args.input_file_name
+
+#if max_ind >= 2147483648:
+#    print("Will cause overflow")
+#    sys.exit()
+
+
+with open(corpus_input_name) as f_in:
+    w_ind_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
+
+with open(corpus_user_name) as f_in:
+    user_corpus = load_w_ind(f_in, args.max_sent_num)
+
+with open(corpus_tag_name) as f_in:
+    tag_corpus = load_w_ind(f_in, args.max_sent_num)
+
+
+if len(args.data_type) > 0:
+    corpus_type_name = args.data_type + args.input_file_name
+    with open(corpus_type_name) as f_in:
+        type_corpus = load_w_ind(f_in, args.max_sent_num, args.max_sent_len)
+    assert len(w_ind_corpus) == len(type_corpus)
+else:
+    type_corpus = []
+
+assert len(w_ind_corpus) == len(user_corpus)
+assert len(w_ind_corpus) == len(tag_corpus)
+
+if args.cv_fold_num == 0:
+    all_idx = list(range(len(w_ind_corpus)))
+    np.random.shuffle(all_idx)
+    output_dir = os.path.dirname(args.save)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    compose_dataset(output_dir, test_indicator, w_ind_corpus, type_corpus, user_corpus, tag_corpus)
-    if args.only_first_fold:
-        break
+    squeeze_into_tensors(all_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, args.save)
+else:
+    cv_partition_idx_np = random_cv_partition(user_corpus, args.cv_fold_num)
+
+    for k in range(args.cv_fold_num):
+        #test_indicator = (cv_partition_idx_np == k)
+        test_indicator = np.equal(cv_partition_idx_np, k).astype(int)
+        print(test_indicator[:10])
+        #print(cv_partition_idx_np[:10])
+        output_dir = args.save + '_' + str(k)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        compose_dataset(output_dir, test_indicator, w_ind_corpus, type_corpus, user_corpus, tag_corpus)
+        if args.only_first_fold:
+            break

@@ -32,6 +32,8 @@ parser.add_argument('--training_file', type=str, default='train.pt',
                     help='location of training file')
 parser.add_argument('--save', type=str,  default='./models/citeulike-a',
                     help='path to save the final model')
+parser.add_argument('--target_embedding_suffix', type=str,  default='',
+                    help='append this name to user_emb and tag_emb files before .pt')
 
 #parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
 #parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d_filtered_wac_bookp1.txt',
@@ -187,6 +189,12 @@ parser.add_argument('--log-interval', type=int, default=200, metavar='N',
                     help='report interval')
 parser.add_argument('--continue_train', action='store_true',
                     help='continue train from a checkpoint')
+parser.add_argument('--loading_target_embedding', type=str2bool, nargs='?', default=True, 
+                    help='If continue_train is true, whether we want to load user and tag embeddings')
+parser.add_argument('--freeze_encoder_decoder', type=str2bool, nargs='?', default=False, 
+                    help='If True, only update target embeddings')
+parser.add_argument('--always_save_model', type=str2bool, nargs='?', default=False, 
+                    help='If True, ignore the validation loss and always save model')
 parser.add_argument('--start_training_split', type=int, default=0,
                     help='We want to split training corpus into how many subsets. Splitting training dataset seems to make pytorch run much faster and we can store and eval the model more frequently')
 
@@ -423,10 +431,11 @@ def initialize_weights(net, normal_std):
 if args.continue_train:
     encoder.load_state_dict(torch.load(os.path.join(args.save, 'encoder.pt')))
     decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
-    user_emb_load = torch.load(os.path.join(args.save, 'user_emb.pt'))
-    tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
-    user_emb = user_emb.new_tensor(user_emb_load)
-    tag_emb = tag_emb.new_tensor(tag_emb_load)
+    if args.loading_target_embedding:
+        user_emb_load = torch.load(os.path.join(args.save, 'user_emb.pt'))
+        tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
+        user_emb = user_emb.new_tensor(user_emb_load)
+        tag_emb = tag_emb.new_tensor(tag_emb_load)
 
 parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
@@ -518,8 +527,16 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
     #total_loss_coeff_pred = 0.
 
     
-    encoder.train()
-    decoder.train()
+    if args.freeze_encoder_decoder:
+        encoder.eval()
+        decoder.eval()
+       for p in encoder.parameters():
+           p.requires_grad = False
+       for p in decoder.parameters():
+           p.requires_grad = False
+    else:
+        encoder.train()
+        decoder.train()
     for i_batch, sample_batched in enumerate(dataloader_train):
         feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
         #print(target)
@@ -726,9 +743,17 @@ for epoch in range(1, args.epochs+1):
         else:
             val_loss_important = val_loss_set_tag + val_loss_set_neg_tag
             
-        if not best_val_loss or val_loss_important < best_val_loss:
+        if args.always_save_model or not best_val_loss or val_loss_important < best_val_loss:
             #save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, source_emb, target_emb, args.save)
-            save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, optimizer_t, user_emb, tag_emb, args.save)
+            if args.freeze_encoder_decoder:
+                save_model = False
+            else:
+                save_model = True
+            target_embedding_suffix = args.target_embedding_suffix
+            if args.always_save_model:
+                target_embedding_suffix += '_always'
+
+            save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, optimizer_t, user_emb, tag_emb, args.save, save_model = save_model, target_embedding_suffix = target_embedding_suffix)
             best_val_loss = val_loss_important
             logging('Models Saved')
         else:

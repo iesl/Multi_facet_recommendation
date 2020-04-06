@@ -39,6 +39,14 @@ class Dictionary(object):
         self.UNK_IND = UNK_IND
         self.EOS_IND = EOS_IND
         self.byte_mode = byte_mode
+    
+    def dict_check(self,w):
+        if w not in self.w_d2_ind:
+            w_ind = self.UNK_IND
+        else:
+            w_ind = self.w_d2_ind[w]
+        self.ind_l2_w_freq[w_ind][1] += 1
+        return w_ind
 
     def dict_check_add(self,w):
         if w not in self.w_d2_ind:
@@ -90,7 +98,6 @@ class Dictionary(object):
 
         self.ind_l2_w_freq[self.UNK_IND][1] = total_freq_filtering #update <unk> frequency
 
-
         print("{}/{} word types are filtered".format(vocab_size - current_new_idx, vocab_size) )
 
         return compact_mapping, total_freq_filtering
@@ -102,6 +109,19 @@ class Dictionary(object):
             self.ind_l2_w_freq[i][1] = str(self.ind_l2_w_freq[i][1])
             self.ind_l2_w_freq[i][2] = str(self.ind_l2_w_freq[i][2])
             f_out.write('\t'.join(self.ind_l2_w_freq[i])+'\n')
+    
+    def load_dict(self,f_in):
+        self.w_d2_ind = {}
+        self.ind_l2_w_freq = []
+        for i, line in enumerate(f_in):
+            fields = line.rstrip().split('\t')
+            if len(fields) == 3:
+                w_idx = int(fields[2])
+                self.w_d2_ind[fields[0]] = w_idx
+                assert w_idx == len(self.ind_l2_w_freq)
+                self.ind_l2_w_freq.append( [fields[0], int(fields[1]), w_idx])
+
+        
 
 def load_word_dict(f_in):
     d = {}
@@ -605,19 +625,20 @@ def create_exp_dir(path, scripts_to_save=None):
             dst_file = os.path.join(path, 'scripts', os.path.basename(script))
             shutil.copyfile(script, dst_file)
 
-def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, user_emb, tag_emb, path):
-    torch.save(encoder.state_dict(), os.path.join(path, 'encoder.pt'))
-    try:
-        torch.save(decoder.state_dict(), os.path.join(path, 'decoder.pt'))
-    except:
-        pass
+def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, user_emb, tag_emb, path, save_model = True, target_embedding_suffix = ''):
+    if save_model:
+        torch.save(encoder.state_dict(), os.path.join(path, 'encoder.pt'))
+        try:
+            torch.save(decoder.state_dict(), os.path.join(path, 'decoder.pt'))
+        except:
+            pass
+        torch.save(optimizer_e.state_dict(), os.path.join(path, 'optimizer_e.pt'))
+        torch.save(optimizer_d.state_dict(), os.path.join(path, 'optimizer_d.pt'))
+        torch.save(optimizer_t.state_dict(), os.path.join(path, 'optimizer_t.pt'))
     if user_emb.size(0) > 1:
-        torch.save(user_emb, os.path.join(path, 'user_emb.pt'))
+        torch.save(user_emb, os.path.join(path, 'user_emb'+target_embedding_suffix+'.pt'))
     if tag_emb.size(0) > 1:
-        torch.save(tag_emb, os.path.join(path, 'tag_emb.pt'))
-    torch.save(optimizer_e.state_dict(), os.path.join(path, 'optimizer_e.pt'))
-    torch.save(optimizer_d.state_dict(), os.path.join(path, 'optimizer_d.pt'))
-    torch.save(optimizer_t.state_dict(), os.path.join(path, 'optimizer_t.pt'))
+        torch.save(tag_emb, os.path.join(path, 'tag_emb'+target_embedding_suffix+'.pt'))
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
