@@ -34,6 +34,8 @@ parser.add_argument('--save', type=str,  default='./models/citeulike-a',
                     help='path to save the final model')
 parser.add_argument('--target_embedding_suffix', type=str,  default='',
                     help='append this name to user_emb and tag_emb files before .pt')
+parser.add_argument('--log_file_name', type=str,  default='log.txt',
+                    help='the log file will be at --save / --log_file_name')
 
 #parser.add_argument('--emb_file', type=str, default='./resources/Google-vec-neg300_filtered_wac_bookp1.txt',
 #parser.add_argument('--emb_file', type=str, default='./resources/glove.840B.300d_filtered_wac_bookp1.txt',
@@ -230,7 +232,7 @@ def logging(s, print_=True, log_=True):
         print(s)
         sys.stdout.flush()
     if log_:
-        with open(os.path.join(args.save, 'log.txt'), 'a+') as f_log:
+        with open(os.path.join(args.save, args.log_file_name), 'a+') as f_log:
             f_log.write(s + '\n')
 
 # Set the random seed manually for reproducibility.
@@ -530,10 +532,10 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
     if args.freeze_encoder_decoder:
         encoder.eval()
         decoder.eval()
-       for p in encoder.parameters():
-           p.requires_grad = False
-       for p in decoder.parameters():
-           p.requires_grad = False
+        for p in encoder.parameters():
+            p.requires_grad = False
+        for p in decoder.parameters():
+            p.requires_grad = False
     else:
         encoder.train()
         decoder.train()

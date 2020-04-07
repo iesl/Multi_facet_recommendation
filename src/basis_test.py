@@ -28,6 +28,7 @@ parser.add_argument('--testing_target', type=str, default='tag',
 parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
 
+
 ###system
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
@@ -44,10 +45,11 @@ utils_testing.add_model_arguments(parser)
 
 args = parser.parse_args()
 
-if args.tag_emb_file == "tag_emb.pt":
-    args.tag_emb_file =  os.path.join(args.checkpoint,"tag_emb.pt")
-if args.user_emb_file == "user_emb.pt":
-    args.user_emb_file =  os.path.join(args.checkpoint,"user_emb.pt")
+#if args.tag_emb_file == "tag_emb.pt":
+if args.tag_emb_file[:7] == "tag_emb":
+    args.tag_emb_file =  os.path.join(args.checkpoint,args.tag_emb_file)
+if args.user_emb_file[:8] == "user_emb":
+    args.user_emb_file =  os.path.join(args.checkpoint,args.user_emb_file)
 
 #if args.nhidlast2 < 0:
 #    args.nhidlast2 = args.emsize

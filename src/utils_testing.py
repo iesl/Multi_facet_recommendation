@@ -248,7 +248,7 @@ def print_rank(feature_text_j, user_text_j, tag_text_j, gt_rank_user_j, gt_rank_
         outf.write('\n\n\n')
 
 
-def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True):
+def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview'):
     def update_user_dict(user_batch_list, user_d2_paper_id, paper_id):
         for k in range(len(user_batch_list)):
             user_id = user_batch_list[k]
@@ -355,6 +355,21 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
                 div = uniq_tag_num / float(tag_num)
                 div_list[m].append(div)
         return [np.mean(div_list[m]) for m in range(len(div_list))]
+    
+    def inbalance_by_top_choice(paper_user_dist, reviewer_num_per_paper):
+        user_num = paper_user_dist.shape[1]
+        paper_num = paper_user_dist.shape[0]
+        paper_num_per_reviewer = math.ceil(reviewer_num_per_paper * paper_num / float(user_num))
+        avg_paper_count = paper_num_per_reviewer * user_num / float(paper_num)
+        paper_count_top_choice = np.zeros(paper_num)
+        for user_id in range(user_num):
+            paper_dist = paper_user_dist[:,user_id]
+            paper_dist_sorted = np.argsort(paper_dist)
+            for top_pred in paper_dist_sorted[:paper_num_per_reviewer]:
+                paper_count_top_choice[top_pred] += 1
+        var_avg = np.mean(np.abs(paper_count_top_choice - avg_paper_count))
+            
+        return var_avg, paper_num_per_reviewer
     
     def div_by_categories(paper_user_dist, paper_id_d2_categories, recall_at_th):
         def compute_div(cat_list, div_list, ent_list):
@@ -529,9 +544,9 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
 
             
-            if len(feature_type) > 0:
+            if div_eval=='amazon':
                 extract_category(feature, feature_type, paper_id_list, paper_id_d2_categories)
-            else:
+            elif div_eval=='citeulike':
                 extract_tag(paper_id_list, tag_batch_list, paper_id_d2_tags)
             
             all_dist_user, all_dist_tag = compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, device)
@@ -620,6 +635,11 @@ def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_nor
             print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
             recall_avg_user, recall_w_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
             print("Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, recall_w_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
+            if div_eval == 'openreview':
+                reviewer_num_per_paper = 4
+                var_avg, paper_num_per_reviewer = inbalance_by_top_choice(paper_user_dist, reviewer_num_per_paper)
+                print("When reviewer top {} papers, each paper has at least {} reviewers, average L1 dist from paper count to average paper count is {}".format(paper_num_per_reviewer, reviewer_num_per_paper, var_avg))
+                
             if len(paper_id_d2_categories) > 0:
                 div_avg, div_course_avg, ent_avg, ent_course_avg = div_by_categories(paper_user_dist, paper_id_d2_categories, div_th)
                 print("Diversification metric of user by category at {} is {}. Entropy is {}. Div of course layer is {}. Entorpy is {}".format(div_th_str, div_avg, ent_avg, div_course_avg, ent_course_avg))
