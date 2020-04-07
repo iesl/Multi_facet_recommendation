@@ -5,18 +5,38 @@ from spacy.lang.en import English
 
 nlp = English()
 
-paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
-assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
+paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
+expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
+assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/assignments/assignments.json"
+output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_submission_paper_data"
+
+#paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
+#expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
+#assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
+
+reviewer_d2_expertise = {}
+with open(expertise_file) as f_in:
+    all_expertise = json.load(f_in)
+    for reviewer_name in all_expertise:
+        keyword_list = []
+        if all_expertise[reviewer_name] is None:
+            reviewer_d2_expertise[reviewer_name] = []
+            continue
+        for fields in all_expertise[reviewer_name]:
+            keyword_list += fields["keywords"]
+        reviewer_d2_expertise[reviewer_name] = keyword_list
 
 paper_id_d2_reviewers = {}
 with open(assignment_file) as f_in:
     all_assignments = json.load(f_in)
     for reviewer_name in all_assignments:
+        expertise = reviewer_d2_expertise.get(reviewer_name,[])
+        reviewer_full_name = (reviewer_name + '|' + '+'.join(expertise)).replace(' ','_')
         for fields in all_assignments[reviewer_name]:
             paper_id = fields["head"]
             reviewers = paper_id_d2_reviewers.get(paper_id,[])
-            reviewers.append(reviewer_name)
+            reviewers.append(reviewer_full_name)
             paper_id_d2_reviewers[paper_id] = reviewers
 
 paper_id_d2_features_type_author_other = {}

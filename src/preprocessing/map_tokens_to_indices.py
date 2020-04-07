@@ -84,7 +84,9 @@ with my_open(args.data, 'r') as f_in:
             if args.update_dict:
                 w_ind = dict_c.dict_check_add(w)
             else:
-                w_ind = dict_c.dict_check(w)
+                w_ind = dict_c.dict_check(w, args.ignore_unk)
+                #if w_ind == 0:
+                #    print(w)
                 
             w_ind_list.append(w_ind)
             total_num_w += 1

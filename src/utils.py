@@ -40,9 +40,12 @@ class Dictionary(object):
         self.EOS_IND = EOS_IND
         self.byte_mode = byte_mode
     
-    def dict_check(self,w):
+    def dict_check(self,w, ignore_unk):
         if w not in self.w_d2_ind:
-            w_ind = self.UNK_IND
+            if ignore_unk:
+                w_ind = self.NULL_IND
+            else:
+                w_ind = self.UNK_IND
         else:
             w_ind = self.w_d2_ind[w]
         self.ind_l2_w_freq[w_ind][1] += 1
