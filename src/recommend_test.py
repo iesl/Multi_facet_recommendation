@@ -43,6 +43,8 @@ parser.add_argument('--most_popular_baseline', type=str2bool, nargs='?', default
                     help='Whether to test most popular baseline')
 parser.add_argument('--subsample_ratio', type=float, default=1,
                     help='ratio of subsampling the user or tag')
+parser.add_argument('--div_eval', type=str, default='openreview',
+                    help='Could be citeulike, amazon, and openreview')
 #parser.add_argument('--max_batch_num', type=int, default=100, 
 #                    help='number of batches for evaluation')
 
@@ -50,10 +52,12 @@ utils_testing.add_model_arguments(parser)
 
 args = parser.parse_args()
 
-if args.tag_emb_file == "tag_emb.pt":
-    args.tag_emb_file =  os.path.join(args.checkpoint,"tag_emb.pt")
-if args.user_emb_file == "user_emb.pt":
-    args.user_emb_file =  os.path.join(args.checkpoint,"user_emb.pt")
+#if args.tag_emb_file == "tag_emb.pt":
+if args.tag_emb_file[:7] == "tag_emb":
+    args.tag_emb_file =  os.path.join(args.checkpoint,args.tag_emb_file)
+#if args.user_emb_file == "user_emb.pt":
+if args.user_emb_file[:8] == "user_emb":
+    args.user_emb_file =  os.path.join(args.checkpoint,args.user_emb_file)
 
 #if args.nhidlast2 < 0:
 #    args.nhidlast2 = args.emsize
@@ -105,7 +109,7 @@ with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
     outf.write('Test Recommendation:\n\n')
-    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline)
+    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline, args.div_eval)
     #outf.write('Val Recommendation:\n\n')
     #utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device)
 
