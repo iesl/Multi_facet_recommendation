@@ -6,11 +6,15 @@ LOWERCASE=True
 #LOWERCASE=False
 LOWERCASE_TARGET=FALSE
 #INPUT_NAME=ICLR2020
-INPUT_NAME=UAI2019
+INPUT_NAME=ICLR2020_bid_low
+#INPUT_NAME=ICLR2020_bid_high
+#INPUT_NAME=UAI2019
+#INPUT_NAME=UAI2019_bid_low
+#INPUT_NAME=UAI2019_bid_high
 #echo $MIN_FREQ
 #INPUT_FILE_ALL="./data/raw/$INPUT_NAME/all_paper_data"
 INPUT_FILE_TRAIN_ALL="./data/raw/openreview/$INPUT_NAME/all_reviewer_paper_data"
-INPUT_FILE_TEST_ALL="./data/raw/openreview/$INPUT_NAME/all_submission_paper_data"
+INPUT_FILE_TEST_ALL="./data/raw/openreview/$INPUT_NAME/all_submission_bid_data"
 INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_uncased_min_5/feature/dictionary_index"
 INPUT_FILE="./data/raw/openreview/$INPUT_NAME/meta"
 INPUT_FILE_USER="./data/raw/openreview/$INPUT_NAME/user"
@@ -39,14 +43,14 @@ echo "convert words to indices"
 
 mkdir -p $OUTPUT_DIR_TYPE
 mkdir -p $OUTPUT_DIR_FEATURE
-#~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TRAIN_ALL -f ${INPUT_FILE}_train -y $OUTPUT_DIR_TYPE/corpus_index -u ${INPUT_FILE_USER}_train -t ${INPUT_FILE_TAG}_train
+~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TRAIN_ALL -f ${INPUT_FILE}_train -y $OUTPUT_DIR_TYPE/corpus_index -u ${INPUT_FILE_USER}_train -t ${INPUT_FILE_TAG}_train
 ~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TEST_ALL -f ${INPUT_FILE}_test -y $OUTPUT_DIR_TYPE/corpus_index_test -u ${INPUT_FILE_USER}_test -t ${INPUT_FILE_TAG}_test
 
 cp $INPUT_FEATURE_VOCAB_FILE $OUTPUT_DIR_FEATURE/dictionary_index
-#~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_train --save ${OUTPUT_DIR_FEATURE}/corpus_index --lowercase $LOWERCASE --eos True
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_train --save ${OUTPUT_DIR_FEATURE}/corpus_index --lowercase $LOWERCASE --eos True
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_test --save ${OUTPUT_DIR_FEATURE}/corpus_index_test --lowercase $LOWERCASE --eos True
 
-#~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_USER}_train --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_USER}_train --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_USER}/dictionary_index --update_dict False --data ${INPUT_FILE_USER}_test --save ${OUTPUT_DIR_USER}/corpus_index_test --lowercase $LOWERCASE_TARGET --ignore_unk True
 
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_TAG}_train --save $OUTPUT_DIR_TAG --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
@@ -59,7 +63,7 @@ echo "filter word embedding"
 #~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR_FEATURE/dictionary_index -e $CBOW_IN -o $CBOW_OUT
 
 echo "convert indices to tensor"
-#~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/train.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
+~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/train.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
 ~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index_test --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/val.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
 cp $OUTPUT_DIR/$TENSOR_FOLDER/val.pt $OUTPUT_DIR/$TENSOR_FOLDER/test.pt
 
