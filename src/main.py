@@ -366,10 +366,10 @@ if args.trans_nhid < 0:
 
 
 #w_freq = counter_to_tensor(idx2word_freq,device)
-user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
-tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
-#user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
-#tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
+#user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
+#tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
+user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
+tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq = counter_to_tensor(user_idx2word_freq, device, uniform=False)
 tag_freq = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq[:num_special_token] = 0 #When do the categorical sampling, do not include <null>, <eos> and <unk> (just gives 0 probability)

@@ -5,10 +5,13 @@ from spacy.lang.en import English
 
 nlp = English()
 
-paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
-expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data"
+paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/archives"
+expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
+output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data"
 
+#paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
+#expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data"
 
 reviewer_d2_expertise = {}
 with open(expertise_file) as f_in:
@@ -27,7 +30,7 @@ all_files = os.listdir(paper_dir)
 for file_name in all_files:
     author_name = file_name.replace('.jsonl','')
     expertise = reviewer_d2_expertise.get(author_name,[])
-    reviewer_full_name = author_name + '|' + '+'.join(expertise)
+    reviewer_full_name = (author_name + '|' + '+'.join(expertise)).replace(' ','_')
     with open( os.path.join(paper_dir, file_name) ) as f_in:
         for line in f_in:
             paper_data = json.loads(line)
