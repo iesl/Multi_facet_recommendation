@@ -984,6 +984,13 @@ def compute_freq_prob(word_d2_idx_freq):
         idx, freq = word_d2_idx_freq[w]
         word_d2_idx_freq[w].append(freq/freq_sum)
 
+def compute_freq_prob_idx2word(idx2word_freq):
+    all_word, all_freq= list( zip(*idx2word_freq) )
+    freq_sum = float(sum(all_freq))
+    for i, (w, freq) in enumerate(idx2word_freq):
+        idx2word_freq[i].append(freq/freq_sum)
+
+
 def safe_cosine_sim(emb_1, emb_2):
     dist = distance.cosine(emb_1, emb_2)
     if math.isnan(dist):

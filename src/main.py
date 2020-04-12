@@ -16,6 +16,7 @@ import random
 import model as model_code
 import nsd_loss
 from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file_to_dict, load_emb_file_to_tensor, load_corpus, output_parallel_models, str2bool
+from utils_testing import compute_freq_prob_idx2word
 from transformers import get_linear_schedule_with_warmup
 
 from scibert.modeling_bert import BertModel
@@ -127,6 +128,8 @@ parser.add_argument('--user_w', type=float, default=1,
                     help='Weights for user loss')
 parser.add_argument('--tag_w', type=float, default=0,
                     help='Weights for tag loss')
+parser.add_argument('--auto_w', type=float, default=0,
+                    help='Weights for autoencoder loss')
 parser.add_argument('--neg_sample_w', type=float, default=1,
                     help='Negative sampling weights')
 parser.add_argument('--rand_neg_method', type=str, default='paper_uniform',
@@ -252,14 +255,17 @@ idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, data
     load_corpus(args.data, args.batch_size, args.batch_size, device, args.tensor_folder, args.training_file, args.training_split_num, args.copy_training)
 
 
-def counter_to_tensor(idx2word_freq,device, uniform=True):
+def counter_to_tensor(idx2word_freq,device, uniform=True, smooth_alpha = 0):
     total = len(idx2word_freq)
     w_freq = torch.zeros(total, dtype=torch.float, device = device, requires_grad = False)
     for i in range(total):
         if uniform:
             w_freq[i] = 1
         else:
-            w_freq[i] = idx2word_freq[i][1]
+            if smooth_alpha == 0:
+                w_freq[i] = idx2word_freq[i][1]
+            else:
+                w_freq[i] = (smooth_alpha + idx2word_freq[i][2]) / smooth_alpha
         #w_freq[i] = math.sqrt(idx2word_freq[x][1])
     w_freq[0] = -1
     return w_freq
@@ -271,7 +277,8 @@ if len(args.source_emb_file) > 0:
     #with torch.no_grad():
     source_emb, source_emb_size, extra_init_idx = load_emb_file_to_tensor(args.source_emb_file, device, idx2word_freq)
     source_emb = source_emb / (0.000000000001 + source_emb.norm(dim = 1, keepdim=True))
-    source_emb.requires_grad = args.update_target_emb
+    source_emb.requires_grad = False
+    #source_emb.requires_grad = args.update_target_emb
     print("loading ", args.source_emb_file)
 #else:
     #if args.source_emb_source == 'ewe':
@@ -366,14 +373,24 @@ if args.trans_nhid < 0:
 
 
 #w_freq = counter_to_tensor(idx2word_freq,device)
-#user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
-#tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
-user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
-tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
+user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
+tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
+#user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
+#tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq = counter_to_tensor(user_idx2word_freq, device, uniform=False)
 tag_freq = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq[:num_special_token] = 0 #When do the categorical sampling, do not include <null>, <eos> and <unk> (just gives 0 probability)
 tag_freq[:num_special_token] = 0
+
+if args.auto_w > 0:
+    compute_freq_prob_idx2word(idx2word_freq)
+    feature_uniform = counter_to_tensor(idx2word_freq, device, uniform=False, smooth_alpha=1e-4)
+    feature_freq = counter_to_tensor(idx2word_freq, device, uniform=False)
+    feature_linear_layer = torch.randn(source_emb_size, target_emb_sz, device = device, requires_grad = True)
+else:
+    feature_linear_layer = torch.zeros(0)
+
+
 ########################
 print("Building models")
 ########################
@@ -396,6 +413,9 @@ else:
     #encoder = model_code.RNNModel_simple(args.en_model, ntokens, args.source_emsize, args.nhid, args.nlayers,
     encoder = model_code.SEQ2EMB(args.en_model.split('+'), ntokens, args.source_emsize, args.nhid, args.nlayers,
                                  args.dropout, args.dropouti, args.dropoute, max_sent_len, source_emb, extra_init_idx, args.encode_trans_layers, args.trans_nhid)
+
+if args.auto_w == 0:
+    del source_emb
 
 if args.nhidlast2 < 0:
     #args.nhidlast2 = source_emb_size
@@ -435,9 +455,15 @@ if args.continue_train:
     decoder.load_state_dict(torch.load(os.path.join(args.save, 'decoder.pt')))
     if args.loading_target_embedding:
         user_emb_load = torch.load(os.path.join(args.save, 'user_emb.pt'))
-        tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
         user_emb = user_emb.new_tensor(user_emb_load)
-        tag_emb = tag_emb.new_tensor(tag_emb_load)
+        if args.tag_w > 0:
+            tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
+            tag_emb = tag_emb.new_tensor(tag_emb_load)
+        if args.auto_w > 0:
+            auto_emb_load = torch.load(os.path.join(args.save, 'auto_emb.pt'))
+            auto_emb = auto_emb.new_tensor(auto_emb_load)
+            
+            
 
 parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
 
@@ -460,6 +486,8 @@ def evaluate(dataloader, current_coeff_opt):
     total_loss_set_neg_user = 0
     total_loss_set_tag = 0
     total_loss_set_neg_tag = 0
+    total_loss_set_auto = 0
+    total_loss_set_neg_auto = 0
     total_loss_set_reg = 0
     total_loss_set_div = 0
     total_loss_set_div_target_user = 0.
@@ -486,33 +514,45 @@ def evaluate(dataloader, current_coeff_opt):
             # Changed input emb to target
             #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, target_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo)
             if args.user_w > 0:
-                loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+                #loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+                loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(basis_pred, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
             else:
                 loss_set_user = torch.tensor(0)
                 loss_set_neg_user = torch.tensor(0)
                 loss_set_div_target_user = torch.tensor(0)
                 
             if args.tag_w > 0:
-                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
+                #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
+                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
             else:
                 loss_set_tag = torch.tensor(0)
                 loss_set_neg_tag = torch.tensor(0)
                 loss_set_div_target_tag = torch.tensor(0)
+            
+            if args.auto_w > 0:
+                feature_len = None 
+                loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+            else:
+                loss_set_auto = torch.tensor(0, device = device)
+                loss_set_neg_auto = torch.tensor(0, device = device)
+            
             #loss = loss_set + loss_set_neg + args.w_loss_coeff* loss_coeff_pred
-            loss = loss_set_user + args.neg_sample_w * loss_set_neg_user + args.tag_w * ( loss_set_tag + args.neg_sample_w * loss_set_neg_tag )
+            loss = loss_set_user + args.neg_sample_w * loss_set_neg_user + args.tag_w * ( loss_set_tag + args.neg_sample_w * loss_set_neg_tag ) + args.auto_w * ( loss_set_auto + args.neg_sample_w * loss_set_neg_auto )
             batch_size = feature.size(0)
             total_loss += loss * batch_size
             total_loss_set_user += loss_set_user * batch_size
             total_loss_set_neg_user += loss_set_neg_user * batch_size
             total_loss_set_tag += loss_set_tag * batch_size
             total_loss_set_neg_tag += loss_set_neg_tag * batch_size
+            total_loss_set_auto += loss_set_auto * batch_size
+            total_loss_set_neg_auto += loss_set_neg_auto * batch_size
             total_loss_set_reg += loss_set_reg * batch_size
             total_loss_set_div += loss_set_div * batch_size
             total_loss_set_div_target_user += loss_set_div_target_user * batch_size
             total_loss_set_div_target_tag += loss_set_div_target_tag * batch_size
             #total_loss_coeff_pred += loss_coeff_pred * batch_size
 
-    return total_loss.item() / len(dataloader.dataset), total_loss_set_user.item() / len(dataloader.dataset), total_loss_set_neg_user.item() / len(dataloader.dataset), total_loss_set_tag.item() / len(dataloader.dataset), total_loss_set_neg_tag.item() / len(dataloader.dataset), total_loss_set_reg.item() / len(dataloader.dataset), total_loss_set_div.item() / len(dataloader.dataset), total_loss_set_div_target_user.item() / len(dataloader.dataset), total_loss_set_div_target_tag.item() / len(dataloader.dataset)
+    return total_loss.item() / len(dataloader.dataset), total_loss_set_user.item() / len(dataloader.dataset), total_loss_set_neg_user.item() / len(dataloader.dataset), total_loss_set_tag.item() / len(dataloader.dataset), total_loss_set_neg_tag.item() / len(dataloader.dataset), total_loss_set_auto.item() / len(dataloader.dataset), total_loss_set_neg_auto.item() / len(dataloader.dataset), total_loss_set_reg.item() / len(dataloader.dataset), total_loss_set_div.item() / len(dataloader.dataset), total_loss_set_div_target_user.item() / len(dataloader.dataset), total_loss_set_div_target_tag.item() / len(dataloader.dataset)
 
 
 def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
@@ -522,6 +562,8 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
     total_loss_set_neg_user = 0.
     total_loss_set_tag = 0.
     total_loss_set_neg_tag = 0.
+    total_loss_set_auto = 0.
+    total_loss_set_neg_auto = 0.
     total_loss_set_reg = 0.
     total_loss_set_div = 0.
     total_loss_set_div_target_user = 0.
@@ -567,14 +609,19 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #print(input_emb.requires_grad)
         #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
         if args.user_w > 0:
-            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+            #loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(basis_pred, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+            if torch.isnan(loss_set_user):
+                sys.stdout.write('user nan, ')
+                continue
         else:
             loss_set_user = torch.tensor(0, device = device)
             loss_set_neg_user = torch.tensor(0, device = device)
             loss_set_div_target_user = torch.tensor(0, device = device)
             
         if args.tag_w > 0:
-            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
+            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
+            #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
             if torch.isnan(loss_set_tag):
                 sys.stdout.write('tag nan, ')
                 continue
@@ -582,13 +629,23 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             loss_set_tag = torch.tensor(0, device = device)
             loss_set_neg_tag = torch.tensor(0, device = device)
             loss_set_div_target_tag = torch.tensor(0, device = device)
-        if torch.isnan(loss_set_user):
-            sys.stdout.write('user nan, ')
-            continue
+        
+        if args.auto_w > 0:
+            feature_len = None 
+            loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+            if torch.isnan(loss_set_auto):
+                sys.stdout.write('auto nan, ')
+                continue
+        else:
+            loss_set_auto = torch.tensor(0, device = device)
+            loss_set_neg_auto = torch.tensor(0, device = device)
+        
         total_loss_set_user += loss_set_user.item() * args.small_batch_size / args.batch_size
         total_loss_set_neg_user += loss_set_neg_user.item() * args.small_batch_size / args.batch_size
         total_loss_set_tag += loss_set_tag.item() * args.small_batch_size / args.batch_size
         total_loss_set_neg_tag += loss_set_neg_tag.item() * args.small_batch_size / args.batch_size
+        total_loss_set_auto += loss_set_auto.item() * args.small_batch_size / args.batch_size
+        total_loss_set_neg_auto += loss_set_neg_auto.item() * args.small_batch_size / args.batch_size
 
         total_loss_set_reg += loss_set_reg.item() * args.small_batch_size / args.batch_size
         total_loss_set_div += loss_set_div.item() * args.small_batch_size / args.batch_size
@@ -605,9 +662,11 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #loss = loss_set + args.w_loss_coeff* loss_coeff_pred
         loss = args.user_w * loss_set_user 
         loss += args.tag_w * loss_set_tag 
+        loss += args.auto_w * loss_set_auto
         if args.loss_type == 'sim':
             loss += args.user_w * args.neg_sample_w * loss_set_neg_user
             loss += args.tag_w * args.neg_sample_w * loss_set_neg_tag
+            loss += args.auto_w * args.neg_sample_w * loss_set_neg_auto
         else:
             if -loss_set_neg_user > 1:
                 loss -= args.user_w * args.neg_sample_w * loss_set_neg_user
@@ -617,6 +676,10 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
                 loss -= args.tag_w * args.neg_sample_w * loss_set_neg_tag
             else:
                 loss += args.tag_w * args.neg_sample_w * loss_set_neg_tag
+            if -loss_set_neg_auto > 1:
+                loss -= args.auto_w * args.neg_sample_w * loss_set_neg_auto
+            else:
+                loss += args.auto_w * args.neg_sample_w * loss_set_neg_auto
         
         #loss += 0.01 * (loss_set_div_target_user + loss_set_div_target_tag)
 
@@ -667,6 +730,8 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             cur_loss_set_neg_user = total_loss_set_neg_user / args.log_interval
             cur_loss_set_tag = total_loss_set_tag / args.log_interval
             cur_loss_set_neg_tag = total_loss_set_neg_tag / args.log_interval
+            cur_loss_set_auto = total_loss_set_auto / args.log_interval
+            cur_loss_set_neg_auto = total_loss_set_neg_auto / args.log_interval
             cur_loss_set_reg = total_loss_set_reg / args.log_interval
             cur_loss_set_div = total_loss_set_div / args.log_interval
             cur_loss_set_div_target_user = total_loss_set_div_target_user / args.log_interval
@@ -674,9 +739,9 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             #cur_loss_coeff_pred = total_loss_coeff_pred / args.log_interval
             elapsed = time.time() - start_time
             logging('| e {:3d} {:3d} | {:5d}/{:5d} b | lr-enc {:.6f} | ms/batch {:5.2f} | '
-                    'l {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | div_u {:5.2f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | div_t {:5.2f} | reg {:5.2f} | div {:5.2f} '.format(
+                    'l {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | div_u {:5.2f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | div_t {:5.2f} | l_f_a {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} '.format(
                 epoch, split_i, i_batch, len(dataloader_train.dataset) // args.batch_size, optimizer_e.param_groups[0]['lr'],
-                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set_user, args.neg_sample_w, cur_loss_set_neg_user, cur_loss_set_user + args.neg_sample_w * cur_loss_set_neg_user, cur_loss_set_div_target_user, cur_loss_set_tag, args.neg_sample_w, cur_loss_set_neg_tag, cur_loss_set_tag + args.neg_sample_w * cur_loss_set_neg_tag, cur_loss_set_div_target_tag, cur_loss_set_reg, cur_loss_set_div))
+                elapsed * 1000 / args.log_interval, cur_loss, cur_loss_set_user, args.neg_sample_w, cur_loss_set_neg_user, cur_loss_set_user + args.neg_sample_w * cur_loss_set_neg_user, cur_loss_set_div_target_user, cur_loss_set_tag, args.neg_sample_w, cur_loss_set_neg_tag, cur_loss_set_tag + args.neg_sample_w * cur_loss_set_neg_tag, cur_loss_set_div_target_tag, cur_loss_set_auto, args.neg_sample_w, cur_loss_set_neg_auto, cur_loss_set_auto + args.neg_sample_w * cur_loss_set_neg_auto, cur_loss_set_reg, cur_loss_set_div))
             #if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set + cur_loss_set_neg < -0.02:
             if args.coeff_opt == 'maxlc' and current_coeff_opt == 'max' and cur_loss_set_user + cur_loss_set_neg_user < -0.02:
                 current_coeff_opt = 'lc'
@@ -686,6 +751,8 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             total_loss_set_neg_user = 0.
             total_loss_set_tag = 0.
             total_loss_set_neg_tag = 0.
+            total_loss_set_auto = 0.
+            total_loss_set_neg_auto = 0.
             total_loss_set_reg = 0.
             total_loss_set_div = 0.
             total_loss_set_div_target_tag = 0.
@@ -698,17 +765,17 @@ if args.optimizer == 'SGD':
     optimizer_e = torch.optim.SGD(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.SGD(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.SGD([user_emb, tag_emb], lr=args.lr_target)
+    optimizer_t = torch.optim.SGD([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
 elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
     optimizer_d = torch.optim.AdamW(decoder.parameters(), lr=args.lr/args.lr2_divide)
-    optimizer_t = torch.optim.AdamW([user_emb, tag_emb], lr=args.lr_target)
+    optimizer_t = torch.optim.AdamW([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
     num_training_steps = sum([len(train_split) for train_split in dataloader_train_arr]) * args.epochs
     num_warmup_steps = args.warmup_proportion * num_training_steps
     print("Warmup steps:{}, Total steps:{}".format(num_warmup_steps, num_training_steps))
@@ -735,10 +802,10 @@ for epoch in range(1, args.epochs+1):
             continue
 
         if dataloader_val is not None:
-            val_loss_all, val_loss_set_user, val_loss_set_neg_user, val_loss_set_tag, val_loss_set_neg_tag, val_loss_set_reg, val_loss_set_div, val_loss_set_div_target_user, val_loss_set_div_target_tag = evaluate(dataloader_val, current_coeff_opt)
+            val_loss_all, val_loss_set_user, val_loss_set_neg_user, val_loss_set_tag, val_loss_set_neg_tag, val_loss_set_auto, val_loss_set_neg_auto, val_loss_set_reg, val_loss_set_div, val_loss_set_div_target_user, val_loss_set_div_target_tag = evaluate(dataloader_val, current_coeff_opt)
             logging('-' * 89)
-            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | div_u {:5.2f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | div_t {:5.2f} | reg {:5.2f} | div {:5.2f} | '
-                    .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, args.neg_sample_w, val_loss_set_neg_user, val_loss_set_user + args.neg_sample_w * val_loss_set_neg_user, val_loss_set_div_target_user, val_loss_set_tag, args.neg_sample_w, val_loss_set_neg_tag, val_loss_set_tag + args.neg_sample_w*val_loss_set_neg_tag, val_loss_set_div_target_tag, val_loss_set_reg, val_loss_set_div))
+            logging('| end of epoch {:3d} split {:3d} | time: {:5.2f}s | lr {:.6f} | valid loss {:5.2f} | l_f_u {:5.5f} + {:2.2f}*{:5.5f} = {:5.5f} | div_u {:5.2f} | l_f_t {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | div_t {:5.2f} | l_f_a {:5.4f} + {:2.2f}*{:5.4f} = {:5.4f} | reg {:5.2f} | div {:5.2f} | '
+                    .format(epoch, i, (time.time() - epoch_start_time), lr, val_loss_all, val_loss_set_user, args.neg_sample_w, val_loss_set_neg_user, val_loss_set_user + args.neg_sample_w * val_loss_set_neg_user, val_loss_set_div_target_user, val_loss_set_tag, args.neg_sample_w, val_loss_set_neg_tag, val_loss_set_tag + args.neg_sample_w*val_loss_set_neg_tag, val_loss_set_div_target_tag, val_loss_set_auto, args.neg_sample_w, val_loss_set_neg_auto, val_loss_set_auto + args.neg_sample_w*val_loss_set_neg_auto, val_loss_set_reg, val_loss_set_div))
             logging('-' * 89)
         if args.user_w >= args.tag_w:
             val_loss_important = val_loss_set_user + val_loss_set_neg_user
@@ -755,7 +822,7 @@ for epoch in range(1, args.epochs+1):
             if args.always_save_model:
                 target_embedding_suffix += '_always'
 
-            save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, optimizer_t, user_emb, tag_emb, args.save, save_model = save_model, target_embedding_suffix = target_embedding_suffix)
+            save_checkpoint(encoder, decoder, optimizer_e, optimizer_d, optimizer_t, user_emb, tag_emb, feature_linear_layer, args.save, save_model = save_model, target_embedding_suffix = target_embedding_suffix)
             best_val_loss = val_loss_important
             logging('Models Saved')
         else:

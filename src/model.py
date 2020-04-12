@@ -168,7 +168,7 @@ class EMB2SEQ(nn.Module):
         self.out_linear = nn.Linear(self.dep_learner.output_dim, target_emb_sz)
         #self.out_linear_arr = nn.ModuleList( [ nn.Linear(self.dep_learner.output_dim, target_emb_sz) for i in range(n_basis) ] )
         #self.final = nn.Linear(target_emb_sz, target_emb_sz)
-        self.final_linear_arr = nn.ModuleList([nn.Linear(target_emb_sz, target_emb_sz) for i in range(n_basis)])
+        #self.final_linear_arr = nn.ModuleList([nn.Linear(target_emb_sz, target_emb_sz) for i in range(n_basis)])
         
         self.coeff_model = coeff_model
         if coeff_model == "LSTM":
@@ -213,9 +213,9 @@ class EMB2SEQ(nn.Module):
         #for i in range(len(self.out_linear_arr)):
         #    self.out_linear_arr[i].bias.data.zero_()
         #    self.out_linear_arr[i].weight.data.uniform_(-initrange, initrange)
-        for i in range(len(self.final_linear_arr)):
-            self.final_linear_arr[i].bias.data.zero_()
-            self.final_linear_arr[i].weight.data.uniform_(-initrange, initrange)
+        #for i in range(len(self.final_linear_arr)):
+        #    self.final_linear_arr[i].bias.data.zero_()
+        #    self.final_linear_arr[i].weight.data.uniform_(-initrange, initrange)
         #self.final.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, input_init, memory = None, predict_coeff_sum = False):
@@ -263,7 +263,7 @@ class EMB2SEQ(nn.Module):
         output = self.out_linear(output)
         #output = torch.cat( [self.out_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = self.final(output)
-        output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
+        #output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
         if self.coeff_model == "TRANS":
             coeff_input= torch.cat( (emb, output), dim = 2)

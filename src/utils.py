@@ -628,7 +628,7 @@ def create_exp_dir(path, scripts_to_save=None):
             dst_file = os.path.join(path, 'scripts', os.path.basename(script))
             shutil.copyfile(script, dst_file)
 
-def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, user_emb, tag_emb, path, save_model = True, target_embedding_suffix = ''):
+def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, user_emb, tag_emb, feature_linear_layer, path, save_model = True, target_embedding_suffix = ''):
     if save_model:
         torch.save(encoder.state_dict(), os.path.join(path, 'encoder.pt'))
         try:
@@ -642,6 +642,8 @@ def save_checkpoint(encoder, decoder, optimizer_e,  optimizer_d, optimizer_t, us
         torch.save(user_emb, os.path.join(path, 'user_emb'+target_embedding_suffix+'.pt'))
     if tag_emb.size(0) > 1:
         torch.save(tag_emb, os.path.join(path, 'tag_emb'+target_embedding_suffix+'.pt'))
+    if feature_linear_layer.size(0) > 1:
+        torch.save(feature_linear_layer, os.path.join(path, 'feature_linear_layer'+target_embedding_suffix+'.pt'))
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
