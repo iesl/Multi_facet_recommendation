@@ -121,7 +121,7 @@ class ext_emb_to_seq(nn.Module):
 class EMB2SEQ(nn.Module):
 
     #def __init__(self, model_type_list, ninp, nhid, outd, nlayers, n_basis, linear_mapping_dim, dropoutp= 0.5, trans_layers=2, using_memory = False):
-    def __init__(self, model_type_list, coeff_model, ninp, nhid, target_emb_sz, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False, dropout_prob_trans = 0.1,dropout_prob_lstm=0):
+    def __init__(self, model_type_list, coeff_model, ninp, nhid, target_emb_sz, nlayers, n_basis, positional_option, dropoutp= 0.5, trans_layers=2, using_memory = False, dropout_prob_trans = 0.1,dropout_prob_lstm=0, de_output_layers='no_dynamic'):
         #super(RNNModel_decoder, self).__init__()
         super(EMB2SEQ, self).__init__()
         self.drop = nn.Dropout(dropoutp)
@@ -164,11 +164,14 @@ class EMB2SEQ(nn.Module):
         
         self.trans_dim = self.dep_learner.trans_dim
 
+        if de_output_layers == 'no_dynamic' or de_output_layers == 'double_dynamic':
         #self.out_linear = nn.Linear(nhid, outd, bias=False)
-        #self.out_linear = nn.Linear(self.dep_learner.output_dim, target_emb_sz)
-        self.out_linear_arr = nn.ModuleList( [ nn.Linear(self.dep_learner.output_dim, target_emb_sz) for i in range(n_basis) ] )
+            self.out_linear = nn.Linear(self.dep_learner.output_dim, target_emb_sz)
+        if de_output_layers == 'single_dynamic':
+            self.out_linear_arr = nn.ModuleList( [ nn.Linear(self.dep_learner.output_dim, target_emb_sz) for i in range(n_basis) ] )
         #self.final = nn.Linear(target_emb_sz, target_emb_sz)
-        #self.final_linear_arr = nn.ModuleList([nn.Linear(target_emb_sz, target_emb_sz) for i in range(n_basis)])
+        if de_output_layers == 'double_dynamic':
+            self.final_linear_arr = nn.ModuleList([nn.Linear(target_emb_sz, target_emb_sz) for i in range(n_basis)])
         
         self.coeff_model = coeff_model
         if coeff_model == "LSTM":
@@ -208,14 +211,17 @@ class EMB2SEQ(nn.Module):
     def init_weights(self):
         #necessary?
         initrange = 0.1
-        #self.out_linear.bias.data.zero_()
-        #self.out_linear.weight.data.uniform_(-initrange, initrange)
-        for i in range(len(self.out_linear_arr)):
-            self.out_linear_arr[i].bias.data.zero_()
-            self.out_linear_arr[i].weight.data.uniform_(-initrange, initrange)
-        #for i in range(len(self.final_linear_arr)):
-        #    self.final_linear_arr[i].bias.data.zero_()
-        #    self.final_linear_arr[i].weight.data.uniform_(-initrange, initrange)
+        if hasattr(self, 'out_linear'):
+            self.out_linear.bias.data.zero_()
+            self.out_linear.weight.data.uniform_(-initrange, initrange)
+        elif hasattr(self, 'out_linear_arr'):
+            for i in range(len(self.out_linear_arr)):
+                self.out_linear_arr[i].bias.data.zero_()
+                self.out_linear_arr[i].weight.data.uniform_(-initrange, initrange)
+        if hasattr(self, 'final_linear_arr'):
+            for i in range(len(self.final_linear_arr)):
+                self.final_linear_arr[i].bias.data.zero_()
+                self.final_linear_arr[i].weight.data.uniform_(-initrange, initrange)
         #self.final.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, input_init, memory = None, predict_coeff_sum = False):
@@ -260,10 +266,13 @@ class EMB2SEQ(nn.Module):
         #output = self.out_linear(self.relu_layer(output))
         #output = self.layernorm(output.permute(1,0,2)).permute(1,0,2)
         #output /= self.outd_sqrt
-        #output = self.out_linear(output)
-        output = torch.cat( [self.out_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
+        if hasattr(self, 'out_linear'):
+            output = self.out_linear(output)
+        elif hasattr(self, 'out_linear_arr'):
+            output = torch.cat( [self.out_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = self.final(output)
-        #output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
+        if hasattr(self, 'final_linear_arr'):
+            output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
         if self.coeff_model == "TRANS":
             coeff_input= torch.cat( (emb, output), dim = 2)

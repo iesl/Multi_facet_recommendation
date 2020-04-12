@@ -572,7 +572,7 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
         args.nhidlast2 = encoder.output_dim
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_2
     #decoder = model_code.EMB2SEQ(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layer = args.trans_layer) #model_old_3, model_old_4
-    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, target_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm) #model_old_5
+    decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, target_emb_size, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory = args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm, de_output_layers = args.de_output_layers) #model_old_5
     #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5) #model_old_1
     #if use_position_emb:
     #    decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, output_emb_size, 1, args.n_basis, linear_mapping_dim = 0, dropoutp= 0.5)

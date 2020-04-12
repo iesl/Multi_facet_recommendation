@@ -51,6 +51,8 @@ def add_model_arguments(parser):
     #parser.add_argument('--de_coeff_model', type=str, default='LSTM',
     parser.add_argument('--de_coeff_model', type=str, default='TRANS',
                     help='type of decoder model to predict coefficients (LSTM, TRANS)')
+    parser.add_argument('--de_output_layers', type=str, default='no_dynamic',
+                    help='could be no_dynamic, single dynamic, double dynamic')
     parser.add_argument('--trans_layers', type=int, default=3,
                         help='How many layers we have in transformer. Do not have effect if de_model is LSTM')
     parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True,
