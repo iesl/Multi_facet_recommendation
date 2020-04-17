@@ -103,6 +103,8 @@ parser.add_argument('--de_model', type=str, default='TRANS',
                     help='type of decoder model (LSTM, LSTM+TRANS, TRANS+LSTM, TRANS)')
 parser.add_argument('--de_coeff_model', type=str, default='TRANS',
                     help='type of decoder model to predict coefficients (LSTM, TRANS)')
+parser.add_argument('--de_output_layers', type=str, default='no_dynamic',
+                    help='could be no_dynamic, single dynamic, double dynamic')
 parser.add_argument('--n_basis', type=int, default=5,
                     help='number of basis we want to predict')
 #parser.add_argument('--linear_mapping_dim', type=int, default=0,
@@ -111,6 +113,7 @@ parser.add_argument('--positional_option', type=str, default='linear',
                     help='options of encode positional embedding into models (linear, cat, add)')
 parser.add_argument('--dropoutp', type=float, default=0.3,
                     help='dropout of positional embedding or input embedding after linear transformation (when linear_mapping_dim != 0)')
+
 #LSTM only
 parser.add_argument('--nhidlast2', type=int, default=-1,
                     help='hidden embedding size of the second LSTM')
@@ -123,6 +126,7 @@ parser.add_argument('--de_en_connection', type=str2bool, nargs='?', default=True
                     help='If True, using Transformer decoder in our decoder. Otherwise, using Transformer encoder')
 parser.add_argument('--dropout_prob_trans', type=float, default=0.3,
                     help='hidden_dropout_prob and attention_probs_dropout_prob in Transformer')
+
 #coeff
 parser.add_argument('--user_w', type=float, default=1,
                     help='Weights for user loss')
@@ -132,7 +136,7 @@ parser.add_argument('--auto_w', type=float, default=0,
                     help='Weights for autoencoder loss')
 parser.add_argument('--neg_sample_w', type=float, default=1,
                     help='Negative sampling weights')
-parser.add_argument('--rand_neg_method', type=str, default='paper_uniform',
+parser.add_argument('--rand_neg_method', type=str, default='shuffle',
                     help='Negative sampling method. Could be paper_uniform, uniform, shuffle, and rotate')
 parser.add_argument('--w_loss_coeff', type=float, default=0.1,
                     help='weights for coefficient prediction loss')
@@ -145,6 +149,8 @@ parser.add_argument('--loss_type', type=str, default='sim',
                     help='Could be sim or dist')
 parser.add_argument('--target_norm', type=str2bool, nargs='?', default=True,
                     help='Whether target embedding is normalized')
+parser.add_argument('--inv_freq_w', type=str2bool, nargs='?', default=False,
+                    help='Whether emphasize the rare users')
 parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
 #parser.add_argument('--coeff_opt_algo', type=str, default='sgd_bmm',
                     help='Could be sgd_bmm, sgd, asgd, adagrad, rmsprop, and adam')
@@ -373,10 +379,12 @@ if args.trans_nhid < 0:
 
 
 #w_freq = counter_to_tensor(idx2word_freq,device)
-user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
-tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
-#user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
-#tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
+if not args.inv_freq_w:
+    user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=True)
+    tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=True)
+else:
+    user_uniform = counter_to_tensor(user_idx2word_freq, device, uniform=False)
+    tag_uniform = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq = counter_to_tensor(user_idx2word_freq, device, uniform=False)
 tag_freq = counter_to_tensor(tag_idx2word_freq, device, uniform=False)
 user_freq[:num_special_token] = 0 #When do the categorical sampling, do not include <null>, <eos> and <unk> (just gives 0 probability)
@@ -424,7 +432,7 @@ if args.nhidlast2 < 0:
 #    args.linear_mapping_dim = encoder.output_dim
 
 #decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, source_emb_size, target_emb_sz, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm)
-decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, target_emb_sz, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm)
+decoder = model_code.EMB2SEQ(args.de_model.split('+'), args.de_coeff_model, encoder.output_dim, args.nhidlast2, target_emb_sz, 1, args.n_basis, positional_option = args.positional_option, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection, dropout_prob_trans = args.dropout_prob_trans, dropout_prob_lstm=args.dropout_prob_lstm, de_output_layers = args.de_output_layers)
 #decoder = model_code.EMB2SEQ(args.de_model.split('+'), encoder.output_dim, args.nhidlast2, source_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= args.dropoutp, trans_layers = args.trans_layers, using_memory =  args.de_en_connection)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, source_emb_size, 1, args.n_basis, linear_mapping_dim = args.linear_mapping_dim, dropoutp= 0.5)
 #decoder = model_code.RNNModel_decoder(args.de_model, args.nhid * 2, args.nhidlast2, source_emb_size, 1, args.n_basis, linear_mapping_dim = args.nhid, dropoutp= 0.5)
@@ -770,7 +778,7 @@ elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target) #, weight_decay=0.01)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
