@@ -149,6 +149,8 @@ parser.add_argument('--loss_type', type=str, default='sim',
                     help='Could be sim or dist')
 parser.add_argument('--target_norm', type=str2bool, nargs='?', default=True,
                     help='Whether target embedding is normalized')
+parser.add_argument('--target_l2', type=float, default=0,
+                    help='L2 norm on target embeddings')
 parser.add_argument('--inv_freq_w', type=str2bool, nargs='?', default=False,
                     help='Whether emphasize the rare users')
 parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
@@ -778,7 +780,8 @@ elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
+    #optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)

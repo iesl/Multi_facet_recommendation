@@ -1,12 +1,24 @@
 import numpy as np
 import os
 import json
-from spacy.lang.en import English
 
-nlp = English()
+#tokenizer_mode = 'scapy'
+tokenizer_mode = 'scibert'
 
-user_tag_source = 'bid'
-#user_tag_source = 'assignment'
+if tokenizer_mode == 'scapy':
+    from spacy.lang.en import English
+    nlp = English()
+elif tokenizer_mode == 'scibert':
+    import pysbd #scibert uses scispacy and scispacy uses pysbd (https://github.com/allenai/scispacy/blob/master/scispacy/custom_sentence_segmenter.py)
+    import sys
+    sys.path.insert(0, sys.path[0]+'/../..')
+    from scibert.tokenization_bert import BertTokenizer
+    model_name = 'scibert-scivocab-uncased'
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    seg = pysbd.Segmenter(language="en", clean=False)
+
+#user_tag_source = 'bid'
+user_tag_source = 'assignment'
 
 #paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
 #expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
@@ -18,11 +30,12 @@ user_tag_source = 'bid'
 
 paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
 expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
-bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
-#assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
+#bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
+assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
+output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
 
 reviewer_d2_expertise = {}
 with open(expertise_file) as f_in:
@@ -85,10 +98,19 @@ for file_name in all_files:
         author_list = paper_data['content']["authors"]
         author_id_list = paper_data['content']["authorids"]
         author_full_str = ','.join(['|'.join(x) for x in zip(author_list, author_id_list)]).replace(' ','_')
-        w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+        if tokenizer_mode == 'scapy':
+            w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+        elif tokenizer_mode == 'scibert':
+            w_list_title = tokenizer.tokenize('[CLS] ' + title + ' [SEP]')
         w_list_title = ' '.join(w_list_title).split()
         if abstract is not None:
-            w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+            if tokenizer_mode == 'scapy':
+                w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+            elif tokenizer_mode == 'scibert':
+                w_list_abstract = []
+                for sent in seg.segment(abstract):
+                    w_list_abstract += tokenizer.tokenize('[CLS] ' + sent + ' [SEP]')
+                #print(seg.segment(text))
             w_list_abstract = ' '.join(w_list_abstract).split()
         else:
             w_list_abstract = []

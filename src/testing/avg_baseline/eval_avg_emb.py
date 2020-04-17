@@ -7,12 +7,12 @@ import numpy as np
 
 #input_dict_path = "./data/processed/UAI2019_bid_high_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_bid_high_gorc_uncased/user/dictionary_index"
-input_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
-user_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/UAI2019_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_gorc_uncased/user/dictionary_index"
-#input_dict_path = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
-#user_dict_path = "./data/processed/ICLR2020_gorc_uncased/user/dictionary_index"
+input_dict_path = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
+user_dict_path = "./data/processed/ICLR2020_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2020_bid_high_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2020_bid_high_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2020_bid_low_gorc_uncased/feature/dictionary_index"
@@ -20,14 +20,14 @@ user_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/user/dictionary_
 
 #submission_data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-submission_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
+#submission_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/UAI2019_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-#submission_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
-#submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+submission_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
+submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/ICLR2020_bid_high_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/ICLR2020_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -37,35 +37,43 @@ submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cb
 
 #reviewer_data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_bid_high_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-reviewer_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/train.pt'
+#reviewer_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_bid_low_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-reviewer_emb_file = './gen_log/UAI2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-#reviewer_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/UAI2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+reviewer_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
 #reviewer_data_file = './data/processed/ICLR2020_bid_high_gorc_uncased/tensors_cold/train.pt'
 #reviewer_data_file = './data/processed/ICLR2020_bid_low_gorc_uncased/tensors_cold/train.pt'
-#reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
-#out_f_path = './gen_log/UAI2019_bid_high_avg_cbow_freq_4_baseline'
-#out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_freq_4_baseline'
-out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_uni_baseline'
-#out_f_path = './gen_log/UAI2019_bid_low_max_cbow_uni_baseline'
-#out_f_path = './gen_log/UAI2019_avg_cbow_freq_4_baseline'
-#out_f_path = './gen_log/UAI2019_avg_cbow_uni_baseline'
-#out_f_path = './gen_log/UAI2019_max_cbow_uni_baseline'
-#out_f_path = './gen_log/ICLR2020_avg_cbow_freq_4_baseline'
-#out_f_path = './gen_log/ICLR2020_avg_cbow_uni_baseline'
-#out_f_path = './gen_log/ICLR2020_max_cbow_uni_baseline'
-#out_f_path = './gen_log/ICLR2020_bid_low_avg_cbow_freq_4_baseline'
-#out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_freq_4_baseline'
-#out_f_path = './gen_log/ICLR2020_bid_low_avg_cbow_uni_baseline'
-#out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_uni_baseline'
+mode = 'save_dist'
+#mode = 'run_eval'
+
+if mode == 'save_dist':
+    #out_dist_path = './gen_log/UAI2019_avg_cbow_freq_4_dist.np'
+    out_dist_path = './gen_log/ICLR2020_max_cbow_freq_4_dist.np'
+elif mode == 'run_eval':
+    #out_f_path = './gen_log/UAI2019_bid_high_avg_cbow_freq_4_baseline'
+    #out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_freq_4_baseline'
+    #out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_uni_baseline'
+    #out_f_path = './gen_log/UAI2019_bid_low_max_cbow_uni_baseline'
+    #out_f_path = './gen_log/UAI2019_avg_cbow_freq_4_baseline'
+    out_f_path = './gen_log/temp'
+    #out_f_path = './gen_log/UAI2019_avg_cbow_uni_baseline'
+    #out_f_path = './gen_log/UAI2019_max_cbow_uni_baseline'
+    #out_f_path = './gen_log/ICLR2020_avg_cbow_freq_4_baseline'
+    #out_f_path = './gen_log/ICLR2020_avg_cbow_uni_baseline'
+    #out_f_path = './gen_log/ICLR2020_max_cbow_uni_baseline'
+    #out_f_path = './gen_log/ICLR2020_bid_low_avg_cbow_freq_4_baseline'
+    #out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_freq_4_baseline'
+    #out_f_path = './gen_log/ICLR2020_bid_low_avg_cbow_uni_baseline'
+    #out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_uni_baseline'
 
 #dist_option = 'emb_avg'
-dist_option = 'sim_avg'
-#dist_option = 'sim_max'
+#dist_option = 'sim_avg'
+dist_option = 'sim_max'
 
 device = torch.device('cpu')
 
@@ -141,12 +149,17 @@ with torch.no_grad():
                 #paper_user_dist[:,j] = train_paper_dist_j.min(dim = 1)
                 #torch.min(train_paper_dist_j, dim = 1)
                 paper_user_dist[:,j] = torch.min(train_paper_dist_j, dim = 1)[0]
-        
-    test_user = True
-    test_tag = False
-    most_popular_baseline = False
-    div_eval = 'openreview'
-    tag_idx2word_freq = []
-    paper_tag_dist = []
-    with open(out_f_path, 'w') as outf:
-        utils_testing.recommend_test_from_all_dist(dataloader_test_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)
+    
+    if mode == 'save_dist':
+        np.savetxt(out_dist_path, paper_user_dist)
+        #with open(out_dist_path, 'w') as outf:
+        #    pickle.dump( paper_user_dist, outf)
+    elif mode == 'run_eval':
+        test_user = True
+        test_tag = False
+        most_popular_baseline = False
+        div_eval = 'openreview'
+        tag_idx2word_freq = []
+        paper_tag_dist = []
+        with open(out_f_path, 'w') as outf:
+            utils_testing.recommend_test_from_all_dist(dataloader_test_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)

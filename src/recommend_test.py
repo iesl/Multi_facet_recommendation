@@ -25,6 +25,8 @@ parser.add_argument('--user_emb_file', type=str, default='user_emb.pt',
                     help='path to the file of a word embedding file')
 parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
+parser.add_argument('--store_dist', type=str, default='',
+                    help='if set as user/tag, store user/tag dist. Otherwise, run the evaluation')
 
 ###system
 parser.add_argument('--test_user', type=str2bool, nargs='?', default=True,
@@ -108,8 +110,8 @@ decoder.eval()
 with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
-    outf.write('Test Recommendation:\n\n')
-    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline, args.div_eval)
+    #outf.write('Test Recommendation:\n\n')
+    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline, args.div_eval, args.store_dist)
     #outf.write('Val Recommendation:\n\n')
     #utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device)
 
