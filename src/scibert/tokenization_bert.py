@@ -31,8 +31,8 @@ VOCAB_FILES_NAMES = {"vocab_file": "vocab.txt"}
 
 PRETRAINED_VOCAB_FILES_MAP = {
     "vocab_file": {
-        #"scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/vocab.txt",
-        "scibert-scivocab-uncased": "/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/scibert/vocab.txt",
+        "scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/vocab.txt",
+        #"scibert-scivocab-uncased": "/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/scibert/vocab.txt",
         "bert-base-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt",
         "bert-large-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased-vocab.txt",
         "bert-base-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-vocab.txt",

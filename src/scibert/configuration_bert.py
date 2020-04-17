@@ -24,8 +24,8 @@ from .configuration_utils import PretrainedConfig
 logger = logging.getLogger(__name__)
 
 BERT_PRETRAINED_CONFIG_ARCHIVE_MAP = {
-    #"scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/config.json",
-    "scibert-scivocab-uncased": "/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/scibert/config.json",
+    "scibert-scivocab-uncased": "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/scibert/config.json",
+    #"scibert-scivocab-uncased": "/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/scibert/config.json",
     "bert-base-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-config.json",
     "bert-large-uncased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased-config.json",
     "bert-base-cased": "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-config.json",

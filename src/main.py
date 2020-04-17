@@ -149,6 +149,8 @@ parser.add_argument('--loss_type', type=str, default='sim',
                     help='Could be sim or dist')
 parser.add_argument('--target_norm', type=str2bool, nargs='?', default=True,
                     help='Whether target embedding is normalized')
+parser.add_argument('--target_l2', type=float, default=0,
+                    help='L2 norm on target embeddings')
 parser.add_argument('--inv_freq_w', type=str2bool, nargs='?', default=False,
                     help='Whether emphasize the rare users')
 parser.add_argument('--coeff_opt_algo', type=str, default='rmsprop',
@@ -511,7 +513,7 @@ def evaluate(dataloader, current_coeff_opt):
             else:
                 output_emb_last, output_emb = parallel_encoder(feature, feature_type)
             #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
-            basis_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+            basis_pred, basis_pred_tag, basis_pred_auto =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
             #if len(args.target_emb_file) > 0 or args.target_emb_source == 'rand':
             #    input_emb = target_emb
             #elif args.target_emb_source == 'ewe':
@@ -531,7 +533,7 @@ def evaluate(dataloader, current_coeff_opt):
                 
             if args.tag_w > 0:
                 #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
-                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
+                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred_tag, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
             else:
                 loss_set_tag = torch.tensor(0)
                 loss_set_neg_tag = torch.tensor(0)
@@ -539,7 +541,7 @@ def evaluate(dataloader, current_coeff_opt):
             
             if args.auto_w > 0:
                 feature_len = None 
-                loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+                loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
             else:
                 loss_set_auto = torch.tensor(0, device = device)
                 loss_set_neg_auto = torch.tensor(0, device = device)
@@ -606,7 +608,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         else:
             output_emb_last, output_emb = parallel_encoder(feature, feature_type)
         #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
-        basis_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+        basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
         #if len(args.target_emb_file) > 0  or args.target_emb_source == 'rand':
         #    input_emb = target_emb
         #elif args.target_emb_source == 'ewe':
@@ -628,7 +630,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             loss_set_div_target_user = torch.tensor(0, device = device)
             
         if args.tag_w > 0:
-            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
+            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred_tag, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
             #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
             if torch.isnan(loss_set_tag):
                 sys.stdout.write('tag nan, ')
@@ -640,7 +642,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         
         if args.auto_w > 0:
             feature_len = None 
-            loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+            loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
             if torch.isnan(loss_set_auto):
                 sys.stdout.write('auto nan, ')
                 continue
@@ -778,7 +780,7 @@ elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target) #, weight_decay=0.01)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)

@@ -178,7 +178,7 @@ class EMB2SEQ(nn.Module):
             #elf.coeff_rnn = nn.LSTM(ninp+outd , nhid, num_layers = coeff_nlayers , bidirectional = True)
             self.coeff_rnn = nn.LSTM(input_size+target_emb_sz , nhid, num_layers = coeff_nlayers , bidirectional = True)
             output_dim = nhid*2
-        elif coeff_model == "TRANS" or coeff_model == "TRANS_old" or coeff_model == "TRANS_pool":
+        elif coeff_model == "TRANS" or coeff_model == "TRANS_old" or coeff_model == "TRANS_pool" or coeff_model == "TRANS_two_heads":
             coeff_nlayers = 2
             self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = input_size+target_emb_sz, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False, dropout_prob = 0.3)
             #self.coeff_trans = model_trans.Transformer(model_type = 'TRANS', hidden_size = ninp+outd, max_position_embeddings = n_basis, num_hidden_layers=coeff_nlayers, add_position_emb = False,  decoder = False)
@@ -194,10 +194,15 @@ class EMB2SEQ(nn.Module):
             self.coeff_out_linear_2 = nn.Linear(half_output_dim, half_output_dim)
             if coeff_model == "TRANS_old":
                 self.coeff_out_linear_3 = nn.Linear(half_output_dim, 2)
-            elif coeff_model == "TRANS":
+            elif coeff_model == "TRANS" or coeff_model == "TRANS_two_heads":
                 self.coeff_out_linear_3 = nn.Linear(half_output_dim, 1)
             elif coeff_model == "TRANS_pool":
                 self.coeff_out_linear_3 = nn.Linear(half_output_dim*n_basis, 1)
+            if coeff_model == "TRANS_two_heads":
+                self.coeff_out_linear_1_tag = nn.Linear(output_dim, half_output_dim)
+                self.coeff_out_linear_2_tag = nn.Linear(half_output_dim, half_output_dim)
+                self.coeff_out_linear_3_tag = nn.Linear(half_output_dim, 1)
+                
         #self.coeff_out_linear_1 = nn.Linear(nhid*2, nhid)
         #self.coeff_out_linear_2 = nn.Linear(nhid, nhid)
         #self.coeff_out_linear_3 = nn.Linear(nhid, 2)
@@ -273,7 +278,7 @@ class EMB2SEQ(nn.Module):
         if hasattr(self, 'final_linear_arr'):
             output = torch.cat( [self.final_linear_arr[i](output[i,:,:]).unsqueeze(dim = 0)  for i in range(self.n_basis) ] , dim = 0 )
         #output = output / (0.000000000001 + output.norm(dim = 2, keepdim=True) )
-        if self.coeff_model == "TRANS":
+        if self.coeff_model == "TRANS" or self.coeff_model == "TRANS_two_heads":
             coeff_input= torch.cat( (emb, output), dim = 2)
             hidden_states = coeff_input.permute(1,0,2)
             hidden_states = self.coeff_trans(hidden_states)
@@ -281,7 +286,7 @@ class EMB2SEQ(nn.Module):
             coeff_pred_1 = F.relu(self.coeff_out_linear_1(coeff_output))
             coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))
             coeff_pred = self.coeff_out_linear_3(coeff_pred_2)
-            output = output * coeff_pred
+            output_eq = output * coeff_pred
         elif self.coeff_model == "TRANS_pool":
             coeff_input= torch.cat( (emb, output), dim = 2)
             hidden_states = coeff_input.permute(1,0,2)
@@ -291,35 +296,20 @@ class EMB2SEQ(nn.Module):
             coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))
             coeff_pred = self.coeff_out_linear_3(coeff_pred_2.view(coeff_pred_2.size(0),-1))
             coeff_pred = coeff_pred.permute(1,0)
-            output = output * coeff_pred.unsqueeze(dim=-1)
-            
-
-        output_batch_first = output.permute(1,0,2)
-
-        return output_batch_first
-
-        if not predict_coeff_sum:
-            #output has dimension (n_batch, n_seq_len, n_emb_size)
-            return output_batch_first
+            output_eq = output * coeff_pred.unsqueeze(dim=-1)
         else:
-            #bsz = input.size(1)
-            #weight = next(self.parameters()) # we use this just to let the tensor have the same type and device as the first weight in this class
-            #hidden_init = (weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid), weight.new_zeros(self.coeff_nlayers*2, bsz, self.nhid))
-            #coeff_input= torch.cat( (input, output), dim = 2)
-            coeff_input= torch.cat( (emb, output), dim = 2)
-            if self.coeff_model == "LSTM":
-                #coeff_output, coeff_hidden = self.coeff_rnn(coeff_input, hidden_init)
-                coeff_output, coeff_hidden = self.coeff_rnn(coeff_input.detach()) #default hidden state is 0
-            elif self.coeff_model == "TRANS":
-                hidden_states = coeff_input.detach().permute(1,0,2)
-                hidden_states = self.coeff_trans(hidden_states)
-                coeff_output = hidden_states[0].permute(1,0,2)
-            #coeff_pred = self.coeff_out_linear(coeff_output)
-            coeff_pred_1 = F.relu(self.coeff_out_linear_1(coeff_output))
-            coeff_pred_2 = F.relu(self.coeff_out_linear_2(coeff_pred_1))
-            coeff_pred = self.coeff_out_linear_3(coeff_pred_2)
-            coeff_pred_batch_first = coeff_pred.permute(1,0,2)
-            return output_batch_first, coeff_pred_batch_first
+            output_eq = output
+
+        output_batch_first = output_eq.permute(1,0,2)
+        
+        if self.coeff_model != "TRANS_two_heads":
+            return output_batch_first, output_batch_first, output_batch_first
+        else:
+            coeff_pred_1 = F.relu(self.coeff_out_linear_1_tag(coeff_output))
+            coeff_pred_2 = F.relu(self.coeff_out_linear_2_tag(coeff_pred_1))
+            coeff_pred = self.coeff_out_linear_3_tag(coeff_pred_2)
+            output_tag = output * coeff_pred
+            return output_batch_first, output_tag.permute(1,0,2), output.permute(1,0,2)
 
 
 class RNN_encoder(nn.Module):

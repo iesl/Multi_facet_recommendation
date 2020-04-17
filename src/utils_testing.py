@@ -696,9 +696,14 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
                 p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
                 print("Popularity GT baseline. Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
 
-def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview'):
+def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', store_dist = ''):
     paper_user_dist, paper_tag_dist = all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, device)
-    recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)
+    if store_dist == 'user':
+        np.savetxt(outf, paper_user_dist)
+    elif store_dist == 'tag':
+        np.savetxt(outf, paper_tag_dist)
+    else:
+        recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)
 
 def recommend_test_old(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview'):
         
