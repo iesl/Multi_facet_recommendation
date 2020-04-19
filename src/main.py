@@ -505,15 +505,33 @@ def evaluate(dataloader, current_coeff_opt):
     #total_loss_coeff_pred = 0.
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
-            feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
+            feature, feature_type, user, tag, repeat_num, user_len, tag_len, sample_idx = sample_batched
+            
+            if args.freeze_encoder_decoder and epoch > 1:
+                #load cache
+                sample_idx_np = sample_idx.numpy()
+                basis_pred = torch.tensor(basis_pred_test_cache[sample_idx_np,:,:], dtype=torch.float ,device = device)
+                basis_pred_tag = torch.tensor(basis_pred_tag_test_cache[sample_idx_np,:,:], dtype=torch.float, device = device)
+            else:
+                if args.en_model == 'scibert':
+                    output_emb, output_emb_last = parallel_encoder(feature)
+                else:
+                    output_emb_last, output_emb = parallel_encoder(feature, feature_type)
+                #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
+                basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+                if args.freeze_encoder_decoder:
+                    #store cache
+                    sample_idx_np = sample_idx.numpy()
+                    basis_pred_test_cache[sample_idx_np,:,:] = basis_pred.cpu().numpy()
+                    basis_pred_tag_test_cache[sample_idx_np,:,:] = basis_pred_tag.cpu().numpy()
             
             #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
-            if args.en_model == 'scibert':
-                output_emb, output_emb_last = parallel_encoder(feature)
-            else:
-                output_emb_last, output_emb = parallel_encoder(feature, feature_type)
+            #if args.en_model == 'scibert':
+            #    output_emb, output_emb_last = parallel_encoder(feature)
+            #else:
+            #    output_emb_last, output_emb = parallel_encoder(feature, feature_type)
             #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
-            basis_pred, basis_pred_tag, basis_pred_auto =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+            #basis_pred, basis_pred_tag, basis_pred_auto =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
             #if len(args.target_emb_file) > 0 or args.target_emb_source == 'rand':
             #    input_emb = target_emb
             #elif args.target_emb_source == 'ewe':
@@ -592,7 +610,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         encoder.train()
         decoder.train()
     for i_batch, sample_batched in enumerate(dataloader_train):
-        feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
+        feature, feature_type, user, tag, repeat_num, user_len, tag_len, sample_idx = sample_batched
         #print(target)
         #print(feature.size())
         #print(target.size())
@@ -603,12 +621,23 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #decoder.zero_grad()
         #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
         #output_emb, hidden, output_emb_last = parallel_encoder(feature)
-        if args.en_model == 'scibert':
-            output_emb, output_emb_last = parallel_encoder(feature)
+        if args.freeze_encoder_decoder and epoch > 1:
+            #load cache
+            sample_idx_np = sample_idx.numpy()
+            basis_pred = torch.tensor(basis_pred_train_cache[sample_idx_np,:,:], dtype=torch.float ,device = device)
+            basis_pred_tag = torch.tensor(basis_pred_tag_train_cache[sample_idx_np,:,:], dtype=torch.float ,device = device)
         else:
-            output_emb_last, output_emb = parallel_encoder(feature, feature_type)
-        #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
-        basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+            if args.en_model == 'scibert':
+                output_emb, output_emb_last = parallel_encoder(feature)
+            else:
+                output_emb_last, output_emb = parallel_encoder(feature, feature_type)
+            #basis_pred, coeff_pred = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
+            basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
+            if args.freeze_encoder_decoder:
+                #store cache
+                sample_idx_np = sample_idx.numpy()
+                basis_pred_train_cache[sample_idx_np,:,:] = basis_pred.cpu().numpy()
+                basis_pred_tag_train_cache[sample_idx_np,:,:] = basis_pred_tag.cpu().numpy()
         #if len(args.target_emb_file) > 0  or args.target_emb_source == 'rand':
         #    input_emb = target_emb
         #elif args.target_emb_source == 'ewe':
@@ -798,6 +827,17 @@ lr = args.lr
 best_val_loss = None
 nonmono_count = 0
 saving_freq = int(math.floor(args.training_split_num / args.valid_per_epoch))
+
+
+if args.freeze_encoder_decoder:
+    assert len(dataloader_train_arr) == 1
+    assert args.auto_w == 0
+    num_sample_train = dataloader_train_arr[0].dataset.feature.size(0)
+    basis_pred_train_cache = np.empty( (num_sample_train, args.n_basis, target_emb_sz) )
+    basis_pred_tag_train_cache = np.empty( (num_sample_train, args.n_basis, target_emb_sz) )
+    num_sample_test = dataloader_val.dataset.feature.size(0)
+    basis_pred_test_cache = np.empty( (num_sample_test, args.n_basis, target_emb_sz) )
+    basis_pred_tag_test_cache = np.empty( (num_sample_test, args.n_basis, target_emb_sz) )
 
 steps = 0
 for epoch in range(1, args.epochs+1):

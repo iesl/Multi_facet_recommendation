@@ -111,7 +111,7 @@ with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
     #outf.write('Test Recommendation:\n\n')
-    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline, args.div_eval, args.store_dist)
+    utils_testing.recommend_test(dataloader_test_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device, args.most_popular_baseline, args.div_eval, args.store_dist, figure_name = args.outf + '_fig')
     #outf.write('Val Recommendation:\n\n')
     #utils_testing.recommend_test(dataloader_val_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, args.coeff_opt, args.loss_type, args.test_user, args.test_tag, outf, device)
 
