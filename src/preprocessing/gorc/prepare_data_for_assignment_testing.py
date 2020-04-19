@@ -2,8 +2,8 @@ import numpy as np
 import os
 import json
 
-#tokenizer_mode = 'scapy'
-tokenizer_mode = 'scibert'
+tokenizer_mode = 'scapy'
+#tokenizer_mode = 'scibert'
 
 if tokenizer_mode == 'scapy':
     from spacy.lang.en import English
@@ -17,8 +17,8 @@ elif tokenizer_mode == 'scibert':
     tokenizer = BertTokenizer.from_pretrained(model_name)
     seg = pysbd.Segmenter(language="en", clean=False)
 
-#user_tag_source = 'bid'
-user_tag_source = 'assignment'
+user_tag_source = 'bid'
+#user_tag_source = 'assignment'
 
 #paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
 #expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
@@ -30,10 +30,11 @@ user_tag_source = 'assignment'
 
 paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
 expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
-#bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
-assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
+bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
+#assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
+output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
 
@@ -51,6 +52,7 @@ with open(expertise_file) as f_in:
 
 paper_id_d2_reviewers = {}
 if user_tag_source == 'bid':
+    score_map_dict = {"Very Low": '0', "Low": '1', "Neutral": '2', "High": '3', "Very High": '4'}
     with open(bid_file) as f_in:
         all_bids = json.load(f_in)
         for reviewer_name in all_bids:
@@ -58,13 +60,13 @@ if user_tag_source == 'bid':
             reviewer_full_name = (reviewer_name + '|' + '+'.join(expertise)).replace(' ','_')
             for fields in all_bids[reviewer_name]:
                 preference = fields["tag"]
-                if 'High' in preference:
-                    continue
+                #if 'High' in preference:
+                #    continue
                 #if 'Low' in preference:
                 #    continue
                 paper_id = fields["forum"]
                 reviewers = paper_id_d2_reviewers.get(paper_id,[])
-                reviewers.append(reviewer_full_name)
+                reviewers.append( [ reviewer_full_name, score_map_dict[preference]] )
                 paper_id_d2_reviewers[paper_id] = reviewers
 
 elif user_tag_source == 'assignment':
@@ -116,7 +118,11 @@ for file_name in all_files:
             w_list_abstract = []
 
         type_list = ['0']*len(w_list_title) + ['1']*len(w_list_abstract)
-        paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers), author_full_str]
+        if user_tag_source == 'bid':
+            reviewers_name, bid_score = zip(*reviewers)
+            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers_name), author_full_str, ','.join(bid_score)]
+        else:
+            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers), author_full_str]
 
 with open(output_path, 'w') as f_out:
     for paper_id in paper_id_d2_features_type_author_other:
