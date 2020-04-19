@@ -183,7 +183,7 @@ class F2UserTagDataset(torch.utils.data.Dataset):
             user_len = self.user_len[idx].to( dtype = torch.long, device = self.output_device)
             tag_len = self.tag_len[idx].to( dtype = torch.long, device = self.output_device)
         #debug target[-1] = idx
-        return [feature, feature_type, user, tag, repeat_num, user_len, tag_len]
+        return [feature, feature_type, user, tag, repeat_num, user_len, tag_len, idx]
         #return [self.feature[idx, :], self.target[idx, :]]
 
 class F2IdxDataset(torch.utils.data.Dataset):

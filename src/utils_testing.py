@@ -84,19 +84,23 @@ def predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decod
     #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
     #output_emb_last = parallel_encoder(feature)
     output_emb_last, output_emb = parallel_encoder(feature, feature_type)
-    basis_pred =  parallel_decoder(output_emb_last, output_emb)
+    basis_pred, basis_pred_tag, basis_pred_auto  =  parallel_decoder(output_emb_last, output_emb)
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
     
     if normalize_emb:
         basis_norm_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
+        basis_norm_pred_tag = basis_pred_tag / (0.000000000001 + basis_pred_tag.norm(dim = 2, keepdim=True) )
+        basis_norm_pred_auto = basis_pred_auto / (0.000000000001 + basis_pred_auto.norm(dim = 2, keepdim=True) )
     else:
         basis_norm_pred = basis_pred
-    return basis_norm_pred, output_emb_last, output_emb
+        basis_norm_pred_tag = basis_pred_tag
+        basis_norm_pred_auto = basis_pred_auto
+    return basis_norm_pred, basis_norm_pred_tag, basis_norm_pred_auto, output_emb_last, output_emb
     
 
 def predict_batch(feature, feature_type, parallel_encoder, parallel_decoder, word_norm_emb, top_k):
     
-    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder)
+    basis_norm_pred, basis_norm_pred_tag, basis_norm_pred_auto, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder)
     #output_emb_last, output_emb = parallel_encoder(feature)
     #basis_pred, coeff_pred =  parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = True)
 
@@ -175,7 +179,7 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
     top_k = 5
     with torch.no_grad():
         for i_batch, sample_batched in enumerate(dataloader):
-            feature, feature_type, user, tag, repeat_num, user_len, tag_len = sample_batched
+            feature, feature_type, user, tag, repeat_num, user_len, tag_len, sample_idx = sample_batched
 
             basis_norm_pred, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, feature_type, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
             #print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf, word_imp_sim)
@@ -215,14 +219,14 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
     if loss_type != 'dist':
         normalize_emb = False
         
-    basis_norm_pred, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb)
+    basis_norm_pred, basis_norm_pred_tag, basis_norm_pred_auto, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb)
     if test_user:
         all_dist_user = compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
     else:
         all_dist_user = []
     
     if test_tag:
-        all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
+        all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred_tag, coeff_opt, loss_type, device)
     else:
         all_dist_tag = []
 
@@ -507,7 +511,7 @@ def all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder,
                     paper_tag_dist[paper_id,:] = all_dist_tag[j]
     return paper_user_dist, paper_tag_dist
 
-def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview'):
+def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', figure_name = ''):
     with torch.no_grad():
         dataloader, all_user_tag = dataloader_info
         user_d2_paper_id = {}
@@ -665,8 +669,23 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
         div_th_str = recall_at_th_str
         if test_user:
             print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
+            user_id_l2_pred_paper_dist = np.sum(paper_user_dist[:,num_special_token:], axis = 0)
+            user_id_l2_pred_paper_dist_mean = np.mean(user_id_l2_pred_paper_dist)
+            print("Average absolute deviation on predicted distance {} per paper".format(np.mean(np.absolute(user_id_l2_pred_paper_dist - user_id_l2_pred_paper_dist_mean))/np.absolute(user_id_l2_pred_paper_dist_mean) )) 
             recall_avg_user, recall_w_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
             print("Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, recall_w_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
+            paper_id_l2_pred_user_dist_mean = np.mean(paper_id_l2_pred_user_dist)
+            print("Average absolute deviation on predicted distance {} per user".format(np.mean(np.absolute(paper_id_l2_pred_user_dist - paper_id_l2_pred_user_dist_mean))/np.absolute(paper_id_l2_pred_user_dist_mean) )) 
+            if len(figure_name) > 0:
+                import matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+                plt.bar(range(len(paper_id_l2_pred_user_dist)), np.sort(paper_id_l2_pred_user_dist))
+                plt.savefig(figure_name+'_user_dist_sum_per_paper.png')
+                plt.figure()
+                plt.bar(range(user_id_l2_pred_paper_dist.shape[0]), np.sort(user_id_l2_pred_paper_dist))
+                plt.savefig(figure_name+'_paper_dist_sum_per_user.png')
+
             if div_eval == 'openreview':
                 reviewer_num_per_paper = 4
                 var_avg, paper_num_per_reviewer = inbalance_by_top_choice(paper_user_dist, reviewer_num_per_paper)
@@ -696,206 +715,15 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
                 p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
                 print("Popularity GT baseline. Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
 
-def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', store_dist = ''):
+def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', store_dist = '', figure_name = ''):
     paper_user_dist, paper_tag_dist = all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, device)
     if store_dist == 'user':
         np.savetxt(outf, paper_user_dist)
     elif store_dist == 'tag':
         np.savetxt(outf, paper_tag_dist)
     else:
-        recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)
+        recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval, figure_name)
 
-def recommend_test_old(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview'):
-        
-    with torch.no_grad():
-        dataloader, all_user_tag = dataloader_info
-        if test_user:
-            #paper_user_dist = []
-            paper_user_dist = np.empty( (len(all_user_tag),len(user_idx2word_freq)), dtype=np.float16 )
-        if test_tag:
-            #paper_tag_dist = []
-            paper_tag_dist = np.empty( (len(all_user_tag),len(tag_idx2word_freq)), dtype=np.float16 )
-        user_d2_paper_id = {}
-        tag_d2_paper_id = {}
-        recall_at_th = [5, 20, 50, 200, 1000]
-        recall_at_th_str = ' '.join(map(str,recall_at_th))
-        #recall_all_user = []
-        #recall_all_tag = []
-        recall_all_user = [[] for k in range(len(recall_at_th))]
-        recall_all_tag = [[] for k in range(len(recall_at_th))]
-        weight_all_user = [[] for k in range(len(recall_at_th))]
-        weight_all_tag = [[] for k in range(len(recall_at_th))]
-        F1_all_user = []
-        F1_all_tag = []
-        MAP_all_user = []
-        MAP_all_tag = []
-        AUC_all_user = []
-        AUC_all_tag = []
-        NDCG_all_user = []
-        NDCG_all_tag = []
-
-        paper_id_d2_categories = {}
-        paper_id_d2_tags = {}
-        paper_id_l2_neg_user_freq = [-1] * len(all_user_tag)
-        paper_id_l2_pred_user_dist = [-1] * len(all_user_tag)
-        paper_id_l2_neg_tag_freq = [-1] * len(all_user_tag)
-        paper_id_l2_pred_tag_dist = [-1] * len(all_user_tag)
-        if most_popular_baseline:
-            if test_user:
-                user_neg_freq = [-x[1]  for x in user_idx2word_freq]
-                #p_recall_all_user = []
-                p_recall_all_user = [[] for k in range(len(recall_at_th))]
-                p_weight_all_user = [[] for k in range(len(recall_at_th))]
-                p_F1_all_user = []
-                p_MAP_all_user = []
-                p_AUC_all_user = []
-                p_NDCG_all_user = []
-            if test_tag:
-                tag_neg_freq = [-x[1]  for x in tag_idx2word_freq]
-                #p_recall_all_tag = []
-                p_recall_all_tag = [[] for k in range(len(recall_at_th))]
-                p_weight_all_tag = [[] for k in range(len(recall_at_th))]
-                p_F1_all_tag = []
-                p_MAP_all_tag = []
-                p_AUC_all_tag = []
-                p_NDCG_all_tag = []
-        for i_batch, sample_batched in enumerate(dataloader):
-            #feature, user, tag = sample_batched
-            sys.stdout.write( str(i_batch) + ' ' )
-            sys.stdout.flush()
-
-            feature, feature_type, paper_id_tensor = sample_batched
-            paper_id_list = paper_id_tensor.tolist()
-
-            feature_text = convert_feature_to_text(feature, idx2word_freq)
-            
-            bsz = feature.size(0)
-            user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
-            tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
-
-            
-            if div_eval=='amazon':
-                extract_category(feature, feature_type, paper_id_list, paper_id_d2_categories)
-            elif div_eval=='citeulike':
-                extract_tag(paper_id_list, tag_batch_list, paper_id_d2_tags)
-            
-            all_dist_user, all_dist_tag = compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, device)
-            #user_batch_list = user.tolist()
-            #tag_batch_list = tag.tolist()
-            if test_user:
-                gt_rank_user, top_prediction_user, top_values_user, MAP_list_user, AUC_list_user, NDCG_list_user, F1_list_user = pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user, weight_all_user)
-                #recall_all_user += recall_list_user
-                F1_all_user += F1_list_user
-                MAP_all_user += MAP_list_user
-                AUC_all_user += AUC_list_user
-                NDCG_all_user += NDCG_list_user
-                user_text = convert_feature_to_text(user_batch_list, user_idx2word_freq)
-                top_user_text = convert_feature_to_text(top_prediction_user, user_idx2word_freq)
-                if most_popular_baseline:
-                    p_gt_rank_user, p_top_prediction_user, p_top_values_user, p_MAP_list_user, p_AUC_list_user, p_NDCG_list_user, p_F1_list_user = pred_per_paper(user_neg_freq, user_batch_list, recall_at_th, p_recall_all_user, p_weight_all_user, batch_dist = False)
-                    #p_recall_all_user += p_recall_list_user
-                    p_F1_all_user += p_F1_list_user
-                    p_MAP_all_user += p_MAP_list_user
-                    p_AUC_all_user += p_AUC_list_user
-                    p_NDCG_all_user += p_NDCG_list_user
-            
-            if test_tag:
-                gt_rank_tag, top_prediction_tag, top_values_tag, MAP_list_tag, AUC_list_tag, NDCG_list_tag, F1_list_tag = pred_per_paper(all_dist_tag, tag_batch_list, recall_at_th, recall_all_tag, weight_all_tag)
-                #recall_all_tag += recall_list_tag
-                F1_all_tag += F1_list_tag
-                MAP_all_tag += MAP_list_tag
-                AUC_all_tag += AUC_list_tag
-                NDCG_all_tag += NDCG_list_tag
-                tag_text = convert_feature_to_text(tag_batch_list, tag_idx2word_freq)
-                top_tag_text = convert_feature_to_text(top_prediction_tag, tag_idx2word_freq)
-                if most_popular_baseline:
-                    p_gt_rank_tag, p_top_prediction_tag, p_top_values_tag, p_MAP_list_tag, p_AUC_list_tag, p_NDCG_list_tag, p_F1_list_tag = pred_per_paper(tag_neg_freq, tag_batch_list, recall_at_th, p_recall_all_tag, p_weight_all_tag, batch_dist = False)
-                    #p_recall_all_tag += p_recall_list_tag
-                    p_F1_all_tag += p_F1_list_tag
-                    p_MAP_all_tag += p_MAP_list_tag
-                    p_AUC_all_tag += p_AUC_list_tag
-                    p_NDCG_all_tag += p_NDCG_list_tag
-
-            #user_max = user.size(1)
-            #tag_max = tag.size(1)
-
-            for j in range(bsz):
-                #paper_id = len(paper_user_dist)
-                paper_id = paper_id_list[j]
-                user_text_j = []
-                tag_text_j = []
-                gt_rank_user_j = []
-                gt_rank_tag_j = []
-                top_user_text_j = []
-                top_tag_text_j = []
-                top_values_user_j = []
-                top_values_tag_j = []
-
-                if test_user:
-                    update_user_dict(user_batch_list[j], user_d2_paper_id, paper_id)
-                    #paper_user_dist.append(all_dist_user[j])
-                    paper_user_dist[paper_id,:] = all_dist_user[j]
-                    user_text_j = user_text[j]
-                    gt_rank_user_j = gt_rank_user[j]
-                    top_user_text_j = top_user_text[j]
-                    top_values_user_j = top_values_user[j]
-                    #if most_popular_baseline:
-                    paper_id_l2_neg_user_freq[paper_id] = - len(user_batch_list[j])
-                    paper_id_l2_pred_user_dist[paper_id] = sum(all_dist_user[j])
-                    
-                if test_tag:
-                    update_user_dict(tag_batch_list[j], tag_d2_paper_id, paper_id)
-                    #paper_tag_dist.append(all_dist_tag[j])
-                    paper_tag_dist[paper_id,:] = all_dist_tag[j]
-                    tag_text_j = tag_text[j]
-                    gt_rank_tag_j = gt_rank_tag[j]
-                    top_tag_text_j = top_tag_text[j]
-                    top_values_tag_j = top_values_tag[j]
-                    paper_id_l2_neg_tag_freq[paper_id] = - len(tag_batch_list[j])
-                    paper_id_l2_pred_tag_dist[paper_id] = sum(all_dist_tag[j])
-
-
-                print_rank(feature_text[j], user_text_j, tag_text_j, gt_rank_user_j, gt_rank_tag_j, top_user_text_j, top_tag_text_j, top_values_user_j, top_values_tag_j, paper_id, outf)
-            #if i_batch > 3:
-            #    break
-            #print_basis_text(feature, idx2word_freq, tag_idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf)
-        div_th = recall_at_th
-        div_th_str = recall_at_th_str
-        if test_user:
-            print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
-            recall_avg_user, recall_w_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
-            print("Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, recall_w_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
-            if div_eval == 'openreview':
-                reviewer_num_per_paper = 4
-                var_avg, paper_num_per_reviewer = inbalance_by_top_choice(paper_user_dist, reviewer_num_per_paper)
-                print("When reviewer top {} papers, each paper has at least {} reviewers, average L1 dist from paper count to average paper count is {}".format(paper_num_per_reviewer, reviewer_num_per_paper, var_avg))
-                
-            if len(paper_id_d2_categories) > 0:
-                div_avg, div_course_avg, ent_avg, ent_course_avg = div_by_categories(paper_user_dist, paper_id_d2_categories, div_th)
-                print("Diversification metric of user by category at {} is {}. Entropy is {}. Div of course layer is {}. Entorpy is {}".format(div_th_str, div_avg, ent_avg, div_course_avg, ent_course_avg))
-            if len(paper_id_d2_tags) > 0:
-                div_avg = div_by_tags(paper_user_dist, paper_id_d2_tags, div_th)
-                print("Diversification metric of user by tag difference at {} is {}".format(div_th_str, div_avg))
-            if most_popular_baseline:
-                print("Popularity GT baseline. User recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_user))], [np.average(p_recall_all_user[m], weights= p_weight_all_user[m]) for m in range(len(p_recall_all_user))], np.mean(p_MAP_all_user), np.mean(p_F1_all_user), np.mean(p_AUC_all_user), np.mean(p_NDCG_all_user)))
-                p_recall_avg_user, p_weight_recall_avg_user, p_MAP_user, p_AUC_user, p_NDCG_user, p_F1_user = paper_recall_per_user(user_d2_paper_id, paper_id_l2_neg_user_freq, recall_at_th, dist_matrix=False)
-                print("Popularity GT baseline. Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_user, p_weight_recall_avg_user, p_MAP_user, p_F1_user, p_AUC_user, p_NDCG_user))
-                
-        
-        if test_tag:
-            print("\nTag recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}".format(recall_at_th_str, [np.mean(recall_all_tag[m]) for m in range(len(recall_all_tag))], [np.average(recall_all_tag[m], weights=weight_all_tag[m]) for m in range(len(recall_all_tag))],  np.mean(MAP_all_tag), np.mean(F1_all_tag), np.mean(AUC_all_tag), np.mean(NDCG_all_tag) ))
-            recall_avg_tag, recall_w_avg_tag, MAP_tag, AUC_tag, NDCG_tag, F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_tag_dist, recall_at_th)
-            print("Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_tag, recall_w_avg_tag, MAP_tag, F1_tag, AUC_tag, NDCG_tag, ss.pearsonr(paper_id_l2_neg_tag_freq, paper_id_l2_pred_tag_dist)[0]))
-            if len(paper_id_d2_categories) > 0:
-                div_avg, div_course_avg, ent_avg, ent_course_avg = div_by_categories(paper_tag_dist, paper_id_d2_categories, div_th)
-                print("Diversification metric of tag by category at {} is {}. Entropy is {}. Div of course layer is {}. Entorpy is {}".format(div_th_str, div_avg, ent_avg, div_course_avg, ent_course_avg))
-            if most_popular_baseline:
-                print("Popularity baseline. Tag recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(p_recall_all_user[m]) for m in range(len(p_recall_all_tag))], [np.average(p_recall_all_tag[m], weights=p_weight_all_tag[m]) for m in range(len(p_recall_all_tag))], np.mean(p_MAP_all_tag), np.mean(p_F1_all_tag), np.mean(p_AUC_all_tag), np.mean(p_NDCG_all_tag)))
-                p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
-                print("Popularity GT baseline. Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
-
-            #if i_batch >= max_batch_num:
-            #    break
 
 class Set2SetDataset(torch.utils.data.Dataset):
     #def __init__(self, source, source_w, source_sent_emb, source_avg_word_emb, source_w_imp_list, source_proc_sent, target, target_w, target_sent_emb, target_avg_word_emb, target_w_imp_list, target_proc_sent):
