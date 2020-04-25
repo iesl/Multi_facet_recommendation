@@ -2,8 +2,8 @@ import numpy as np
 import os
 import json
 
-tokenizer_mode = 'scapy'
-#tokenizer_mode = 'scibert'
+#tokenizer_mode = 'scapy'
+tokenizer_mode = 'scibert'
 
 if tokenizer_mode == 'scapy':
     from spacy.lang.en import English
@@ -20,23 +20,32 @@ elif tokenizer_mode == 'scibert':
 user_tag_source = 'bid'
 #user_tag_source = 'assignment'
 
-#paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
-#expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
-#assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/assignments/assignments.json"
-#bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/bids/bids.json"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_submission_paper_data"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_low/all_submission_bid_data"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_high/all_submission_bid_data"
+#dataset = 'UAI2019'
+dataset = 'ICLR2020'
 
-paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
-expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
-bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
-#assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
-#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
+if dataset == 'UAI2019':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
+    expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
+    #assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/assignments/assignments.json"
+    bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/bids/bids.json"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_submission_paper_data"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_submission_paper_data_scibert"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_score/all_submission_bid_data"
+    output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_score/all_submission_bid_data_scibert"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_low/all_submission_bid_data"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_high/all_submission_bid_data"
+
+elif dataset == 'ICLR2020':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
+    expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
+    bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
+    #assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
+    output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data_scibert"
+    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
 
 reviewer_d2_expertise = {}
 with open(expertise_file) as f_in:
@@ -52,7 +61,7 @@ with open(expertise_file) as f_in:
 
 paper_id_d2_reviewers = {}
 if user_tag_source == 'bid':
-    score_map_dict = {"Very Low": '0', "Low": '1', "Neutral": '2', "High": '3', "Very High": '4'}
+    score_map_dict = {"Very Low": '1', "Low": '2', "Neutral": '3', "High": '4', "Very High": '5'}
     with open(bid_file) as f_in:
         all_bids = json.load(f_in)
         for reviewer_name in all_bids:
@@ -120,9 +129,9 @@ for file_name in all_files:
         type_list = ['0']*len(w_list_title) + ['1']*len(w_list_abstract)
         if user_tag_source == 'bid':
             reviewers_name, bid_score = zip(*reviewers)
-            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers_name), author_full_str, ','.join(bid_score)]
+            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers_name), author_full_str, paper_id, ','.join(bid_score)]
         else:
-            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers), author_full_str]
+            paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), ','.join(reviewers), author_full_str, paper_id]
 
 with open(output_path, 'w') as f_out:
     for paper_id in paper_id_d2_features_type_author_other:

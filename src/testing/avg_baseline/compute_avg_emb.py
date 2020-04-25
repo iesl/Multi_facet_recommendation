@@ -9,22 +9,26 @@ def compute_freq_prob_idx2word(idx2word_freq):
     for i, (w, freq) in enumerate(idx2word_freq):
         idx2word_freq[i].append(freq/freq_sum)
 
-#use_freq_w = True
-use_freq_w = False
+use_freq_w = True
+#use_freq_w = False
 emb_file = './resources/cbow_ACM_dim200_gorc_uncased_min_5.txt'
 
+input_dict = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_high_gorc_uncased/feature/dictionary_index"
-input_dict = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
+#input_dict = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
+#input_dict = "./data/processed/ICLR2020_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_high_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_low_gorc_uncased/feature/dictionary_index"
 
+data_file = './data/processed/UAI2019_bid_score_gorc_uncased/tensors_cold/test.pt'
+output_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
+#data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
@@ -32,6 +36,9 @@ output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_d
 #data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#data_file = './data/processed/ICLR2020_bid_score_gorc_uncased/tensors_cold/test.pt'
+#output_file = './gen_log/ICLR2020_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#output_file = './gen_log/ICLR2020_bid_score_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/ICLR2020_bid_low_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/ICLR2020_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
@@ -64,9 +71,15 @@ with torch.no_grad():
     source_emb[0,:] = 0
 
     with open(data_file, 'rb') as f_in:
-        feature_raw, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
+        #feature_raw, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
+        fields = torch.load(f_in, map_location='cpu')
+        if len(fields) == 7:
+            feature_raw, feature_type, user, tag, repeat_num, user_len, tag_len = fields #torch.load(f_in, map_location='cpu')
+            bid_score = torch.zeros(0)
+        else:
+            feature_raw, feature_type, user, tag, repeat_num, user_len, tag_len, bid_score = fields
 
-    dataset, all_user_tag = utils.create_uniq_paper_data(feature_raw, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [])
+    dataset, all_user_tag = utils.create_uniq_paper_data(feature_raw, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [], bid_score=bid_score)
     feature = dataset.feature
     num_paper = feature.size(0)
     all_emb_sum = torch.empty( (num_paper, emb_size), device = device)

@@ -3,18 +3,29 @@ import pandas as pd
 import os
 import sys
 import csv
-from spacy.lang.en import English
 
-nlp = English()
+#tokenizer_mode = 'scapy'
+tokenizer_mode = 'scibert'
+
+if tokenizer_mode == 'scapy':
+    from spacy.lang.en import English
+    nlp = English()
+else:
+    import sys
+    sys.path.insert(0, sys.path[0]+'/../..')
+    from scibert.tokenization_bert import BertTokenizer
+    model_name = 'scibert-scivocab-uncased'
+    tokenizer = BertTokenizer.from_pretrained(model_name)
 
 csv.field_size_limit(sys.maxsize)
 
-#meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext.tsv'
-#paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext.json'
+meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext.tsv'
+paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext.json'
 #output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_data'
-meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext_org.tsv'
-paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext_org.json'
-output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_org_data'
+output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_data_scibert'
+#meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext_org.tsv'
+#paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext_org.json'
+#output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_org_data'
 
 def parse_list_str(list_in):
     return list_in.replace('[','').replace(']','').replace("'",'').replace('"','').split(', ')
@@ -38,11 +49,18 @@ for index, row in meta_ml_df.iterrows():
     title, abstract = id_d2_title_abstract[pid]
     inbound = row['inbound_citations']
     authors = row['authors']
-
-    w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+    if tokenizer_mode == 'scapy':
+        w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+    elif tokenizer_mode == 'scibert':
+        w_list_title = tokenizer.tokenize('[CLS] ' + title + ' [SEP]')
+    #w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
     w_list_title = ' '.join(w_list_title).split()
     if abstract is not None:
-        w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+        if tokenizer_mode == 'scapy':
+            w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+        elif tokenizer_mode == 'scibert':
+            w_list_abstract = tokenizer.tokenize('[CLS] ' + abstract + ' [SEP]') #We will finetune scibert, so don't need to use sentence segmentation
+        #w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
         w_list_abstract = ' '.join(w_list_abstract).split()
     else:
         w_list_abstract = []

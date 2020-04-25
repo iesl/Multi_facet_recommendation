@@ -103,7 +103,7 @@ def random_cv_partition(user_corpus, cv_fold_num):
 def store_tensors(f_out,tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, tensor7, tensor8):
     torch.save([tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, tensor7, tensor8], f_out)
     
-def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, bid_score_corpus, output_save_file):
+def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, bid_score_corpus, output_save_file, shuffle_order = True):
     def save_to_tesnor(w_ind_corpus_dup_j, tensor_feature, i, store_right = False):
         sent_len = len(w_ind_corpus_dup_j)
         if store_right:
@@ -173,9 +173,9 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
     tensor_repeat_num = torch.zeros(corpus_size, dtype = store_type)
     tensor_user_len = torch.zeros(corpus_size, dtype = store_type)
     tensor_tag_len = torch.zeros(corpus_size, dtype = store_type)
-    
     shuffled_order = list(range(corpus_size) )
-    random.shuffle(shuffled_order)
+    if shuffle_order:
+        random.shuffle(shuffled_order)
     for i, j in enumerate(shuffled_order):
         if args.push_to_right:
             store_right = True
@@ -258,11 +258,11 @@ assert len(w_ind_corpus) == len(tag_corpus)
 
 if args.cv_fold_num == 0:
     all_idx = list(range(len(w_ind_corpus)))
-    np.random.shuffle(all_idx)
+    #np.random.shuffle(all_idx)
     output_dir = os.path.dirname(args.save)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    squeeze_into_tensors(all_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, bid_score_corpus, args.save)
+    squeeze_into_tensors(all_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, bid_score_corpus, args.save, shuffle_order = False)
 else:
     cv_partition_idx_np = random_cv_partition(user_corpus, args.cv_fold_num)
 

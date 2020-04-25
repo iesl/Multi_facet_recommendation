@@ -142,8 +142,11 @@ def convert_feature_to_text(feature, idx2word_freq):
         current_sent = []
         for w_ind in feature_list[i]:
             if w_ind != 0:
-                w = idx2word_freq[w_ind][0]
-                current_sent.append(w)
+                if type(idx2word_freq) is dict and w_ind not in idx2word_freq:
+                    current_sent.append('<UNK>')
+                else:
+                    w = idx2word_freq[w_ind][0]
+                    current_sent.append(w)
         feature_text.append(current_sent)
     return feature_text
 
@@ -263,6 +266,20 @@ def update_user_dict(user_batch_list, user_d2_paper_id, paper_id):
         paper_id_list.append(paper_id)
         user_d2_paper_id[user_id] = paper_id_list
  
+
+def update_user_score_dict(user_batch_list, bid_score_batch_list, user_d2_paper_id_score, paper_id):
+    if len(bid_score_batch_list) == 0:
+        return
+    for k in range(len(user_batch_list)):
+        user_id = user_batch_list[k]
+        if user_id < num_special_token:
+            continue
+        paper_id_score_list = user_d2_paper_id_score.get(user_id, [])
+        paper_id_score_list.append( [paper_id, bid_score_batch_list[k]] )
+        user_d2_paper_id_score[user_id] = paper_id_score_list
+ 
+
+
 def gt_rank_from_list(all_dist_user_j, user_batch_list_j, num_special_token):
     user_rank = ss.rankdata(all_dist_user_j) #handle the tie cases by average the ranks
     gt_rank_j = []
@@ -282,7 +299,9 @@ def compute_AUC_ROC(gt_rank_j_sorted, total_size):
         left_incorrect = x - left_correct
         right_correct = correct_num - i - 1
         right_incorrect = total_size - x - right_correct
-        AP_list.append( right_incorrect / float(left_incorrect+right_incorrect) )
+        if left_incorrect+right_incorrect > 0:
+            AP_list.append( right_incorrect / float(left_incorrect+right_incorrect) )
+    #print(AP_list)
     return np.mean(AP_list)
 
 def compute_AP_best_F1(gt_rank_j_sorted):
@@ -332,10 +351,11 @@ def pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user
             gt_rank_j_sorted = sorted(gt_rank_j)
             AP, best_F1 = compute_AP_best_F1(gt_rank_j_sorted)
             F1_list_user.append(best_F1)
-            AUC = compute_AUC_ROC(gt_rank_j_sorted, len(dist_j))
+            if len(gt_rank_j_sorted) < len(dist_j):
+                AUC = compute_AUC_ROC(gt_rank_j_sorted, len(dist_j))
+                AUC_list_user.append( AUC )
             NDCG_list_user.append(ndcg)
             MAP_list_user.append( AP )
-            AUC_list_user.append( AUC )
 
     return gt_rank_user, top_prediction_user, top_values_user, MAP_list_user, AUC_list_user, NDCG_list_user, F1_list_user
 
@@ -415,6 +435,24 @@ def div_by_categories(paper_user_dist, paper_id_d2_categories, recall_at_th):
     ent_course_avg = [np.mean(ent_course_list[m]) for m in range(len(ent_course_list))]
     return div_avg, div_course_avg, ent_avg, ent_course_avg
 
+def bid_score_rank_eval(user_d2_paper_id_score, paper_user_dist):
+    spearman_list = []
+    for user_id in user_d2_paper_id_score:
+        paper_dist = paper_user_dist[:, user_id]
+        paper_id_list, score_list = list(zip(*user_d2_paper_id_score[user_id]))
+        #print(paper_dist)
+        #print(paper_id_list)
+        #print(score_list)
+        if np.var(score_list)>0:
+            paper_sim = -paper_dist[list(paper_id_list)]
+            if np.var(paper_sim)>0:
+                spearman, sig = ss.spearmanr(score_list, -paper_dist[list(paper_id_list)])
+                spearman_list.append(spearman)
+            else:
+                spearman_list.append(0)
+    spearman_score_avg = np.mean(spearman_list)
+    return spearman_score_avg
+
 def paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th, dist_matrix=True):
     #if dist_matrix:
     #    user_paper_dist = list(zip(*paper_user_dist))
@@ -444,9 +482,10 @@ def paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th, dist_
         gt_rank_paper_sorted = sorted(gt_rank_paper)
         AP, best_F1 = compute_AP_best_F1(gt_rank_paper_sorted)
         F1_list_paper.append(best_F1)
-        AUC = compute_AUC_ROC(gt_rank_paper_sorted, len(paper_dist))
+        if len(gt_rank_paper_sorted) < len(paper_dist):
+            AUC = compute_AUC_ROC(gt_rank_paper_sorted, len(paper_dist))
+            AUC_list_paper.append( AUC )
         MAP_list_paper.append( AP )
-        AUC_list_paper.append( AUC )
 
     #print(recall_list_paper)
     recall_avg = [np.average(recall_list_paper[k]) for k in range(len(recall_at_th))]
@@ -515,6 +554,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
     with torch.no_grad():
         dataloader, all_user_tag = dataloader_info
         user_d2_paper_id = {}
+        user_d2_paper_id_score = {}
         tag_d2_paper_id = {}
         recall_at_th = [5, 20, 50, 200, 1000]
         recall_at_th_str = ' '.join(map(str,recall_at_th))
@@ -571,6 +611,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
             bsz = feature.size(0)
             user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
+            bid_score_batch_list = [all_user_tag[paper_id][2] for paper_id in paper_id_list]
 
             if div_eval=='amazon':
                 extract_category(feature, feature_type, paper_id_list, paper_id_d2_categories)
@@ -639,6 +680,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
 
                 if test_user:
                     update_user_dict(user_batch_list[j], user_d2_paper_id, paper_id)
+                    update_user_score_dict(user_batch_list[j], bid_score_batch_list[j], user_d2_paper_id_score, paper_id)
                     #paper_user_dist.append(all_dist_user[j])
                     #paper_user_dist[paper_id,:] = all_dist_user[j]
                     user_text_j = user_text[j]
@@ -674,6 +716,9 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
             print("Average absolute deviation on predicted distance {} per paper".format(np.mean(np.absolute(user_id_l2_pred_paper_dist - user_id_l2_pred_paper_dist_mean))/np.absolute(user_id_l2_pred_paper_dist_mean) )) 
             recall_avg_user, recall_w_avg_user, MAP_user, AUC_user, NDCG_user, F1_user = paper_recall_per_user(user_d2_paper_id, paper_user_dist, recall_at_th)
             print("Paper recall per user at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}, popularity correlation is {}".format(recall_at_th_str, recall_avg_user, recall_w_avg_user, MAP_user, F1_user, AUC_user, NDCG_user, ss.pearsonr(paper_id_l2_neg_user_freq, paper_id_l2_pred_user_dist)[0]))
+            if len(user_d2_paper_id_score) > 0:
+                spearman_score_avg = bid_score_rank_eval(user_d2_paper_id_score, paper_user_dist)
+                print("Bid score Spearman correlation coefficient {}".format(spearman_score_avg))
             paper_id_l2_pred_user_dist_mean = np.mean(paper_id_l2_pred_user_dist)
             print("Average absolute deviation on predicted distance {} per user".format(np.mean(np.absolute(paper_id_l2_pred_user_dist - paper_id_l2_pred_user_dist_mean))/np.absolute(paper_id_l2_pred_user_dist_mean) )) 
             if len(figure_name) > 0:
