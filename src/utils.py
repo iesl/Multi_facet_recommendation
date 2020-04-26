@@ -289,8 +289,8 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsam
     else:
         feature_type_uniq = torch.zeros(0)
     paper_id_tensor = torch.tensor( list(range(uniq_feature_num)), dtype = torch.int32)
-    #feature_user_tag_order_i = sorted(feature_d2_user_tag.items(), key=lambda x: x[1][1])
-    feature_user_tag_order_i = feature_d2_user_tag.items()
+    feature_user_tag_order_i = sorted(feature_d2_user_tag.items(), key=lambda x: x[1][1])
+    #feature_user_tag_order_i = feature_d2_user_tag.items()
     for paper_id, (f_tuple, (user_tag_list, order_i) ) in enumerate(feature_user_tag_order_i):
         feature_uniq[paper_id,:] = torch.tensor(f_tuple, dtype = torch.int32)
         if len(feature_type_list) > 0:

@@ -13,27 +13,30 @@ use_freq_w = True
 #use_freq_w = False
 emb_file = './resources/cbow_ACM_dim200_gorc_uncased_min_5.txt'
 
-input_dict = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
+#input_dict = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_high_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_gorc_uncased/feature/dictionary_index"
-#input_dict = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
+input_dict = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_high_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_low_gorc_uncased/feature/dictionary_index"
 
-data_file = './data/processed/UAI2019_bid_score_gorc_uncased/tensors_cold/test.pt'
-output_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#data_file = './data/processed/UAI2019_bid_score_gorc_uncased/tensors_cold/test.pt'
+#output_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/test.pt'
+#output_file = './gen_log/UAI2019_new_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
 #data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
+#output_file = './gen_log/ICLR2020_new_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/ICLR2020_bid_score_gorc_uncased/tensors_cold/test.pt'
@@ -51,10 +54,12 @@ output_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_
 #data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/train.pt'
 #output_file = './gen_log/UAI2019_bid_low_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/train.pt'
+#output_file = './gen_log/UAI2019_new_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
-#data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
+data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
+output_file = './gen_log/ICLR2020_new_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/ICLR2020_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 

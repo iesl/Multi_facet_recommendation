@@ -134,6 +134,8 @@ parser.add_argument('--tag_w', type=float, default=0,
                     help='Weights for tag loss')
 parser.add_argument('--auto_w', type=float, default=0,
                     help='Weights for autoencoder loss')
+parser.add_argument('--auto_avg', type=str2bool, nargs='?', default=False,
+                    help='Average bases for autoencoder loss')
 parser.add_argument('--neg_sample_w', type=float, default=1,
                     help='Negative sampling weights')
 parser.add_argument('--rand_neg_method', type=str, default='shuffle',
@@ -559,7 +561,13 @@ def evaluate(dataloader, current_coeff_opt):
             
             if args.auto_w > 0:
                 feature_len = None 
-                loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+                if args.auto_avg:
+                    basis_pred_auto_compressed = basis_pred_auto.mean(dim=1).unsqueeze(dim=1)
+                else:
+                    basis_pred_auto_compressed = basis_pred_auto
+                #rand_neg_method = args.rand_neg_method
+                rand_neg_method = 'rotate'
+                loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto_compressed, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer, pre_avg = True)
             else:
                 loss_set_auto = torch.tensor(0, device = device)
                 loss_set_neg_auto = torch.tensor(0, device = device)
@@ -617,6 +625,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         optimizer_e.zero_grad()
         optimizer_d.zero_grad()
         optimizer_t.zero_grad()
+        optimizer_auto.zero_grad()
         #encoder.zero_grad()
         #decoder.zero_grad()
         #output_emb, hidden, output_emb_last = parallel_encoder(feature.t())
@@ -671,7 +680,13 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         
         if args.auto_w > 0:
             feature_len = None 
-            loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer)
+            if args.auto_avg:
+                basis_pred_auto_compressed = basis_pred_auto.mean(dim=1).unsqueeze(dim=1)
+            else:
+                basis_pred_auto_compressed = basis_pred_auto
+            #rand_neg_method = args.rand_neg_method
+            rand_neg_method = 'rotate'
+            loss_set_auto, loss_set_neg_auto = nsd_loss.compute_loss_set(basis_pred_auto_compressed, source_emb, feature, args.L1_losss_B, device, feature_uniform, feature_freq, repeat_num, feature_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, rand_neg_method, args.target_norm, compute_div_reg = False, target_linear_layer = feature_linear_layer, pre_avg = True)
             if torch.isnan(loss_set_auto):
                 sys.stdout.write('auto nan, ')
                 continue
@@ -739,6 +754,7 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
 
         if args.update_target_emb:
             optimizer_t.step()
+            optimizer_auto.step()
             if args.user_w > 0:
                 user_emb.data[0,:] = 0 
             
@@ -809,7 +825,8 @@ elif args.optimizer == 'Adam':
     optimizer_e = torch.optim.Adam(encoder.parameters(), lr=args.lr, weight_decay=args.wdecay)
     optimizer_d = torch.optim.Adam(decoder.parameters(), lr=args.lr/args.lr2_divide, weight_decay=args.wdecay)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
-    optimizer_t = torch.optim.Adam([user_emb, tag_emb, feature_linear_layer], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
+    optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
+    optimizer_auto = torch.optim.SGD([feature_linear_layer], lr=args.lr_target)#, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)
@@ -892,5 +909,8 @@ for epoch in range(1, args.epochs+1):
             for param_group in optimizer_d.param_groups:
                 param_group['lr'] = lr/args.lr2_divide
             for param_group in optimizer_t.param_groups:
+                #param_group['lr'] = lr/5.0
+                param_group['lr'] = lr / args.lr * args.lr_target
+            for param_group in optimizer_auto.param_groups:
                 #param_group['lr'] = lr/5.0
                 param_group['lr'] = lr / args.lr * args.lr_target

@@ -271,6 +271,7 @@ def target_emb_preparation(target_index, embeddings, n_batch, n_set, target_inde
     target_embeddings = embeddings[target_index,:]
     if target_linear_layer is not None:
         target_embeddings = torch.bmm(target_embeddings, target_linear_layer.expand(target_embeddings.size(0),target_linear_layer.size(0), target_linear_layer.size(1)))
+        #target_embeddings = target_embeddings.mean(dim=1).unsqueeze(dim=1)
     #print( target_embeddings.size() )
     #target_embeddings should have dimension (n_batch, n_set, n_emb_size)
     #should be the same as embeddings.select(0,target_set) and select should not copy the data
@@ -296,7 +297,7 @@ def target_emb_preparation(target_index, embeddings, n_batch, n_set, target_inde
 
 #def compute_loss_set(output_emb, model_set, w_embeddings, target_set, n_basis, L1_losss_B, device, w_freq, coeff_opt, compute_target_grad):
 #def compute_loss_set(output_emb, basis_pred, coeff_pred, entpair_embs, target_set, L1_losss_B, device, w_freq, w_freq_sampling, repeat_num, target_len, coeff_opt, loss_type, compute_target_grad, coeff_opt_algo, rand_neg_method, target_norm, compute_div_reg = True):
-def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w_freq, w_freq_sampling, repeat_num, target_len, coeff_opt, loss_type, compute_target_grad, coeff_opt_algo, rand_neg_method, target_norm, compute_div_reg = True, target_linear_layer = None):
+def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w_freq, w_freq_sampling, repeat_num, target_len, coeff_opt, loss_type, compute_target_grad, coeff_opt_algo, rand_neg_method, target_norm, compute_div_reg = True, target_linear_layer = None, pre_avg = False):
     def compute_target_freq_inv_norm(w_freq, target_set):
         target_freq = w_freq[target_set]
         #target_freq = torch.masked_select( target_freq, target_freq.gt(0))
@@ -330,7 +331,7 @@ def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w
     elif rand_neg_method == 'shuffle':
         shuffle_idx = torch.randperm(target_set.nelement())
         target_index_shuffle = target_set.view(-1)[shuffle_idx].view(target_set.size())
-    else:
+    elif rand_neg_method == 'rotate':
         #rotate_shift = random.randint(1,n_batch-1)
         #shuffle_idx = random.randint(1,n_batch-1)
         target_index_shuffle = random.randint(1,n_batch-1)
@@ -355,9 +356,15 @@ def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w
             target_freq_inv_norm_neg = compute_target_freq_inv_norm(w_freq, target_index_shuffle)
         elif rand_neg_method == 'shuffle':
             target_freq_inv_norm_neg = target_freq_inv_norm.view(-1)[shuffle_idx].view(target_freq_inv_norm.size())
-        else:
+        elif rand_neg_method == 'rotate':
             target_freq_inv_norm_neg = torch.cat( (target_freq_inv_norm[target_index_shuffle:,:], target_freq_inv_norm[:target_index_shuffle,:]), dim = 0)
-        
+        if pre_avg:
+            #target_embeddings = (target_embeddings*target_freq_inv_norm.unsqueeze(dim=-1)).mean(dim=1).unsqueeze(dim=1)
+            #target_emb_neg = (target_emb_neg*target_freq_inv_norm_neg.unsqueeze(dim=-1)).mean(dim=1).unsqueeze(dim=1)
+            target_embeddings = ( (target_embeddings*target_freq_inv_norm.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
+            target_emb_neg = ( (target_emb_neg*target_freq_inv_norm_neg.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm_neg.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
+            target_freq_inv_norm = 1
+            target_freq_inv_norm_neg = 1
         #coeff_mat = estimate_coeff_mat_batch(target_embeddings.cpu(), basis_pred.detach(), L1_losss_B)
         if coeff_opt == 'prod':
             lr_coeff = 0.05
