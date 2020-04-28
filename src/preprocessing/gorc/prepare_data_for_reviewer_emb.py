@@ -1,17 +1,32 @@
 import numpy as np
 import os
 import json
-from spacy.lang.en import English
 
-nlp = English()
+#tokenizer_mode = 'scapy'
+tokenizer_mode = 'scibert'
+
+if tokenizer_mode == 'scapy':
+    from spacy.lang.en import English
+    nlp = English()
+elif tokenizer_mode == 'scibert':
+    import pysbd #scibert uses scispacy and scispacy uses pysbd (https://github.com/allenai/scispacy/blob/master/scispacy/custom_sentence_segmenter.py)
+    import sys
+    sys.path.insert(0, sys.path[0]+'/../..')
+    from scibert.tokenization_bert import BertTokenizer
+    model_name = 'scibert-scivocab-uncased'
+    tokenizer = BertTokenizer.from_pretrained(model_name)
+    seg = pysbd.Segmenter(language="en", clean=False)
+
 
 paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/archives"
 expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
-output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data"
+output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data_scibert"
 
 #paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
 #expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
 #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data"
+#output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data_scibert"
 
 reviewer_d2_expertise = {}
 with open(expertise_file) as f_in:
@@ -46,16 +61,26 @@ for file_name in all_files:
                 author_list = paper_data['content']["authors"]
                 author_id_list = paper_data['content']["authorids"]
                 author_full_str = ','.join(['|'.join(x) for x in zip(author_list, author_id_list)]).replace(' ','_')
-                w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+                if tokenizer_mode == 'scapy':
+                    w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
+                elif tokenizer_mode == 'scibert':
+                    w_list_title = tokenizer.tokenize('[CLS] ' + title + ' [SEP]')
+                #w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
                 w_list_title = ' '.join(w_list_title).split()
                 if abstract is not None:
-                    w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+                    if tokenizer_mode == 'scapy':
+                        w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
+                    elif tokenizer_mode == 'scibert':
+                        w_list_abstract = []
+                        for sent in seg.segment(abstract):
+                            w_list_abstract += tokenizer.tokenize('[CLS] ' + sent + ' [SEP]')
+                    #w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
                     w_list_abstract = ' '.join(w_list_abstract).split()
                 else:
                     w_list_abstract = []
 
                 type_list = ['0']*len(w_list_title) + ['1']*len(w_list_abstract)
-                paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), [reviewer_full_name], author_full_str]
+                paper_id_d2_features_type_author_other[paper_id] = [' '.join(w_list_title + w_list_abstract), ' '.join(type_list), [reviewer_full_name], author_full_str, paper_id]
 
 with open(output_path, 'w') as f_out:
     for paper_id in paper_id_d2_features_type_author_other:

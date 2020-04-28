@@ -5,55 +5,120 @@ import utils_testing
 import torch
 import numpy as np
 
+
+
+input_dict_path = "./data/processed/UAI2019_bid_score_scibert_gorc_uncased/feature/word_freq"
+user_dict_path = "./data/processed/UAI2019_bid_score_scibert_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/UAI2019_scibert_gorc_uncased/feature/word_freq"
+#user_dict_path = "./data/processed/UAI2019_scibert_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/UAI2019_bid_score_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/UAI2019_old_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/UAI2019_old_bid_score_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/UAI2019_bid_high_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_bid_high_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_bid_low_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/UAI2019_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_gorc_uncased/user/dictionary_index"
-input_dict_path = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
-user_dict_path = "./data/processed/ICLR2020_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/UAI2019_old_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/UAI2019_old_gorc_uncased/user/dictionary_index"
+
+#input_dict_path = "./data/processed/ICLR2020_bid_score_scibert_gorc_uncased/feature/word_freq"
+#user_dict_path = "./data/processed/ICLR2020_bid_score_scibert_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2020_scibert_gorc_uncased/feature/word_freq"
+#user_dict_path = "./data/processed/ICLR2020_scibert_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2020_old_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2020_old_bid_score_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2020_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2020_bid_score_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2020_bid_high_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2020_bid_high_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2020_bid_low_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2020_bid_low_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2020_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2020_gorc_uncased/user/dictionary_index"
 
+submission_data_file = './data/processed/UAI2019_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
+submission_emb_file = './gen_log/UAI2019_bid_score_scibert_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/UAI2019_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/UAI2019_scibert_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_emb_file = './gen_log/UAI2019_scibert_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/UAI2019_old_bid_score_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/UAI2019_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/test.pt'
+#submission_data_file = './data/processed/UAI2019_old_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/UAI2019_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-submission_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
-submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+
+#submission_data_file = './data/processed/ICLR2020_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
+#submission_data_file = './data/processed/ICLR2020_old_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/ICLR2020_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_scibert_submission_paper_emb_freq_4_avg.txt'
+#submission_emb_file = './gen_log/ICLR2020_scibert_submission_paper_emb_uni_avg.txt'
+#submission_data_file = './data/processed/ICLR2020_bid_score_gorc_uncased/tensors_cold/test.pt'
+#submission_data_file = './data/processed/ICLR2020_old_bid_score_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/ICLR2020_bid_high_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/ICLR2020_bid_high_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/ICLR2020_bid_low_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/ICLR2020_bid_low_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/ICLR2020_bid_low_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
+reviewer_data_file = './data/processed/UAI2019_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
+reviewer_emb_file = './gen_log/UAI2019_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/UAI2019_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/UAI2019_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_emb_file = './gen_log/UAI2019_scibert_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/UAI2019_old_bid_score_gorc_uncased/tensors_cold/train.pt'
 #reviewer_data_file = './data/processed/UAI2019_bid_high_gorc_uncased/tensors_cold/train.pt'
-#reviewer_emb_file = './gen_log/UAI2019_bid_high_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/UAI2019_bid_low_gorc_uncased/tensors_cold/train.pt'
-#reviewer_emb_file = './gen_log/UAI2019_bid_low_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/UAI2019_gorc_uncased/tensors_cold/train.pt'
+#reviewer_data_file = './data/processed/UAI2019_old_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_emb_file = './gen_log/UAI2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-reviewer_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/UAI2019_bid_high_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_emb_file = './gen_log/UAI2019_bid_low_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+
+#reviewer_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
+#reviewer_data_file = './data/processed/ICLR2020_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2020_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/ICLR2020_old_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/ICLR2020_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2020_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_emb_file = './gen_log/ICLR2020_scibert_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/ICLR2020_bid_score_gorc_uncased/tensors_cold/train.pt'
+#reviewer_data_file = './data/processed/ICLR2020_old_bid_score_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/ICLR2020_bid_high_gorc_uncased/tensors_cold/train.pt'
 #reviewer_data_file = './data/processed/ICLR2020_bid_low_gorc_uncased/tensors_cold/train.pt'
-reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
-mode = 'save_dist'
-#mode = 'run_eval'
+#mode = 'save_dist'
+mode = 'run_eval'
 
 if mode == 'save_dist':
     #out_dist_path = './gen_log/UAI2019_avg_cbow_freq_4_dist.np'
-    out_dist_path = './gen_log/ICLR2020_max_cbow_freq_4_dist.np'
+    out_dist_path = './gen_log/UAI2019_max_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/ICLR2020_max_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/ICLR2020_avg_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/ICLR2020_max_cbow_freq_4_dist_bid_score.np'
+    #out_dist_path = './gen_log/ICLR2020_avg_cbow_freq_4_dist_bid_score.np'
+    #out_dist_path = './gen_log/UAI2019_avg_cbow_freq_4_dist_bid_score.np'
+    #out_dist_path = './gen_log/UAI2019_max_cbow_freq_4_dist_bid_score.np'
 elif mode == 'run_eval':
     #out_f_path = './gen_log/UAI2019_bid_high_avg_cbow_freq_4_baseline'
     #out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_freq_4_baseline'
@@ -75,6 +140,15 @@ elif mode == 'run_eval':
 #dist_option = 'sim_avg'
 dist_option = 'sim_max'
 
+def load_idx_d2_word_freq(f_in):
+    idx_d2_word_freq = {}
+    for i, line in enumerate(f_in):
+        fields = line.rstrip().split('\t')
+        if len(fields) == 3:
+            idx_d2_word_freq[int(fields[2])] = [fields[0],int(fields[1])]
+
+    return idx_d2_word_freq
+
 device = torch.device('cpu')
 
 eval_bsz = 50
@@ -94,12 +168,18 @@ with torch.no_grad():
         #feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
         #dataset, all_user_tag = utils.create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [])
     all_user_tag = dataloader_train_info[1]
-    all_user_train, all_tag_train = zip(*all_user_tag)
+    #all_user_train, all_tag_train = zip(*all_user_tag)
+    fields = list(zip(*all_user_tag))
+    all_user_train = fields[0]
+    #all_tag_train = fields[1]
 
     with open(submission_data_file,'rb') as f_in:
         dataloader_test_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
     all_user_tag = dataloader_test_info[1]
-    all_user_test, all_tag_test = zip(*all_user_tag)
+    #all_user_test, all_tag_test = zip(*all_user_tag)
+    fields = list(zip(*all_user_tag))
+    all_user_test = fields[0]
+    #all_tag_test = fields[1]
 
     with open(reviewer_emb_file) as f_in:
         paper_emb_train = load_emb_file(f_in, device)
@@ -113,7 +193,8 @@ with torch.no_grad():
     assert paper_num_test == len(all_user_test)
 
     with open(input_dict_path) as f_in:
-        idx2word_freq = utils.load_idx2word_freq(f_in)
+        #idx2word_freq = utils.load_idx2word_freq(f_in)
+        idx2word_freq = load_idx_d2_word_freq(f_in)
 
     with open(user_dict_path) as f_in:
         user_idx2word_freq = utils.load_idx2word_freq(f_in)

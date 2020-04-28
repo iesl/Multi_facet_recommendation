@@ -5,26 +5,25 @@ MIN_FREQ_TAG=0
 LOWERCASE=True
 #LOWERCASE=False
 LOWERCASE_TARGET=FALSE
-INPUT_NAME=ICLR2020
-#INPUT_NAME=ICLR2020_bid_low
-#INPUT_NAME=ICLR2020_bid_high
-#INPUT_NAME=UAI2019
-#INPUT_NAME=UAI2019_bid_low
-#INPUT_NAME=UAI2019_bid_high
+#INPUT_NAME=ICLR2020
+#OUTPUT_NAME=ICLR2020_scibert
+INPUT_NAME=UAI2019
+OUTPUT_NAME=UAI2019_scibert
 #echo $MIN_FREQ
 #INPUT_FILE_ALL="./data/raw/$INPUT_NAME/all_paper_data"
-INPUT_FILE_TRAIN_ALL="./data/raw/openreview/$INPUT_NAME/all_reviewer_paper_data"
-INPUT_FILE_TEST_ALL="./data/raw/openreview/$INPUT_NAME/all_submission_paper_data"
+INPUT_FILE_STATS_ALL="./data/raw/gorc/all_paper_data_scibert"
+INPUT_FILE_TRAIN_ALL="./data/raw/openreview/$INPUT_NAME/all_reviewer_paper_data_scibert"
+INPUT_FILE_TEST_ALL="./data/raw/openreview/$INPUT_NAME/all_submission_paper_data_scibert"
 #INPUT_FILE_TEST_ALL="./data/raw/openreview/$INPUT_NAME/all_submission_bid_data"
-INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_uncased_min_5/feature/dictionary_index"
+#INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_uncased_min_5/feature/dictionary_index"
 #INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_org_uncased_min_5/feature/dictionary_index"
-INPUT_FILE="./data/raw/openreview/$INPUT_NAME/meta"
-INPUT_FILE_USER="./data/raw/openreview/$INPUT_NAME/user"
-INPUT_FILE_TAG="./data/raw/openreview/$INPUT_NAME/tags"
+INPUT_FILE="./data/raw/openreview/$INPUT_NAME/meta_scibert"
+INPUT_FILE_USER="./data/raw/openreview/$INPUT_NAME/user_scibert"
+INPUT_FILE_TAG="./data/raw/openreview/$INPUT_NAME/tags_scibert"
 #INPUT_FILE="./data/raw/wiki2016.txt"
 #DATA_NAME="wiki2016_min$MIN_FREQ"
 #DATA_NAME="${INPUT_NAME}_cased_min_50"
-DATA_NAME="${INPUT_NAME}_gorc_uncased"
+DATA_NAME="${OUTPUT_NAME}_gorc_uncased"
 #DATA_NAME="${INPUT_NAME}_gorc_org_uncased"
 OUTPUT_DIR="./data/processed/$DATA_NAME/"
 OUTPUT_DIR_FEATURE="./data/processed/$DATA_NAME/feature/"
@@ -47,10 +46,11 @@ mkdir -p $OUTPUT_DIR_TYPE
 mkdir -p $OUTPUT_DIR_FEATURE
 ~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TRAIN_ALL -f ${INPUT_FILE}_train -y $OUTPUT_DIR_TYPE/corpus_index -u ${INPUT_FILE_USER}_train -t ${INPUT_FILE_TAG}_train -p ${OUTPUT_DIR}/paper_id_train
 ~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TEST_ALL -f ${INPUT_FILE}_test -y $OUTPUT_DIR_TYPE/corpus_index_test -u ${INPUT_FILE_USER}_test -t ${INPUT_FILE_TAG}_test -p ${OUTPUT_DIR}/paper_id_test
+~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_STATS_ALL -f ${INPUT_FILE}_stats
 
-cp $INPUT_FEATURE_VOCAB_FILE $OUTPUT_DIR_FEATURE/dictionary_index
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_train --save ${OUTPUT_DIR_FEATURE}/corpus_index --lowercase $LOWERCASE --eos True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_test --save ${OUTPUT_DIR_FEATURE}/corpus_index_test --lowercase $LOWERCASE --eos True
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices_scibert.py -i ${INPUT_FILE}_stats -d ${OUTPUT_DIR_FEATURE}/word_freq 
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices_scibert.py -i ${INPUT_FILE}_train -c ${OUTPUT_DIR_FEATURE}/corpus_index 
+~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices_scibert.py -i ${INPUT_FILE}_test -c ${OUTPUT_DIR_FEATURE}/corpus_index_test 
 
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_USER}_train --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_USER}/dictionary_index --update_dict False --data ${INPUT_FILE_USER}_test --save ${OUTPUT_DIR_USER}/corpus_index_test --lowercase $LOWERCASE_TARGET --ignore_unk True
