@@ -5,7 +5,9 @@ MIN_FREQ_TAG=0
 LOWERCASE=True
 #LOWERCASE=False
 LOWERCASE_TARGET=FALSE
-INPUT_NAME=ICLR2020
+INPUT_NAME=ICLR2018
+#INPUT_NAME=ICLR2019
+#INPUT_NAME=ICLR2020
 #INPUT_NAME=ICLR2020_bid_low
 #INPUT_NAME=ICLR2020_bid_high
 #INPUT_NAME=UAI2019
@@ -34,8 +36,8 @@ OUTPUT_DIR_TAG="./data/processed/${DATA_NAME}/tag/"
 
 #GLOVE_IN="/iesl/data/word_embedding/glove.840B.300d.txt"
 #GLOVE_OUT="./resources/glove.840B.300d_filtered_${DATA_NAME}.txt"
-CBOW_IN="/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/resources/word2vec_pretraining/dim200/embeddings-basic-cbow.txt"
-CBOW_OUT="./resources/cbow_ACM_dim200_${DATA_NAME}.txt"
+#CBOW_IN="/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/resources/word2vec_pretraining/dim200/embeddings-basic-cbow.txt"
+#CBOW_OUT="./resources/cbow_ACM_dim200_${DATA_NAME}.txt"
 
 TENSOR_FOLDER="tensors_cold"
 MAX_SENT_LEN="512"

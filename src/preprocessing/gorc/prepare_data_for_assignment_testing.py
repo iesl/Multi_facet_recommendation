@@ -21,7 +21,9 @@ user_tag_source = 'bid'
 #user_tag_source = 'assignment'
 
 #dataset = 'UAI2019'
-dataset = 'ICLR2020'
+#dataset = 'ICLR2020'
+#dataset = 'ICLR2019'
+dataset = 'ICLR2018'
 
 if dataset == 'UAI2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
@@ -46,6 +48,36 @@ elif dataset == 'ICLR2020':
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
     output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data_scibert"
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
+elif dataset == 'ICLR2019':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/source_data/submissions"
+    expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/source_data/profiles_expertise/profiles_expertise.json"
+    if user_tag_source == 'assignment':
+        assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/source_data/assignments/assignments.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/all_submission_paper_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/all_submission_paper_data_scibert"
+    elif user_tag_source == 'bid':
+        bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/source_data/bids/bids.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019_bid_score/all_submission_bid_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019_bid_score/all_submission_bid_data_scibert"
+elif dataset == 'ICLR2018':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/source_data/submissions"
+    expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/source_data/profiles_expertise/profiles_expertise.json"
+    if user_tag_source == 'assignment':
+        assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/source_data/assignments/assignments.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/all_submission_paper_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/all_submission_paper_data_scibert"
+    elif user_tag_source == 'bid':
+        bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018/source_data/bids/bids.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018_bid_score/all_submission_bid_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018_bid_score/all_submission_bid_data_scibert"
 
 reviewer_d2_expertise = {}
 with open(expertise_file) as f_in:
@@ -61,7 +93,10 @@ with open(expertise_file) as f_in:
 
 paper_id_d2_reviewers = {}
 if user_tag_source == 'bid':
-    score_map_dict = {"Very Low": '1', "Low": '2', "Neutral": '3', "High": '4', "Very High": '5'}
+    if dataset == 'ICLR2018':
+        score_map_dict = {"No bid": "0", "I cannot review": '1', "I can probably review but am not an expert": '2', "I can review": '3', "I want to review": '4'}
+    else:
+        score_map_dict = {"No Bid": "0", "Very Low": '1', "Low": '2', "Neutral": '3', "High": '4', "Very High": '5'}
     with open(bid_file) as f_in:
         all_bids = json.load(f_in)
         for reviewer_name in all_bids:

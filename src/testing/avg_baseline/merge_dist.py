@@ -5,15 +5,47 @@ import utils_testing
 import utils
 import torch
 import numpy as np
+import getopt
 
 dist_file_2 = ''
+testing_dir = ''
 
+#merge_alpha = 1
+merge_alpha = 0.8
+#merge_alpha = 0.5
+
+help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:j:d:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        dist_file_1 = arg
+    elif opt in ("-j"):
+        dist_file_2 = arg
+    elif opt in ("-d"):
+        testing_dir = arg
+
+input_dict_path = testing_dir + "/feature/dictionary_index"
+user_dict_path = testing_dir + "/user/dictionary_index"
+submission_data_file = testing_dir + '/tensors_cold/test.pt'
+
+#dist_file_1 = "./gen_log/ICLR2019_TPMS_dist.np"
+#dist_file_1 = "./gen_log/ICLR2019_bid_score_TPMS_dist.np"
+#dist_file_1 = "./gen_log/ICLR2019_ELMo_dist.np"
+#dist_file_1 = "./gen_log/ICLR2019_bid_score_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_bid_score_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_max_cbow_freq_4_dist.np"
-dist_file_1 = "./gen_log/ICLR2020_avg_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/ICLR2020_avg_cbow_freq_4_dist.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_w_freq.np"
-dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_sim_w_freq.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_sim_w_freq_no_lin.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_no_lin_auto1.np"
@@ -46,13 +78,16 @@ dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_no_lin_auto1_bid_score.np"
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_no_lin_auto1_bid_score.np"
 
-#merge_alpha = 1
-merge_alpha = 0.8
-#merge_alpha = 0.5
 
-input_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/feature/dictionary_index"
-user_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/user/dictionary_index"
-submission_data_file = './data/processed/ICLR2020_old_gorc_uncased/tensors_cold/test.pt'
+#input_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/user/dictionary_index"
+#submission_data_file = './data/processed/ICLR2019_bid_score_gorc_uncased/tensors_cold/test.pt'
+#input_dict_path = "./data/processed/ICLR2019_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2019_gorc_uncased/user/dictionary_index"
+#submission_data_file = './data/processed/ICLR2019_gorc_uncased/tensors_cold/test.pt'
+#input_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/ICLR2020_old_gorc_uncased/user/dictionary_index"
+#submission_data_file = './data/processed/ICLR2020_old_gorc_uncased/tensors_cold/test.pt'
 #input_dict_path = "./data/processed/UAI2019_old_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_old_gorc_uncased/user/dictionary_index"
 #submission_data_file = './data/processed/UAI2019_old_gorc_uncased/tensors_cold/test.pt'
