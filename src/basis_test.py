@@ -20,11 +20,13 @@ parser.add_argument('--tensor_folder', type=str, default='tensors_cold_0',
 parser.add_argument('--checkpoint', type=str, default='./models/',
                     help='model checkpoint to use')
 parser.add_argument('--tag_emb_file', type=str, default='tag_emb.pt',
-                    help='path to the file of a word embedding file')
+                    help='path to the file of an user embedding file')
 parser.add_argument('--user_emb_file', type=str, default='user_emb.pt',
+                    help='path to the file of a tag embedding file')
+parser.add_argument('--word_emb_file', type=str, default='',
                     help='path to the file of a word embedding file')
 parser.add_argument('--testing_target', type=str, default='tag',
-                    help='testing tag or user')
+                    help='testing tag or user or auto')
 parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
 
@@ -44,6 +46,11 @@ parser.add_argument('--max_batch_num', type=int, default=100,
 utils_testing.add_model_arguments(parser)
 
 args = parser.parse_args()
+
+if args.testing_target == 'auto':
+    assert len(args.word_emb_file) > 0
+else:
+    assert len(args.word_emb_file) == 0
 
 #if args.tag_emb_file == "tag_emb.pt":
 if args.tag_emb_file[:7] == "tag_emb":
@@ -77,8 +84,16 @@ dataloader_train = dataloader_train_arr[0]
 print("Loading Models")
 ########################
 
+load_auto = False
+if args.testing_target == 'auto':
+    load_auto = True
 
-parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb = loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len)
+output_fields = loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len, load_auto = load_auto)
+
+if args.testing_target == 'auto':
+    parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb, word_norm_emb_trans = output_fields
+else:
+    parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb = output_fields
 
 encoder.eval()
 decoder.eval()
@@ -98,6 +113,12 @@ with open(args.outf, 'w') as outf:
         if dataloader_train:
             outf.write('Training Topics:\n\n')
             utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num)
+    elif args.testing_target == 'auto':
+        outf.write('Validation Topics:\n\n')
+        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, word_norm_emb_trans, idx2word_freq, idx2word_freq, outf, args.max_batch_num)
+        if dataloader_train:
+            outf.write('Training Topics:\n\n')
+            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, word_norm_emb_trans, idx2word_freq, idx2word_freq, outf, args.max_batch_num)
 
 #test_batch_size = 1
 #test_data = batchify(corpus.test, test_batch_size, args)

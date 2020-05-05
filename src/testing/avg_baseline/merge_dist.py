@@ -13,6 +13,7 @@ testing_dir = ''
 #merge_alpha = 1
 merge_alpha = 0.8
 #merge_alpha = 0.5
+#merge_alpha = 0
 
 help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir>'
 

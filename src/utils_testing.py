@@ -192,7 +192,7 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
                 break
 
 num_special_token = 3
-def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, device):
+def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, switch_user_tag_roles, device):
     def compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device):
         lr_coeff = 0.05
         iter_coeff = 60
@@ -224,12 +224,21 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
         
     basis_norm_pred, basis_norm_pred_tag, basis_norm_pred_auto, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb)
     if test_user:
-        all_dist_user = compute_dist(user_norm_emb, basis_norm_pred, coeff_opt, loss_type, device)
+        if switch_user_tag_roles:
+            input_basis = basis_norm_pred_tag
+        else:
+            input_basis = basis_norm_pred
+        all_dist_user = compute_dist(user_norm_emb, input_basis, coeff_opt, loss_type, device)
     else:
         all_dist_user = []
     
     if test_tag:
-        all_dist_tag = compute_dist(tag_norm_emb, basis_norm_pred_tag, coeff_opt, loss_type, device)
+        if switch_user_tag_roles:
+            input_basis = basis_norm_pred
+        else:
+            input_basis = basis_norm_pred_tag
+        
+        all_dist_tag = compute_dist(tag_norm_emb, input_basis, coeff_opt, loss_type, device)
     else:
         all_dist_tag = []
 
@@ -519,7 +528,7 @@ def extract_tag(paper_id_list, tag_batch_list, paper_id_d2_tags):
         tag_list = tag_batch_list[i]
         paper_id_d2_tags[paper_id] = tag_list
 
-def all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, device):
+def all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, switch_user_tag_roles, device):
     with torch.no_grad():
         dataloader, all_user_tag = dataloader_info
         paper_user_dist = []
@@ -539,7 +548,7 @@ def all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder,
 
             #feature_text = convert_feature_to_text(feature, idx2word_freq)
 
-            all_dist_user, all_dist_tag = compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, device)
+            all_dist_user, all_dist_tag = compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, test_user, test_tag, switch_user_tag_roles, device)
 
             bsz = feature.size(0)
             for j in range(bsz):
@@ -760,8 +769,8 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
                 p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_AUC_tag, p_NDCG_tag, p_F1_tag = paper_recall_per_user(tag_d2_paper_id, paper_id_l2_neg_tag_freq, recall_at_th, dist_matrix=False)
                 print("Popularity GT baseline. Paper recall per tag at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str, p_recall_avg_tag, p_recall_w_avg_tag, p_MAP_tag, p_F1_tag, p_AUC_tag, p_NDCG_tag))
 
-def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', store_dist = '', figure_name = ''):
-    paper_user_dist, paper_tag_dist = all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, device)
+def recommend_test(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, coeff_opt, loss_type, test_user, test_tag, outf, device, most_popular_baseline=True, div_eval='openreview', switch_user_tag_roles = False, store_dist = '', figure_name = ''):
+    paper_user_dist, paper_tag_dist = all_dist_from_recommend(dataloader_info, parallel_encoder, parallel_decoder, user_norm_emb, tag_norm_emb, coeff_opt, loss_type, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, switch_user_tag_roles, device)
     if store_dist == 'user':
         np.savetxt(outf, paper_user_dist)
     elif store_dist == 'tag':

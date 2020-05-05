@@ -132,6 +132,8 @@ parser.add_argument('--user_w', type=float, default=1,
                     help='Weights for user loss')
 parser.add_argument('--tag_w', type=float, default=0,
                     help='Weights for tag loss')
+parser.add_argument('--switch_user_tag_roles', type=str2bool, nargs='?', default=False,
+                    help='If true and use TRANS_two_heads as de_coeff_model, switch the magnitude of two models')
 parser.add_argument('--auto_w', type=float, default=0,
                     help='Weights for autoencoder loss')
 parser.add_argument('--auto_avg', type=str2bool, nargs='?', default=False,
@@ -220,6 +222,9 @@ args = parser.parse_args()
 print("Set up environment")
 ########################
 assert args.training_split_num >= args.valid_per_epoch
+
+if args.switch_user_tag_roles:
+    assert args.de_coeff_model == 'TRANS_two_heads'
 
 if args.coeff_opt == 'maxlc':
     current_coeff_opt = 'max'
@@ -545,7 +550,11 @@ def evaluate(dataloader, current_coeff_opt):
             #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, basis_pred, coeff_pred, input_emb, target, args.L1_losss_B, device, target_freq, current_coeff_opt, compute_target_grad, args.coeff_opt_algo)
             if args.user_w > 0:
                 #loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
-                loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(basis_pred, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+                if args.switch_user_tag_roles:
+                    input_basis = basis_pred_tag
+                else:
+                    input_basis = basis_pred
+                loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(input_basis, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
             else:
                 loss_set_user = torch.tensor(0)
                 loss_set_neg_user = torch.tensor(0)
@@ -553,7 +562,11 @@ def evaluate(dataloader, current_coeff_opt):
                 
             if args.tag_w > 0:
                 #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
-                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred_tag, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
+                if args.switch_user_tag_roles:
+                    input_basis = basis_pred
+                else:
+                    input_basis = basis_pred_tag
+                loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(input_basis, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm ) #, compute_div_reg = False)
             else:
                 loss_set_tag = torch.tensor(0)
                 loss_set_neg_tag = torch.tensor(0)
@@ -658,7 +671,11 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
         #loss_set, loss_set_reg, loss_set_div, loss_set_neg, loss_coeff_pred = nsd_loss.compute_loss_set(output_emb_last, parallel_decoder, input_emb, target, args.n_basis, args.L1_losss_B, device, w_freq, current_coeff_opt, compute_target_grad)
         if args.user_w > 0:
             #loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
-            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(basis_pred, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+            if args.switch_user_tag_roles:
+                input_basis = basis_pred_tag
+            else:
+                input_basis = basis_pred
+            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(input_basis, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
             if torch.isnan(loss_set_user):
                 sys.stdout.write('user nan, ')
                 continue
@@ -668,7 +685,11 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             loss_set_div_target_user = torch.tensor(0, device = device)
             
         if args.tag_w > 0:
-            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(basis_pred_tag, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
+            if args.switch_user_tag_roles:
+                input_basis = basis_pred
+            else:
+                input_basis = basis_pred_tag
+            loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(input_basis, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
             #loss_set_tag, loss_set_neg_tag, loss_set_div, loss_set_reg, loss_set_div_target_tag = nsd_loss.compute_loss_set(output_emb_last, basis_pred, None, tag_emb, tag, args.L1_losss_B, device, tag_uniform, tag_freq, repeat_num, tag_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)#, compute_div_reg = False)
             if torch.isnan(loss_set_tag):
                 sys.stdout.write('tag nan, ')
