@@ -24,8 +24,14 @@ import numpy as np
 #input_dict_path = "./data/processed/UAI2019_old_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_old_gorc_uncased/user/dictionary_index"
 
-input_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/feature/word_freq"
-user_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/user/dictionary_index"
+only_test_tag = True
+#only_test_tag = False
+
+input_dict_path = "./data/processed/gorc_uncased_min_5/feature/dictionary_index"
+user_dict_path = "./data/processed/gorc_uncased_min_5/tag/dictionary_index"
+#user_dict_path = "./data/processed/gorc_uncased_min_5/user/dictionary_index"
+#input_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/feature/word_freq"
+#user_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2018_scibert_gorc_uncased/feature/word_freq"
 #user_dict_path = "./data/processed/ICLR2018_scibert_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2019_bid_score_scibert_gorc_uncased/feature/word_freq"
@@ -106,8 +112,11 @@ user_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/user/
 #submission_emb_file = './gen_log/ICLR2019_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
 #submission_data_file = './data/processed/ICLR2018_scibert_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/ICLR2018_scibert_submission_paper_emb_freq_4_avg.txt'
-submission_data_file = './data/processed/ICLR2018_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
-submission_emb_file = './gen_log/ICLR2018_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
+#submission_data_file = './data/processed/ICLR2018_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2018_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
+submission_data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/test.pt'
+submission_emb_file = './gen_log/gorc_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
+
 
 #reviewer_data_file = './data/processed/UAI2019_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -146,13 +155,17 @@ submission_emb_file = './gen_log/ICLR2018_bid_score_scibert_submission_paper_emb
 #reviewer_emb_file = './gen_log/ICLR2018_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/ICLR2019_scibert_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/ICLR2019_scibert_reviewer_paper_emb_freq_4_avg.txt'
-reviewer_data_file = './data/processed/ICLR2018_scibert_gorc_uncased/tensors_cold/train.pt'
-reviewer_emb_file = './gen_log/ICLR2018_scibert_reviewer_paper_emb_freq_4_avg.txt'
+#reviewer_data_file = './data/processed/ICLR2018_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2018_scibert_reviewer_paper_emb_freq_4_avg.txt'
+reviewer_data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/train.pt'
+reviewer_emb_file = './gen_log/gorc_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
-#mode = 'save_dist'
-mode = 'run_eval'
+mode = 'save_dist'
+#mode = 'run_eval'
 
 if mode == 'save_dist':
+    out_dist_path = './gen_log/gorc_tag_new_max_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/gorc_tag_new_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/UAI2019_new_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/UAI2019_new_max_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/ICLR2020_new_avg_cbow_freq_4_dist.np'
@@ -164,7 +177,7 @@ if mode == 'save_dist':
     #out_dist_path = './gen_log/ICLR2018_scibert_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/ICLR2018_scibert_max_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/ICLR2018_scibert_avg_cbow_freq_4_dist_bid_score.np'
-    out_dist_path = './gen_log/ICLR2018_scibert_max_cbow_freq_4_dist_bid_score.np'
+    #out_dist_path = './gen_log/ICLR2018_scibert_max_cbow_freq_4_dist_bid_score.np'
     #out_dist_path = './gen_log/ICLR2019_scibert_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/ICLR2019_scibert_max_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/ICLR2019_scibert_avg_cbow_freq_4_dist_bid_score.np'
@@ -195,8 +208,9 @@ elif mode == 'run_eval':
     #out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_uni_baseline'
 
 #dist_option = 'emb_avg'
-dist_option = 'sim_avg'
-#dist_option = 'sim_max'
+#dist_option = 'sim_avg'
+dist_option = 'sim_max'
+
 
 def load_idx_d2_word_freq(f_in):
     idx_d2_word_freq = {}
@@ -228,7 +242,10 @@ with torch.no_grad():
     all_user_tag = dataloader_train_info[1]
     #all_user_train, all_tag_train = zip(*all_user_tag)
     fields = list(zip(*all_user_tag))
-    all_user_train = fields[0]
+    if only_test_tag:
+        all_user_train = fields[1]
+    else:
+        all_user_train = fields[0]
     #all_tag_train = fields[1]
 
     with open(submission_data_file,'rb') as f_in:
@@ -236,7 +253,10 @@ with torch.no_grad():
     all_user_tag = dataloader_test_info[1]
     #all_user_test, all_tag_test = zip(*all_user_tag)
     fields = list(zip(*all_user_tag))
-    all_user_test = fields[0]
+    if only_test_tag:
+        all_user_test = fields[1]
+    else:
+        all_user_test = fields[0]
     #all_tag_test = fields[1]
 
     with open(reviewer_emb_file) as f_in:
@@ -294,11 +314,18 @@ with torch.no_grad():
         #with open(out_dist_path, 'w') as outf:
         #    pickle.dump( paper_user_dist, outf)
     elif mode == 'run_eval':
-        test_user = True
-        test_tag = False
         most_popular_baseline = False
         div_eval = 'openreview'
-        tag_idx2word_freq = []
-        paper_tag_dist = []
+        if only_test_tag:
+            test_user = False
+            test_tag = True
+            tag_idx2word_freq = user_idx2word_freq
+            paper_tag_dist = paper_user_dist
+            
+        else:
+            test_user = True
+            test_tag = False
+            tag_idx2word_freq = []
+            paper_tag_dist = []
         with open(out_f_path, 'w') as outf:
             utils_testing.recommend_test_from_all_dist(dataloader_test_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)
