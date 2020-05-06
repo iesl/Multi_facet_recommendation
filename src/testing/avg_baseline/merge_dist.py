@@ -13,11 +13,15 @@ testing_dir = ''
 #merge_alpha = 1
 merge_alpha = 0.8
 #merge_alpha = 0.5
+#merge_alpha = 0
 
-help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir>'
+eval_target = 'user'
+tensor_folder_name = 'tensors_cold'
+
+help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir> -t <tensor_folder_name> -e <eval_target>'
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:j:d:")
+    opts, args = getopt.getopt(sys.argv[1:], "i:j:d:t:e:")
 except getopt.GetoptError:
     print(help_msg)
     sys.exit(2)
@@ -31,11 +35,19 @@ for opt, arg in opts:
         dist_file_2 = arg
     elif opt in ("-d"):
         testing_dir = arg
+    elif opt in ("-t"):
+        tensor_folder_name = arg
+    elif opt in ("-e"):
+        eval_target = arg
 
 input_dict_path = testing_dir + "/feature/dictionary_index"
-user_dict_path = testing_dir + "/user/dictionary_index"
-submission_data_file = testing_dir + '/tensors_cold/test.pt'
+if eval_target == 'user':
+    user_dict_path = testing_dir + "/user/dictionary_index"
+elif eval_target == 'tag':
+    tag_dict_path = testing_dir + "/tag/dictionary_index"
+submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 
+#dist_file_1 = "./gen_log/NeurIPS2019_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_bid_score_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_ELMo_dist.np"
@@ -79,6 +91,9 @@ submission_data_file = testing_dir + '/tensors_cold/test.pt'
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_no_lin_auto1_bid_score.np"
 
 
+#input_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/user/dictionary_index"
+#submission_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 #input_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/user/dictionary_index"
 #submission_data_file = './data/processed/ICLR2019_bid_score_gorc_uncased/tensors_cold/test.pt'
@@ -118,6 +133,10 @@ if len(dist_file_2) == 0:
 else:
     dist_2 = np.loadtxt(dist_file_2)
     paper_user_dist = dist_1 * merge_alpha + dist_2 * (1- merge_alpha)
+
+if eval_target == 'tag':
+    paper_tag_dist = paper_user_dist
+    paper_user_dist = []
 #paper_user_dist = np.power(dist_1 + 1, merge_alpha) * np.power(dist_2 + 1, 1- merge_alpha)
 
 eval_bsz = 50
@@ -127,18 +146,28 @@ device = torch.device('cpu')
 with open(submission_data_file,'rb') as f_in:
     dataloader_test_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
 
-with open(user_dict_path) as f_in:
-    user_idx2word_freq = utils.load_idx2word_freq(f_in)
+if eval_target == 'user':
+    with open(user_dict_path) as f_in:
+        user_idx2word_freq = utils.load_idx2word_freq(f_in)
+elif eval_target == 'tag':
+    with open(tag_dict_path) as f_in:
+        tag_idx2word_freq = utils.load_idx2word_freq(f_in)
 
 with open(input_dict_path) as f_in:
     idx2word_freq = utils.load_idx2word_freq(f_in)
 
-test_user = True
-test_tag = False
 most_popular_baseline = False
 div_eval = 'openreview'
-tag_idx2word_freq = []
-paper_tag_dist = []
-
+if eval_target == 'user':
+    test_user = True
+    test_tag = False
+    tag_idx2word_freq = []
+    paper_tag_dist = []
+elif eval_target == 'tag':
+    test_user = False
+    test_tag = True
+    user_idx2word_freq = []
+    paper_user_dist = []
+    
 with open(out_f_path, 'w') as outf:
     utils_testing.recommend_test_from_all_dist(dataloader_test_info, paper_user_dist, paper_tag_dist, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, test_user, test_tag, outf, device, most_popular_baseline, div_eval)

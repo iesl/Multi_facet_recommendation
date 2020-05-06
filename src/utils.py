@@ -543,7 +543,7 @@ def load_emb_from_path(emb_file_path, device, idx2word_freq):
         word_emb, output_emb_size, oov_list = load_emb_file_to_tensor(emb_file_path,device,idx2word_freq)
     return word_emb, output_emb_size
 
-def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len, normalize_emb= True):
+def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_freq, device, max_sent_len, normalize_emb= True, load_auto = False):
 
     #if len(args.source_emb_file) > 0:
     #    word_emb, source_emb_size = load_emb_from_path(args.source_emb_file, device, idx2word_freq)
@@ -572,7 +572,7 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
         target_emb_size = tag_emb_size
         #raise Exception("Must provide entity pair emb file when loading all models for evaluation!")
 
-
+    
     if args.trans_nhid < 0:
         if args.target_emsize > 0:
             args.trans_nhid = args.target_emsize
@@ -608,7 +608,19 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     #word_norm_emb = word_emb / (0.000000000001 + word_emb.norm(dim = 1, keepdim=True) )
     #word_norm_emb[0,:] = 0
 
-    
+    if load_auto:
+        with torch.no_grad():
+            print(args.word_emb_file)
+            word_emb, word_emb_size = load_emb_from_path(args.word_emb_file, device, idx2word_freq)
+            lin_layer_path = os.path.join(args.checkpoint, 'feature_linear_layer.pt')
+            feature_linear_layer = torch.load( lin_layer_path, map_location=device )
+            word_emb_trans = torch.mm(word_emb, feature_linear_layer)
+            if normalize_emb:
+                word_norm_emb_trans = word_emb_trans / (0.000000000001 + word_emb_trans.norm(dim = 1, keepdim=True) )
+                #word_norm_emb_trans = word_emb_trans
+            else:
+                word_norm_emb_trans = word_emb_trans
+                
     if normalize_emb:
         if len(tag_emb) > 0:
             tag_norm_emb = tag_emb / (0.000000000001 + tag_emb.norm(dim = 1, keepdim=True) )
@@ -624,9 +636,11 @@ def loading_all_models(args, idx2word_freq, user_idx2word_freq, tag_idx2word_fre
     user_norm_emb[0,:] = 0
 
     parallel_encoder, parallel_decoder = output_parallel_models(args.cuda, args.single_gpu, encoder, decoder)
-
-    #return parallel_encoder, parallel_decoder, encoder, decoder, word_norm_emb, target_norm_emb
-    return parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb
+    
+    if load_auto:
+        return parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb, word_norm_emb_trans
+    else:
+        return parallel_encoder, parallel_decoder, encoder, decoder, user_norm_emb, tag_norm_emb
 
 def seed_all_randomness(seed,use_cuda):
     random.seed(seed)

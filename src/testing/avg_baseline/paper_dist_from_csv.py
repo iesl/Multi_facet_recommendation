@@ -13,7 +13,8 @@ from unicodedata import normalize
 #    return detect(rawdata)['encoding']
 
 
-data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_gorc_uncased'
+data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_bid_score_gorc_uncased'
@@ -21,6 +22,8 @@ data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/da
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
+score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/OpenReviewTestData/tpms.csv'
+output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_TPMS_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/iclr2019TPMS.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_TPMS_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_bid_score_TPMS_dist.np'
@@ -31,9 +34,9 @@ user_dict_file = data_folder + '/user/dictionary_index'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_ELMo_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_bid_score_ELMo_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/UAI2019_ELMo_scores.csv'
-score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/UAI2019TPMS.csv'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/UAI2019TPMS.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/UAI2019_ELMo_dist.np'
-output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/UAI2019_TPMS_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/UAI2019_TPMS_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/UAI2019_bid_score_ELMo_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/UAI2019_bid_score_TPMS_dist.np'
 
