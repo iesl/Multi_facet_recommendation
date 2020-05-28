@@ -5,7 +5,10 @@ import numpy as np
 
 
 
-data_folder = './data/processed/NeurIPS2019_bid_score_gorc_uncased'
+data_folder = './data/processed/NeurIPS2020_final_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2020_final_gorc_uncased'
+#data_folder = './data/processed/NeurIPS2019_bid_score_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
 
@@ -28,16 +31,33 @@ input_2_file = ''
 #output_file = './gen_log/to_NeurIPS2019/multi.csv'
 #input_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__single_stable_fix_auto_avg1_alldrop01_bid_score.np'
 #output_file = './gen_log/to_NeurIPS2019/multi_fixed.csv'
+#input_file = './/gen_log/NeurIPS2020_final_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/multi_fixed.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_TPMS_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/tpms.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_max_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_max_agg.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_final_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_ac.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_avg_agg.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_avg_agg.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_max_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_max_agg.csv'
 #agg_method = 'max'
 agg_method = 'avg'
-input_file = './/gen_log/NeurIPS2019_'+agg_method+'_cbow_freq_4_dist.np'
+input_file = './gen_log/NeurIPS2020_final_'+agg_method+'_cbow_freq_4_dist.np'
+input_2_file = './gen_log/NeurIPS2020_final_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi.csv'
+#input_file = './/gen_log/NeurIPS2019_'+agg_method+'_cbow_freq_4_dist.np'
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__sim_w_freq_no_lin_auto_avg1_alldrop01_bid_score.np'
 #output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_single_sim.csv'
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_bid_score.np'
 #output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_single.csv'
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_bid_score.np'
-input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__single_stable_fix_auto_avg1_alldrop01_bid_score.np'
-output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_multi_fixed.csv'
+#input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__single_stable_fix_auto_avg1_alldrop01_bid_score.np'
+#output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_multi_fixed.csv'
 
 merge_alpha = 0.8
 
@@ -70,7 +90,7 @@ paper_num = len(idx_l2_paper_id)
 
 paper_num_np, user_num_np = paper_dist.shape
 
-assert paper_num_np == paper_num
+assert paper_num_np == paper_num, print(paper_num_np, paper_num)
 assert user_num_np == user_num
 
 with open(output_file, 'w') as f_out:

@@ -244,7 +244,7 @@ def create_data_loader_split(f_in, bsz, device, split_num, copy_training):
     dataloader_arr = [torch.utils.data.DataLoader(dataset_arr[i], batch_size = bsz, shuffle = True, pin_memory=not use_cuda, drop_last=False) for i in range(split_num)]
     return dataloader_arr, max_sent_len
 
-def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx, bid_score):
+def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx, bid_score, remove_duplication = True):
     print("removing duplicated features")
     feature_d2_user_tag = {}
     feature_d2_type = {}
@@ -261,7 +261,10 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsam
         for new_idx, old_idx in enumerate(tag_subsample_idx):
             tag_idx_old_d2_new[old_idx] = new_idx
     for i in range( len(feature_list) ):
-        f_tuple = tuple(feature_list[i])
+        if remove_duplication:
+            f_tuple = tuple(feature_list[i])
+        else:
+            f_tuple = tuple([i]+feature_list[i])
         if len(user_subsample_idx) > 0:
             user_list_i_no_0 = [user_idx_old_d2_new[user_id] for user_id in user_list[i] if user_id >= num_special_token and user_id in user_idx_old_d2_new]
             tag_list_i_no_0 = [tag_idx_old_d2_new[tag_id] for tag_id in tag_list[i] if tag_id >= num_special_token and tag_id in tag_idx_old_d2_new]
@@ -292,7 +295,11 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsam
     feature_user_tag_order_i = sorted(feature_d2_user_tag.items(), key=lambda x: x[1][1])
     #feature_user_tag_order_i = feature_d2_user_tag.items()
     for paper_id, (f_tuple, (user_tag_list, order_i) ) in enumerate(feature_user_tag_order_i):
-        feature_uniq[paper_id,:] = torch.tensor(f_tuple, dtype = torch.int32)
+        if remove_duplication:
+            feature_uniq[paper_id,:] = torch.tensor(f_tuple, dtype = torch.int32)
+        else:
+            feature_uniq[paper_id,:] = torch.tensor(f_tuple[1:], dtype = torch.int32)
+            
         if len(feature_type_list) > 0:
             feature_type_uniq[paper_id,:] = torch.tensor(feature_d2_type[f_tuple], dtype = torch.int32)
         all_user_tag.append(user_tag_list)
@@ -300,7 +307,7 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsam
     dataset = F2IdxDataset(feature_uniq, feature_type_uniq, paper_id_tensor, device)
     return dataset, all_user_tag
 
-def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False, user_subsample_idx = [], tag_subsample_idx = []):
+def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False, user_subsample_idx = [], tag_subsample_idx = [], remove_duplication = True):
     fields = torch.load(f_in, map_location='cpu')
     if len(fields) == 7:
         feature, feature_type, user, tag, repeat_num, user_len, tag_len = fields #torch.load(f_in, map_location='cpu')
@@ -310,10 +317,12 @@ def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication 
     #feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
     #print(feature)
     #print(target)
+    if not remove_duplication:
+        assert deduplication
     if not deduplication:
         dataset = F2UserTagDataset(feature, feature_type, user, tag, repeat_num, user_len, tag_len, device)
     else:
-        dataset, all_user_tag = create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx, bid_score)
+        dataset, all_user_tag = create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx, tag_subsample_idx, bid_score, remove_duplication = remove_duplication)
     #dataset = F2SetDataset(feature[0:feature.size(0):2,:], target[0:target.size(0):2,:], device)
     use_cuda = False
     if device.type == 'cuda':
@@ -391,7 +400,7 @@ def create_subsample_idx(total_w_num, subsample_ratio, num_special_token):
     user_subsample_idx = list(range(num_special_token)) + (num_special_token + np.random.choice(total_w_num - num_special_token, used_w_num, replace = False)).tolist()
     return user_subsample_idx
 
-def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True, load_test = False, deduplication = False, subsample_ratio = 1):
+def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_file = "train.pt", split_num = 1, copy_training = False, skip_training = False, want_to_shuffle_val = True, load_test = False, deduplication = False, subsample_ratio = 1, remove_testing_duplication=True):
     
     if subsample_ratio < 1:
         assert deduplication
@@ -451,7 +460,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
     
     if load_test:
         with open(test_org_corpus_name,'rb') as f_in:
-            dataloader_test = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication, user_subsample_idx=user_subsample_idx, tag_subsample_idx=tag_subsample_idx)
+            dataloader_test = create_data_loader(f_in, eval_bsz, device, want_to_shuffle = want_to_shuffle_val, deduplication = deduplication, user_subsample_idx=user_subsample_idx, tag_subsample_idx=tag_subsample_idx, remove_duplication=remove_testing_duplication)
         if subsample_ratio == 1:
             return idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_test, max_sent_len
         else:

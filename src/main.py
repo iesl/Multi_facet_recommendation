@@ -81,7 +81,7 @@ parser.add_argument('--dropout', type=float, default=0.3,
 #LSTM only
 parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer in LSTM')
-parser.add_argument('--nlayers', type=int, default=1,
+parser.add_argument('--nlayers', type=int, default=2,
                     help='number of layers')
 #TRANS only
 parser.add_argument('--encode_trans_layers', type=int, default=3,

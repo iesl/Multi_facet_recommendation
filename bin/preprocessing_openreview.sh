@@ -5,7 +5,9 @@ MIN_FREQ_TAG=0
 LOWERCASE=True
 #LOWERCASE=False
 LOWERCASE_TARGET=FALSE
-INPUT_NAME=ICLR2018
+INPUT_NAME=NeurIPS2020_final
+#INPUT_NAME=NeurIPS2020
+#INPUT_NAME=ICLR2018
 #INPUT_NAME=ICLR2019
 #INPUT_NAME=ICLR2020
 #INPUT_NAME=ICLR2020_bid_low
@@ -48,17 +50,25 @@ echo "convert words to indices"
 mkdir -p $OUTPUT_DIR_TYPE
 mkdir -p $OUTPUT_DIR_FEATURE
 ~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TRAIN_ALL -f ${INPUT_FILE}_train -y $OUTPUT_DIR_TYPE/corpus_index -u ${INPUT_FILE_USER}_train -t ${INPUT_FILE_TAG}_train -p ${OUTPUT_DIR}/paper_id_train
-~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TEST_ALL -f ${INPUT_FILE}_test -y $OUTPUT_DIR_TYPE/corpus_index_test -u ${INPUT_FILE_USER}_test -t ${INPUT_FILE_TAG}_test -p ${OUTPUT_DIR}/paper_id_test
+if [ -f $INPUT_FILE_TEST_ALL ]; then
+    ~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_TEST_ALL -f ${INPUT_FILE}_test -y $OUTPUT_DIR_TYPE/corpus_index_test -u ${INPUT_FILE_USER}_test -t ${INPUT_FILE_TAG}_test -p ${OUTPUT_DIR}/paper_id_test
+fi
 
 cp $INPUT_FEATURE_VOCAB_FILE $OUTPUT_DIR_FEATURE/dictionary_index
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_train --save ${OUTPUT_DIR_FEATURE}/corpus_index --lowercase $LOWERCASE --eos True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_test --save ${OUTPUT_DIR_FEATURE}/corpus_index_test --lowercase $LOWERCASE --eos True
+if [ -f $INPUT_FILE_TEST_ALL ]; then
+    ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab $INPUT_FEATURE_VOCAB_FILE --update_dict False --data ${INPUT_FILE}_test --save ${OUTPUT_DIR_FEATURE}/corpus_index_test --lowercase $LOWERCASE --eos True
+fi
 
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_USER}_train --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_USER}/dictionary_index --update_dict False --data ${INPUT_FILE_USER}_test --save ${OUTPUT_DIR_USER}/corpus_index_test --lowercase $LOWERCASE_TARGET --ignore_unk True
+if [ -f $INPUT_FILE_TEST_ALL ]; then
+    ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_USER}/dictionary_index --update_dict False --data ${INPUT_FILE_USER}_test --save ${OUTPUT_DIR_USER}/corpus_index_test --lowercase $LOWERCASE_TARGET --ignore_unk True
+fi
 
 ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data ${INPUT_FILE_TAG}_train --save $OUTPUT_DIR_TAG --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_TAG}/dictionary_index --update_dict True --data ${INPUT_FILE_TAG}_test --save $OUTPUT_DIR_TAG --output_file_name corpus_index_test --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
+if [ -f $INPUT_FILE_TEST_ALL ]; then
+    ~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --input_vocab ${OUTPUT_DIR_TAG}/dictionary_index --update_dict True --data ${INPUT_FILE_TAG}_test --save $OUTPUT_DIR_TAG --output_file_name corpus_index_test --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
+fi
 
 echo "filter word embedding"
 #~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT
@@ -68,6 +78,11 @@ echo "filter word embedding"
 
 echo "convert indices to tensor"
 ~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/train.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
-~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index_test --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/val.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
-cp $OUTPUT_DIR/$TENSOR_FOLDER/val.pt $OUTPUT_DIR/$TENSOR_FOLDER/test.pt
+if [ -f $INPUT_FILE_TEST_ALL ]; then
+    ~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --input_file_name corpus_index_test --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER/val.pt --max_sent_len $MAX_SENT_LEN --cv_fold_num 0
+    cp $OUTPUT_DIR/$TENSOR_FOLDER/val.pt $OUTPUT_DIR/$TENSOR_FOLDER/test.pt
+else
+    cp $OUTPUT_DIR/$TENSOR_FOLDER/train.pt $OUTPUT_DIR/$TENSOR_FOLDER/val.pt
+    echo "Warning: No testing is found."
+fi
 

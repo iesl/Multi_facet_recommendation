@@ -104,7 +104,7 @@ def store_tensors(f_out,tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, te
     torch.save([tensor1, tensor2, tensor3, tensor4, tensor5, tensor6, tensor7, tensor8], f_out)
     
 def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_corpus, bid_score_corpus, output_save_file, shuffle_order = True):
-    def save_to_tesnor(w_ind_corpus_dup_j, tensor_feature, i, store_right = False):
+    def save_to_tensor(w_ind_corpus_dup_j, tensor_feature, i, store_right = False):
         sent_len = len(w_ind_corpus_dup_j)
         if store_right:
             tensor_feature[i,-(sent_len):] = torch.tensor(w_ind_corpus_dup_j, dtype = store_type)
@@ -181,17 +181,17 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
             store_right = True
         else:
             store_right = False
-        save_to_tesnor(w_ind_corpus_dup[j], tensor_feature, i, store_right)
+        save_to_tensor(w_ind_corpus_dup[j], tensor_feature, i, store_right)
         if len(type_corpus) > 0:
-            save_to_tesnor(type_corpus_dup[j], tensor_type, i)
+            save_to_tensor(type_corpus_dup[j], tensor_type, i)
         if len(bid_score_corpus_dup) > 0:
-            save_to_tesnor(bid_score_corpus_dup[j], tensor_bid_score, i)
-        save_to_tesnor(user_corpus_dup[j], tensor_user, i)
-        save_to_tesnor(tag_corpus_dup[j], tensor_tag, i)
+            save_to_tensor(bid_score_corpus_dup[j], tensor_bid_score, i)
+        save_to_tensor(user_corpus_dup[j], tensor_user, i)
+        save_to_tensor(tag_corpus_dup[j], tensor_tag, i)
         tensor_repeat_num[i] = num_repeat_corpus_dup[j]
         tensor_user_len[i] = len_corpus_dup[j][0]
         tensor_tag_len[i] = len_corpus_dup[j][1]
-        #save_to_tesnor(num_repeat_corpus_dup[j], tensor_repeat_num, i)
+        #save_to_tensor(num_repeat_corpus_dup[j], tensor_repeat_num, i)
 
     with open(output_save_file,'wb') as f_out:
         store_tensors(f_out, tensor_feature, tensor_type, tensor_user, tensor_tag, tensor_repeat_num, tensor_user_len, tensor_tag_len, tensor_bid_score)

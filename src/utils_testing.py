@@ -30,7 +30,7 @@ def add_model_arguments(parser):
                         help='size of word embeddings')
     parser.add_argument('--nhid', type=int, default=200,
                         help='number of hidden units per layer')
-    parser.add_argument('--nlayers', type=int, default=1,
+    parser.add_argument('--nlayers', type=int, default=2,
                         help='number of layers')
     parser.add_argument('--encode_trans_layers', type=int, default=3,
                         help='How many layers we have in transformer. Do not have effect if de_model is LSTM')

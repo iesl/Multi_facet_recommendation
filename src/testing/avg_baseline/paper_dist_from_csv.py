@@ -12,24 +12,43 @@ from unicodedata import normalize
 #        rawdata = f.read()
 #    return detect(rawdata)['encoding']
 
+#switch_user_id = True
+switch_user_id = False
 
-data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_gorc_uncased'
-#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_bid_score_gorc_uncased'
+data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2019_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
-score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/OpenReviewTestData/tpms.csv'
-output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_TPMS_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_sim_avg.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_avg_dist.np'
+score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_sim_max.csv'
+output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_max_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_sim_avg.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_avg_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_sim_max.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_max_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/OpenReviewTestData/tpms.csv'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/neurips_scores.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_ELMo_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/neurips_scores_bm25.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_bm25_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/iclr2019TPMS.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_TPMS_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_bid_score_TPMS_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/ICLR2019_ELMo_scores.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_ELMo_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2019_bid_score_ELMo_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/ICLR2020_max.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_Carlos_max.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_bid_score_Carlos_max.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/ICLR2020_average.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_Carlos_avg.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_bid_score_ELMo_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/ELMo-TPMS-scores/ICLR2020_ELMo_scores.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_ELMo_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_bid_score_ELMo_dist.np'
@@ -80,7 +99,11 @@ false_pos_paper = set()
 true_pos_paper = set()
 with open(score_file) as f_in:
     for line in f_in:
-        paper_id, user, score = line.rstrip().split(',')
+        if switch_user_id:
+            user, paper_id, score = line.rstrip().split(',')
+        else:
+            paper_id, user, score = line.rstrip().split(',')
+        paper_id = paper_id.replace('NEURIPS_','')
         #paper_id = paper_id.encode('ascii', "ignore")
         #user = unicode(user)
         user = normalize('NFC', user)

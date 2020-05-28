@@ -50,6 +50,8 @@ parser.add_argument('--subsample_ratio', type=float, default=1,
                     help='ratio of subsampling the user or tag')
 parser.add_argument('--div_eval', type=str, default='openreview',
                     help='Could be citeulike, amazon, and openreview')
+parser.add_argument('--remove_testing_duplication', type=str2bool, nargs='?', default=True,
+                    help='Whether we want to remove the duplicated record in testing data')
 #parser.add_argument('--max_batch_num', type=int, default=100, 
 #                    help='number of batches for evaluation')
 
@@ -87,7 +89,7 @@ device = torch.device("cuda" if args.cuda else "cpu")
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False )
 
-all_corpus = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, load_test = True, deduplication = True, tensor_folder = args.tensor_folder, subsample_ratio = args.subsample_ratio )
+all_corpus = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, load_test = True, deduplication = True, tensor_folder = args.tensor_folder, subsample_ratio = args.subsample_ratio, remove_testing_duplication=args.remove_testing_duplication )
 if args.subsample_ratio < 1:
     idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val_info, dataloader_test_info, max_sent_len, user_subsample_idx, tag_subsample_idx = all_corpus
 else:
