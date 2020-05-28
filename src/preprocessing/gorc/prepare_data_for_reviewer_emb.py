@@ -19,10 +19,18 @@ elif tokenizer_mode == 'scibert':
 
 #dataset = 'UAI2019'
 #dataset = 'ICLR2020'
-dataset = 'ICLR2019'
+#dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
+dataset = 'NeurIPS2019'
 
-if dataset == 'UAI2019':
+if dataset == 'NeurIPS2019':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/archives"
+    expertise_file = ""
+    if tokenizer_mode == 'scapy':    
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/all_reviewer_paper_data"
+    elif tokenizer_mode == 'scibert':
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/all_reviewer_paper_data_scibert"
+elif dataset == 'UAI2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/archives"
     expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
     if tokenizer_mode == 'scapy':    
@@ -53,16 +61,17 @@ elif dataset == 'ICLR2018':
 
 
 reviewer_d2_expertise = {}
-with open(expertise_file) as f_in:
-    all_expertise = json.load(f_in)
-    for reviewer_name in all_expertise:
-        keyword_list = []
-        if all_expertise[reviewer_name] is None:
-            reviewer_d2_expertise[reviewer_name] = []
-            continue
-        for fields in all_expertise[reviewer_name]:
-            keyword_list += fields["keywords"]
-        reviewer_d2_expertise[reviewer_name] = keyword_list
+if len(expertise_file) > 0:
+    with open(expertise_file) as f_in:
+        all_expertise = json.load(f_in)
+        for reviewer_name in all_expertise:
+            keyword_list = []
+            if all_expertise[reviewer_name] is None:
+                reviewer_d2_expertise[reviewer_name] = []
+                continue
+            for fields in all_expertise[reviewer_name]:
+                keyword_list += fields["keywords"]
+            reviewer_d2_expertise[reviewer_name] = keyword_list
 
 paper_id_d2_features_type_author_other = {}
 all_files = os.listdir(paper_dir)
@@ -96,8 +105,12 @@ for file_name in all_files:
                         w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
                     elif tokenizer_mode == 'scibert':
                         w_list_abstract = []
+                        #try:
                         for sent in seg.segment(abstract):
                             w_list_abstract += tokenizer.tokenize('[CLS] ' + sent + ' [SEP]')
+                        #except:
+                        #    print(abstract)
+                        #    sys.exit(1)
                     #w_list_abstract = [w.text for w in nlp.tokenizer( abstract ) ] + ['<SEP>']
                     w_list_abstract = ' '.join(w_list_abstract).split()
                 else:

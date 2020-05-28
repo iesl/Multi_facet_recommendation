@@ -210,6 +210,8 @@ parser.add_argument('--loading_target_embedding', type=str2bool, nargs='?', defa
                     help='If continue_train is true, whether we want to load user and tag embeddings')
 parser.add_argument('--freeze_encoder_decoder', type=str2bool, nargs='?', default=False, 
                     help='If True, only update target embeddings')
+parser.add_argument('--norm_basis_when_freezing', type=str2bool, nargs='?', default=False, 
+                    help='If True, only update target embeddings')
 parser.add_argument('--always_save_model', type=str2bool, nargs='?', default=False, 
                     help='If True, ignore the validation loss and always save model')
 parser.add_argument('--start_training_split', type=int, default=0,
@@ -528,6 +530,9 @@ def evaluate(dataloader, current_coeff_opt):
                 basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
                 if args.freeze_encoder_decoder:
                     #store cache
+                    if args.norm_basis_when_freezing:
+                        basis_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
+                        basis_pred_tag = basis_pred_tag / (0.000000000001 + basis_pred_tag.norm(dim = 2, keepdim=True) )
                     sample_idx_np = sample_idx.numpy()
                     basis_pred_test_cache[sample_idx_np,:,:] = basis_pred.cpu().numpy()
                     basis_pred_tag_test_cache[sample_idx_np,:,:] = basis_pred_tag.cpu().numpy()
@@ -657,6 +662,9 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
             basis_pred, basis_pred_tag, basis_pred_auto = parallel_decoder(output_emb_last, output_emb, predict_coeff_sum = False)
             if args.freeze_encoder_decoder:
                 #store cache
+                if args.norm_basis_when_freezing:
+                    basis_pred = basis_pred / (0.000000000001 + basis_pred.norm(dim = 2, keepdim=True) )
+                    basis_pred_tag = basis_pred_tag / (0.000000000001 + basis_pred_tag.norm(dim = 2, keepdim=True) )
                 sample_idx_np = sample_idx.numpy()
                 basis_pred_train_cache[sample_idx_np,:,:] = basis_pred.cpu().numpy()
                 basis_pred_tag_train_cache[sample_idx_np,:,:] = basis_pred_tag.cpu().numpy()

@@ -23,9 +23,20 @@ user_tag_source = 'bid'
 #dataset = 'UAI2019'
 #dataset = 'ICLR2020'
 #dataset = 'ICLR2019'
-dataset = 'ICLR2018'
+#dataset = 'ICLR2018'
+dataset = 'NeurIPS2019'
 
-if dataset == 'UAI2019':
+if dataset == 'NeurIPS2019':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/submissions"
+    expertise_file = ""
+    assert user_tag_source == 'bid'
+    if user_tag_source == 'bid':
+        bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/bids/bids.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019_bid_score/all_submission_bid_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019_bid_score/all_submission_bid_data_scibert"
+elif dataset == 'UAI2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/submissions"
     expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/profiles_expertise/profiles_expertise.json"
     #assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/source_data/assignments/assignments.json"
@@ -80,20 +91,23 @@ elif dataset == 'ICLR2018':
             output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2018_bid_score/all_submission_bid_data_scibert"
 
 reviewer_d2_expertise = {}
-with open(expertise_file) as f_in:
-    all_expertise = json.load(f_in)
-    for reviewer_name in all_expertise:
-        keyword_list = []
-        if all_expertise[reviewer_name] is None:
-            reviewer_d2_expertise[reviewer_name] = []
-            continue
-        for fields in all_expertise[reviewer_name]:
-            keyword_list += fields["keywords"]
-        reviewer_d2_expertise[reviewer_name] = keyword_list
+if len(expertise_file) > 0:
+    with open(expertise_file) as f_in:
+        all_expertise = json.load(f_in)
+        for reviewer_name in all_expertise:
+            keyword_list = []
+            if all_expertise[reviewer_name] is None:
+                reviewer_d2_expertise[reviewer_name] = []
+                continue
+            for fields in all_expertise[reviewer_name]:
+                keyword_list += fields["keywords"]
+            reviewer_d2_expertise[reviewer_name] = keyword_list
 
 paper_id_d2_reviewers = {}
 if user_tag_source == 'bid':
-    if dataset == 'ICLR2018':
+    if dataset == 'NeurIPS2019':
+        score_map_dict = {"2-not_willing": '2', "3-in_a_pinch": '3', "4-willing": '4', "5-eager": '5'}
+    elif dataset == 'ICLR2018':
         score_map_dict = {"No bid": "0", "I cannot review": '1', "I can probably review but am not an expert": '2', "I can review": '3', "I want to review": '4'}
     else:
         score_map_dict = {"No Bid": "0", "Very Low": '1', "Low": '2', "Neutral": '3', "High": '4', "Very High": '5'}
@@ -138,6 +152,8 @@ for file_name in all_files:
         assert paper_id == id_name
         if "abstract" in paper_data['content']:
             abstract = paper_data['content']["abstract"]
+            if dataset == 'NeurIPS2019':
+                abstract = abstract.replace('\\textbf{','').replace('\\textrm{','').replace('\\textit{','').replace('\\text{','').replace('\\mathcal{','').replace('\\mathbb{','').replace('\\mathrm{','').replace('{','').replace('}','').replace('$','')
         else:
             abstract = None
         title = paper_data['content']["title"]

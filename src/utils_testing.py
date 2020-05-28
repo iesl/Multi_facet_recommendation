@@ -150,7 +150,7 @@ def convert_feature_to_text(feature, idx2word_freq):
         feature_text.append(current_sent)
     return feature_text
 
-def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf, word_imp_sim = None):
+def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf, word_d2_vis, word_imp_sim = None):
     #n_basis = coeff_order.shape[1]
     n_basis = top_index.shape[2]
     top_k = top_index.size(1)
@@ -161,7 +161,7 @@ def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_i
             #outf.write(' '.join('{0:.2f}'.format(x/4.0) for x in word_imp_sim[i_sent]])+'\n')
             outf.write(' '.join(['\\colorbox{{c{0:02}}}{{{1}}}'.format(int(100-y*100/4.0),x ) for x, y in zip( feature_text[i_sent], word_imp_sim[i_sent] )])+'\n')
         else:
-            outf.write(' '.join(feature_text[i_sent])+'\n')
+            outf.write(' '.join(feature_text[i_sent])+'\n\n')
 
         for j in range(n_basis):
             #org_ind = coeff_order[i_sent, j]
@@ -170,14 +170,17 @@ def print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_i
 
             for k in range(top_k):
                 word_nn = tag_idx2word_freq[top_index[i_sent,k,org_ind].item()][0]
-                outf.write( word_nn+' {:5.3f}'.format(top_value[i_sent,k,org_ind].item())+' ' )
+                if len(word_d2_vis) > 0 and word_nn in word_d2_vis:
+                    outf.write( word_nn + ','+ word_d2_vis[word_nn] +' {:5.3f}'.format(top_value[i_sent,k,org_ind].item())+' ' )
+                else:
+                    outf.write( word_nn+' {:5.3f}'.format(top_value[i_sent,k,org_ind].item())+' ' )
             outf.write('\n')
-        outf.write('\n')
+        outf.write('\n\n')
 
 
 
 
-def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, tag_idx2word_freq, outf, max_batch_num):
+def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, tag_idx2word_freq, outf, max_batch_num, word_d2_vis = {}):
     #topics_num = 0
     top_k = 5
     with torch.no_grad():
@@ -186,7 +189,7 @@ def visualize_topics_val(dataloader, parallel_encoder, parallel_decoder, word_no
 
             basis_norm_pred, top_value, top_index, encoded_emb, avg_encoded_emb= predict_batch(feature, feature_type, parallel_encoder, parallel_decoder, word_norm_emb, top_k)
             #print_basis_text(feature, idx2word_freq, coeff_order, coeff_sum, top_value, top_index, i_batch, outf, word_imp_sim)
-            print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf)
+            print_basis_text(feature, idx2word_freq, tag_idx2word_freq, top_value, top_index, i_batch, outf, word_d2_vis)
 
             if i_batch >= max_batch_num:
                 break
@@ -210,7 +213,7 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
                 coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type)
         
         pred_embeddings_user = torch.bmm(coeff_mat_user, basis_norm_pred)
-        if loss_type == 'sim':
+        if loss_type == 'sim' or loss_type == 'sim_norm':
             dist_all_user_tensor = - torch.sum( pred_embeddings_user * target_embeddings, dim = 2 )
         elif loss_type == 'dist':
             dist_all_user_tensor = torch.pow( torch.norm( pred_embeddings_user - target_embeddings, dim = 2 ), 2)
@@ -219,7 +222,7 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
         return dist_all_user_tensor.tolist()
     
     normalize_emb = True
-    if loss_type != 'dist':
+    if loss_type != 'dist' and loss_type != 'sim_norm':
         normalize_emb = False
         
     basis_norm_pred, basis_norm_pred_tag, basis_norm_pred_auto, output_emb_last, output_emb = predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decoder, normalize_emb)

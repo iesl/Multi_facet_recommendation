@@ -29,6 +29,8 @@ parser.add_argument('--testing_target', type=str, default='tag',
                     help='testing tag or user or auto')
 parser.add_argument('--outf', type=str, default='gen_log/generated.txt',
                     help='output file for generated text')
+parser.add_argument('--vis_map', type=str, default='data/raw/gorc/id_title_full_org_cut',
+                    help='Load either a mapping from author to titles of the paper he/she wrote or a mapping from paper id to its title')
 
 
 ###system
@@ -98,21 +100,29 @@ else:
 encoder.eval()
 decoder.eval()
 
+word_d2_vis = {}
+if len(args.vis_map) > 0:
+    with open(args.vis_map) as f_in:
+        for line in f_in:
+            word, vis = line.rstrip().split('\t')
+            word = word.replace(' ','_')
+            word_d2_vis[word] = vis
+
 with open(args.outf, 'w') as outf:
     #outf.write('Shuffled Validation Topics:\n\n')
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
     if args.testing_target == 'tag':
         outf.write('Validation Topics:\n\n')
-        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
         if dataloader_train:
             outf.write('Training Topics:\n\n')
-            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num)
+            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
     elif args.testing_target == 'user':
         outf.write('Validation Topics:\n\n')
-        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num)
+        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
         if dataloader_train:
             outf.write('Training Topics:\n\n')
-            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num)
+            utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, user_norm_emb, idx2word_freq, user_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
     elif args.testing_target == 'auto':
         outf.write('Validation Topics:\n\n')
         utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, word_norm_emb_trans, idx2word_freq, idx2word_freq, outf, args.max_batch_num)
