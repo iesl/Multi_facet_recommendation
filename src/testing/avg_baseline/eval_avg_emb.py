@@ -24,13 +24,18 @@ import numpy as np
 #input_dict_path = "./data/processed/UAI2019_old_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_old_gorc_uncased/user/dictionary_index"
 
+remove_testing_duplication = True
+#remove_testing_duplication = False
+
 #only_test_tag = True
 only_test_tag = False
 
+input_dict_path = "./data/processed/NeurIPS2020_final_gorc_uncased/feature/dictionary_index"
+user_dict_path = "./data/processed/NeurIPS2020_final_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/user/dictionary_index"
-input_dict_path = "./data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/feature/word_freq"
-user_dict_path = "./data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/feature/word_freq"
+#user_dict_path = "./data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/gorc_uncased_min_5/feature/dictionary_index"
 #user_dict_path = "./data/processed/gorc_uncased_min_5/tag/dictionary_index"
 #user_dict_path = "./data/processed/gorc_uncased_min_5/user/dictionary_index"
@@ -67,11 +72,14 @@ user_dict_path = "./data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/us
 #input_dict_path = "./data/processed/ICLR2018_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2018_bid_score_gorc_uncased/user/dictionary_index"
 
+submission_data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/test.pt'
+submission_emb_file = './gen_log/NeurIPS2020_final_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/NeurIPS2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_emb_file = './gen_log/NeurIPS2019_bid_score_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-submission_data_file = './data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
-submission_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/NeurIPS2019_emb_spector_norm.txt'
+#submission_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/UAI2019_new_bid_score_scibert_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/UAI2019_scibert_gorc_uncased/tensors_cold/test.pt'
@@ -93,6 +101,7 @@ submission_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_submission_paper_
 #submission_emb_file = './gen_log/ICLR2020_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 
 #submission_data_file = './data/processed/ICLR2020_bid_score_scibert_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/ICLR2020_emb_spector_norm.txt'
 #submission_emb_file = './gen_log/ICLR2020_new_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
 #submission_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/ICLR2020_new_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -127,11 +136,14 @@ submission_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_submission_paper_
 #submission_emb_file = './gen_log/gorc_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
 
+reviewer_data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/train.pt'
+reviewer_emb_file = './gen_log/NeurIPS2020_final_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/NeurIPS2019_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_emb_file = './gen_log/NeurIPS2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-reviewer_data_file = './data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
-reviewer_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/NeurIPS2019_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/NeurIPS2019_emb_spector_train_norm.txt'
+#reviewer_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/UAI2019_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/UAI2019_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/UAI2019_scibert_gorc_uncased/tensors_cold/train.pt'
@@ -151,6 +163,7 @@ reviewer_emb_file = './gen_log/NeurIPS2019_bid_score_scibert_reviewer_paper_emb_
 
 #reviewer_data_file = './data/processed/ICLR2020_gorc_uncased/tensors_cold/train.pt'
 #reviewer_data_file = './data/processed/ICLR2020_bid_score_scibert_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/ICLR2020_emb_spector_train_norm.txt'
 #reviewer_emb_file = './gen_log/ICLR2020_bid_score_scibert_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/ICLR2020_old_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/ICLR2020_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -178,8 +191,9 @@ mode = 'save_dist'
 #mode = 'run_eval'
 
 if mode == 'save_dist':
+    out_dist_path = './gen_log/NeurIPS2020_final_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2019_scibert_max_cbow_freq_4_dist.np'
-    out_dist_path = './gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2019_max_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2019_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/gorc_tag_new_max_cbow_freq_4_dist.np'
@@ -247,6 +261,7 @@ def load_emb_file(f_in, device):
     emb_list = []
     for line in f_in:
         word_val = line.rstrip().split(' ')
+        #print(word_val)
         val = [float(x) for x in  word_val]
         emb_list.append(val)
     return torch.tensor(emb_list, device = device)
@@ -267,7 +282,7 @@ with torch.no_grad():
     #all_tag_train = fields[1]
 
     with open(submission_data_file,'rb') as f_in:
-        dataloader_test_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
+        dataloader_test_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True, remove_duplication = remove_testing_duplication)
     all_user_tag = dataloader_test_info[1]
     #all_user_test, all_tag_test = zip(*all_user_tag)
     fields = list(zip(*all_user_tag))
@@ -284,7 +299,7 @@ with torch.no_grad():
         paper_emb_test = load_emb_file(f_in, device)
 
     paper_num_train = paper_emb_train.size(0)
-    assert paper_num_train == len(all_user_train)
+    assert paper_num_train == len(all_user_train), print(paper_num_train, len(all_user_train))
     paper_num_test = paper_emb_test.size(0)
     assert paper_num_test == len(all_user_test)
 

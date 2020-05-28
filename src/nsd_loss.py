@@ -104,20 +104,19 @@ def estimate_coeff_mat_batch_max(target_embeddings, basis_pred, device, loss_typ
     basis_pred_norm = basis_pred.norm(dim = 2, keepdim=True)
     XX = basis_pred_norm * basis_pred_norm
     XY = torch.bmm(basis_pred, C)
-    cos_sim = XY / basis_pred_norm
-    max_v_cos, max_i_cos = torch.max(cos_sim, dim = 1, keepdim=True)
     if loss_type[:4] == 'dist':
-        coeff = XY / XX
-        #coeff should have dimension ( n_batch, n_basis, n_set)
-        max_v, max_i = torch.max(coeff, dim = 1, keepdim=True)
-        max_v[max_v<0] = 0
-        max_v[max_v>1] = 1
+        cos_sim = XY / basis_pred_norm
+        max_v_cos, max_i_cos = torch.max(cos_sim, dim = 1, keepdim=True)
+        #coeff = XY / XX
+        ##coeff should have dimension ( n_batch, n_basis, n_set)
+        #max_v, max_i = torch.max(coeff, dim = 1, keepdim=True)
+        #max_v[max_v<0] = 0
+        #max_v[max_v>1] = 1
+        max_v = torch.ones(max_v_cos.size(), requires_grad= False, device=device)
     else:
         max_v_cos, max_i_cos = torch.max(XY, dim = 1, keepdim=True)
         max_v = torch.ones(max_v_cos.size(), requires_grad= False, device=device)
-        max_v[max_v_cos<0] = 0
-    #if loss_type[:4] != 'dist':
-    #    max_v[max_v>0] = 1
+        #max_v[max_v_cos<0] = 0
 
     coeff_mat_trans = torch.zeros(batch_size, n_basis, target_embeddings.size(1), requires_grad= False, device=device )
     coeff_mat_trans.scatter_(dim=1, index = max_i_cos, src = max_v)

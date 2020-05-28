@@ -13,6 +13,7 @@ testing_dir = ''
 #merge_alpha = 1
 merge_alpha = 0.8
 #merge_alpha = 0.5
+#merge_alpha = 0.2
 #merge_alpha = 0
 
 eval_target = 'user'
@@ -47,11 +48,23 @@ elif eval_target == 'tag':
     tag_dict_path = testing_dir + "/tag/dictionary_index"
 submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 
+#dist_file_1 = "./gen_log/ICLR2020_spector_avg_dist.np"
+#dist_file_1 = "./gen_log/ICLR2020_spector_max_dist.np"
+#dist_file_1 = "./gen_log/NeurIPS2019_spector_avg_dist.np"
+#dist_file_2 = "./gen_log/NeurIPS2019_avg_cbow_freq_4_dist.np"
+dist_file_1 = "./gen_log/NeurIPS2019_spector_max_dist.np"
+dist_file_2 = "./gen_log/NeurIPS2019_max_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/NeurIPS2019_spector_max_dist.np"
+#dist_file_1 = "./gen_log/NeurIPS2019_ELMo_dist.np"
+#dist_file_1 = "./gen_log/NeurIPS2019_bm25_dist.np"
 #dist_file_1 = "./gen_log/NeurIPS2019_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_bid_score_TPMS_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2019_bid_score_ELMo_dist.np"
+#dist_file_1 = "./gen_log/ICLR2020_Carlos_max.np"
+#dist_file_1 = "./gen_log/ICLR2020_bid_score_Carlos_max.np"
+#dist_file_1 = "./gen_log/ICLR2020_Carlos_avg.np"
 #dist_file_1 = "./gen_log/ICLR2020_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_bid_score_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_max_cbow_freq_4_dist.np"
@@ -64,6 +77,10 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_no_lin_auto1.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_no_lin_w_freq_auto1_alldrop01.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_no_lin_w_freq_auto1_alldrop01.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_tfreq.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_tfreq.np"
+#dist_file_2 = "./gen_log/NeurIPS2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_tfreq_bid_score.np"
+#dist_file_2 = "./gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_auto_avg1_alldrop01_tfreq_bid_score.np"
 
 #dist_file_1 = "./gen_log/ICLR2020_max_cbow_freq_4_dist_bid_score.np"
 #dist_file_1 = "./gen_log/ICLR2020_avg_cbow_freq_4_dist_bid_score.np"
@@ -91,9 +108,9 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_no_lin_auto1_bid_score.np"
 
 
-#input_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
-#user_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/user/dictionary_index"
-#submission_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
+input_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
+user_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/user/dictionary_index"
+submission_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 #input_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2019_bid_score_gorc_uncased/user/dictionary_index"
 #submission_data_file = './data/processed/ICLR2019_bid_score_gorc_uncased/tensors_cold/test.pt'

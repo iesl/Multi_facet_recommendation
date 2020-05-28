@@ -9,12 +9,16 @@ def compute_freq_prob_idx2word(idx2word_freq):
     for i, (w, freq) in enumerate(idx2word_freq):
         idx2word_freq[i].append(freq/freq_sum)
 
-#use_freq_w = True
-use_freq_w = False
+remove_duplication = True
+#remove_duplication = False
+
+use_freq_w = True
+#use_freq_w = False
 emb_file = './resources/cbow_ACM_dim200_gorc_uncased_min_5.txt'
 
 #input_dict = "./data/processed/gorc_uncased_min_5/feature/dictionary_index"
-input_dict = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
+input_dict = "./data/processed/NeurIPS2020_final_gorc_uncased/feature/dictionary_index"
+#input_dict = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_high_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/UAI2019_bid_low_gorc_uncased/feature/dictionary_index"
@@ -34,12 +38,17 @@ input_dict = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictio
 #data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/train.pt'
 #output_file = './gen_log/gorc_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
+data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/test.pt'
+output_file = './gen_log/NeurIPS2020_final_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#output_file = './gen_log/NeurIPS2020_final_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/train.pt'
+#output_file = './gen_log/NeurIPS2020_final_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/train.pt'
 #output_file = './gen_log/NeurIPS2019_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/NeurIPS2019_reviewer_paper_emb_uni_avg_cbow_ACM_dim200.txt'
-data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
+#data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/NeurIPS2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-output_file = './gen_log/NeurIPS2019_bid_score_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
+#output_file = './gen_log/NeurIPS2019_bid_score_submission_paper_emb_uni_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/UAI2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/UAI2019_new_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #output_file = './gen_log/UAI2019_bid_score_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -115,7 +124,7 @@ with torch.no_grad():
         else:
             feature_raw, feature_type, user, tag, repeat_num, user_len, tag_len, bid_score = fields
 
-    dataset, all_user_tag = utils.create_uniq_paper_data(feature_raw, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [], bid_score=bid_score)
+    dataset, all_user_tag = utils.create_uniq_paper_data(feature_raw, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [], bid_score=bid_score, remove_duplication = remove_duplication)
     feature = dataset.feature
     num_paper = feature.size(0)
     all_emb_sum = torch.empty( (num_paper, emb_size), device = device)

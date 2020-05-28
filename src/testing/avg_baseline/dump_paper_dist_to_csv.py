@@ -3,7 +3,8 @@ sys.path.insert(0, sys.path[0]+'/../..')
 import utils
 import numpy as np
 
-data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
+data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2020_final_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
 
@@ -12,10 +13,12 @@ input_2_file = ''
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/tpms.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_max_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_max_agg.csv'
+input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_final_avg_cbow_freq_4_dist.np'
+output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_ac.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_avg_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_avg_agg.csv'
-input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
-output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_avg_agg.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_avg_agg.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_max_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_max_agg.csv'
 #agg_method = 'max'
@@ -59,7 +62,7 @@ paper_num = len(idx_l2_paper_id)
 
 paper_num_np, user_num_np = paper_dist.shape
 
-assert paper_num_np == paper_num
+assert paper_num_np == paper_num, print(paper_num_np, paper_num)
 assert user_num_np == user_num
 
 with open(output_file, 'w') as f_out:
