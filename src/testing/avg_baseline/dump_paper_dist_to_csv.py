@@ -5,7 +5,7 @@ import numpy as np
 
 
 
-data_folder = './data/processed/NeurIPS2020_final_gorc_uncased'
+data_folder = './data/processed/NeurIPS2020_final_review_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2020_final_gorc_uncased'
 #data_folder = './data/processed/NeurIPS2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
@@ -47,8 +47,8 @@ input_2_file = ''
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_max_agg.csv'
 #agg_method = 'max'
 agg_method = 'avg'
-input_file = './gen_log/NeurIPS2020_final_'+agg_method+'_cbow_freq_4_dist.np'
-input_2_file = './gen_log/NeurIPS2020_final_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+input_file = './gen_log/NeurIPS2020_final_review_'+agg_method+'_cbow_freq_4_dist.np'
+input_2_file = './gen_log/NeurIPS2020_final_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
 output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi.csv'
 #input_file = './/gen_log/NeurIPS2019_'+agg_method+'_cbow_freq_4_dist.np'
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__sim_w_freq_no_lin_auto_avg1_alldrop01_bid_score.np'
