@@ -184,6 +184,7 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
         save_to_tensor(w_ind_corpus_dup[j], tensor_feature, i, store_right)
         if len(type_corpus) > 0:
             save_to_tensor(type_corpus_dup[j], tensor_type, i)
+            #save_to_tensor(type_corpus_dup[j], tensor_type, i, store_right)
         if len(bid_score_corpus_dup) > 0:
             save_to_tensor(bid_score_corpus_dup[j], tensor_bid_score, i)
         save_to_tensor(user_corpus_dup[j], tensor_user, i)
