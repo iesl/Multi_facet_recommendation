@@ -7,8 +7,12 @@ nlp = English()
 
 #input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final/source_data/neurips20_abstracts.csv"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final/all_submission_paper_data"
-input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/Papers.csv"
-output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/all_submission_paper_data"
+#input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/Papers.csv"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/all_submission_paper_data"
+#input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/source_data/Papers_final.csv"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/all_submission_paper_data"
+input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/source_data/Papers.csv"
+output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/all_submission_paper_data"
 
 #output_list = []
 

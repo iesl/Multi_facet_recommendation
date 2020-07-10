@@ -79,7 +79,7 @@ device = torch.device("cuda" if args.cuda else "cpu")
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device )
 #idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_val_shuffled, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False )
 #idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = True, tensor_folder = args.tensor_folder )
-idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, tensor_folder = args.tensor_folder )
+idx2word_freq, user_idx2word_freq, tag_idx2word_freq, dataloader_train_arr, dataloader_val, dataloader_test, max_sent_len = load_corpus(args.data, args.batch_size, args.batch_size, device, skip_training = True, want_to_shuffle_val = False, tensor_folder = args.tensor_folder, load_test = True )
 dataloader_train = dataloader_train_arr[0]
 
 ########################
@@ -113,7 +113,8 @@ with open(args.outf, 'w') as outf:
     #utils_testing.visualize_topics_val(dataloader_val_shuffled, parallel_encoder, parallel_decoder, word_norm_emb, idx2word_freq, outf, args.n_basis, args.max_batch_num)
     if args.testing_target == 'tag':
         outf.write('Validation Topics:\n\n')
-        utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
+        #utils_testing.visualize_topics_val(dataloader_val, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
+        utils_testing.visualize_topics_val(dataloader_test, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)
         if dataloader_train:
             outf.write('Training Topics:\n\n')
             utils_testing.visualize_topics_val(dataloader_train, parallel_encoder, parallel_decoder, tag_norm_emb, idx2word_freq, tag_idx2word_freq, outf, args.max_batch_num, word_d2_vis)

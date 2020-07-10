@@ -25,10 +25,29 @@ elif tokenizer_mode == 'scibert':
 #dataset = 'NeurIPS2019'
 #dataset = 'NeurIPS2020'
 #dataset = 'NeurIPS2020_final'
-dataset = 'NeurIPS2020_final_review'
+#dataset = 'NeurIPS2020_final_review'
+#dataset = 'NeurIPS2020_fixed_ac'
+dataset = 'NeurIPS2020_fixed_review'
 
 reviewer_mapping_file = ""
-if dataset == 'NeurIPS2020_final_review':
+if dataset == 'NeurIPS2020_fixed_review':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/source_data/archives"
+    expertise_file = ""
+    reviewer_mapping_file = ""
+    #reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/neurips20_review_profile_1.csv"
+    if tokenizer_mode == 'scapy':    
+        #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/all_reviewer_paper_data"
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/all_reviewer_paper_data"
+
+elif dataset == 'NeurIPS2020_fixed_ac':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/source_data/archives"
+    expertise_file = ""
+    reviewer_mapping_file = ""
+    #reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/neurips20_review_profile_1.csv"
+    if tokenizer_mode == 'scapy':    
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/all_reviewer_paper_data"
+
+elif dataset == 'NeurIPS2020_final_review':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/archives"
     expertise_file = ""
     reviewer_mapping_file = ""

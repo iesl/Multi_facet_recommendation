@@ -305,6 +305,8 @@ def create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsam
         all_user_tag.append(user_tag_list)
 
     dataset = F2IdxDataset(feature_uniq, feature_type_uniq, paper_id_tensor, device)
+    print("leading to {} unique papers".format(len(all_user_tag)))
+    sys.stdout.flush()
     return dataset, all_user_tag
 
 def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication = False, user_subsample_idx = [], tag_subsample_idx = [], remove_duplication = True):

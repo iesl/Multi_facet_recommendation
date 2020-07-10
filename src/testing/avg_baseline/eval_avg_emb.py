@@ -30,8 +30,12 @@ remove_testing_duplication = False
 #only_test_tag = True
 only_test_tag = False
 
-input_dict_path = "./data/processed/NeurIPS2020_final_review_gorc_uncased/feature/dictionary_index"
-user_dict_path = "./data/processed/NeurIPS2020_final_review_gorc_uncased/user/dictionary_index"
+input_dict_path = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/feature/dictionary_index"
+user_dict_path = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/NeurIPS2020_fixed_ac_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/NeurIPS2020_fixed_ac_gorc_uncased/user/dictionary_index"
+#input_dict_path = "./data/processed/NeurIPS2020_final_review_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/NeurIPS2020_final_review_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/NeurIPS2020_final_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/NeurIPS2020_final_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/NeurIPS2019_bid_score_gorc_uncased/feature/dictionary_index"
@@ -74,8 +78,12 @@ user_dict_path = "./data/processed/NeurIPS2020_final_review_gorc_uncased/user/di
 #input_dict_path = "./data/processed/ICLR2018_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/ICLR2018_bid_score_gorc_uncased/user/dictionary_index"
 
-submission_data_file = './data/processed/NeurIPS2020_final_review_gorc_uncased/tensors_cold/test.pt'
-submission_emb_file = './gen_log/NeurIPS2020_final_review_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+submission_data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/test.pt'
+submission_emb_file = './gen_log/NeurIPS2020_fixed_review_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/NeurIPS2020_fixed_ac_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/NeurIPS2020_fixed_ac_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/NeurIPS2020_final_review_gorc_uncased/tensors_cold/test.pt'
+#submission_emb_file = './gen_log/NeurIPS2020_final_review_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/test.pt'
 #submission_emb_file = './gen_log/NeurIPS2020_final_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #submission_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/test.pt'
@@ -145,8 +153,12 @@ submission_emb_file = './gen_log/NeurIPS2020_final_review_submission_paper_emb_f
 #submission_emb_file = './gen_log/gorc_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
 
-reviewer_data_file = './data/processed/NeurIPS2020_final_review_gorc_uncased/tensors_cold/train.pt'
-reviewer_emb_file = './gen_log/NeurIPS2020_final_review_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+reviewer_data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/train.pt'
+reviewer_emb_file = './gen_log/NeurIPS2020_fixed_review_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/NeurIPS2020_fixed_ac_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/NeurIPS2020_fixed_ac_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/NeurIPS2020_final_review_gorc_uncased/tensors_cold/train.pt'
+#reviewer_emb_file = './gen_log/NeurIPS2020_final_review_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/NeurIPS2020_final_gorc_uncased/tensors_cold/train.pt'
 #reviewer_emb_file = './gen_log/NeurIPS2020_final_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #reviewer_data_file = './data/processed/NeurIPS2019_bid_score_gorc_uncased/tensors_cold/train.pt'
@@ -207,7 +219,9 @@ mode = 'save_dist'
 #mode = 'run_eval'
 
 if mode == 'save_dist':
-    out_dist_path = './gen_log/NeurIPS2020_final_review_avg_cbow_freq_4_dist.np'
+    out_dist_path = './gen_log/NeurIPS2020_fixed_review_avg_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/NeurIPS2020_fixed_ac_avg_cbow_freq_4_dist.np'
+    #out_dist_path = './gen_log/NeurIPS2020_final_review_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2020_final_avg_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2019_scibert_max_cbow_freq_4_dist.np'
     #out_dist_path = './gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'

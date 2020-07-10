@@ -367,8 +367,9 @@ def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w
         if pre_avg:
             #target_embeddings = (target_embeddings*target_freq_inv_norm.unsqueeze(dim=-1)).mean(dim=1).unsqueeze(dim=1)
             #target_emb_neg = (target_emb_neg*target_freq_inv_norm_neg.unsqueeze(dim=-1)).mean(dim=1).unsqueeze(dim=1)
-            target_embeddings = ( (target_embeddings*target_freq_inv_norm.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
-            target_emb_neg = ( (target_emb_neg*target_freq_inv_norm_neg.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm_neg.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
+            with torch.enable_grad():
+                target_embeddings = ( (target_embeddings*target_freq_inv_norm.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
+                target_emb_neg = ( (target_emb_neg*target_freq_inv_norm_neg.unsqueeze(dim=-1)).sum(dim=1) / (0.000000000001 + target_freq_inv_norm_neg.sum(dim=1).unsqueeze(dim=-1) ) ).unsqueeze(dim=1)
             target_freq_inv_norm = 1
             target_freq_inv_norm_neg = 1
         #coeff_mat = estimate_coeff_mat_batch(target_embeddings.cpu(), basis_pred.detach(), L1_losss_B)
