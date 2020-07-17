@@ -35,18 +35,18 @@ MAX_SENT_LEN="512"
 
 echo "convert words to indices"
 
-mkdir -p $OUTPUT_DIR_TYPE
-~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_ALL -f $INPUT_FILE -y $OUTPUT_DIR_TYPE/corpus_index -u $INPUT_FILE_USER -t $INPUT_FILE_TAG
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR_FEATURE --min_freq $MIN_FREQ --lowercase $LOWERCASE --eos True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE_USER --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
-~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE_TAG --save $OUTPUT_DIR_TAG --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
+#mkdir -p $OUTPUT_DIR_TYPE
+#~/anaconda3/bin/python src/preprocessing/Amazon/amazon_split_files.py -i $INPUT_FILE_ALL -f $INPUT_FILE -y $OUTPUT_DIR_TYPE/corpus_index -u $INPUT_FILE_USER -t $INPUT_FILE_TAG
+#~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE --save $OUTPUT_DIR_FEATURE --min_freq $MIN_FREQ --lowercase $LOWERCASE --eos True
+#~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE_USER --save $OUTPUT_DIR_USER --min_freq $MIN_FREQ_TARGET --lowercase $LOWERCASE_TARGET --ignore_unk True
+#~/anaconda3/bin/python src/preprocessing/map_tokens_to_indices.py --data $INPUT_FILE_TAG --save $OUTPUT_DIR_TAG --min_freq $MIN_FREQ_TAG --lowercase $LOWERCASE_TARGET --ignore_unk True
 
 echo "filter word embedding"
 #~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT
 #~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR_FEATURE/dictionary_index -e $GLOVE_IN -o $GLOVE_OUT
 #~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR_FEATURE/dictionary_index -e $WORD2VEC_IN -o $WORD2VEC_OUT
-~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR_FEATURE/dictionary_index -e $CBOW_IN -o $CBOW_OUT
+#~/anaconda3/bin/python src/preprocessing/filter_emb.py -f $OUTPUT_DIR_FEATURE/dictionary_index -e $CBOW_IN -o $CBOW_OUT
 
 echo "convert indices to tensor"
-~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER --max_sent_len $MAX_SENT_LEN --cv_fold_num 10 --only_first_fold True
+~/anaconda3/bin/python src/preprocessing/map_indices_to_tensors.py --data_feature $OUTPUT_DIR_FEATURE --data_type $OUTPUT_DIR_TYPE --data_user $OUTPUT_DIR_USER --data_tag $OUTPUT_DIR_TAG --save $OUTPUT_DIR/$TENSOR_FOLDER --max_sent_len $MAX_SENT_LEN --cv_fold_num 50 --only_first_fold True
 
