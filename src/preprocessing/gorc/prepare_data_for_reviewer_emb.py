@@ -19,7 +19,7 @@ elif tokenizer_mode == 'scibert':
     seg = pysbd.Segmenter(language="en", clean=False)
 
 #dataset = 'UAI2019'
-#dataset = 'ICLR2020'
+dataset = 'ICLR2020'
 #dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
 #dataset = 'NeurIPS2019'
@@ -27,7 +27,7 @@ elif tokenizer_mode == 'scibert':
 #dataset = 'NeurIPS2020_final'
 #dataset = 'NeurIPS2020_final_review'
 #dataset = 'NeurIPS2020_fixed_ac'
-dataset = 'NeurIPS2020_fixed_review'
+#dataset = 'NeurIPS2020_fixed_review'
 
 reviewer_mapping_file = ""
 if dataset == 'NeurIPS2020_fixed_review':

@@ -41,7 +41,8 @@ parser.add_argument('--only_first_fold', type=utils.str2bool, nargs='?', default
                     help='Only store the first fold (when the dataset is large)')
 parser.add_argument('--val_size_ratio', type=float, default=0.1,
                     help='The ratio of validation size and all size (train + val + test) ')
-parser.add_argument('--min_test_user', type=int, default=2,
+#parser.add_argument('--min_test_user', type=int, default=2,
+parser.add_argument('--min_test_user', type=int, default=5,
                     help='If number of users is smaller than this number, the paper will belong the training data')
 parser.add_argument('--push_to_right', type=utils.str2bool, nargs='?', default=True,
                     help='Whether we want to push the index in features to the end')
