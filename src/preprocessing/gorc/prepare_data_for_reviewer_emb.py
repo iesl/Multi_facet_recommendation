@@ -24,10 +24,38 @@ elif tokenizer_mode == 'scibert':
 #dataset = 'ICLR2018'
 #dataset = 'NeurIPS2019'
 #dataset = 'NeurIPS2020'
-dataset = 'NeurIPS2020_final'
+#dataset = 'NeurIPS2020_final'
+#dataset = 'NeurIPS2020_final_review'
+#dataset = 'NeurIPS2020_fixed_ac'
+dataset = 'NeurIPS2020_fixed_review'
 
 reviewer_mapping_file = ""
-if dataset == 'NeurIPS2020_final':
+if dataset == 'NeurIPS2020_fixed_review':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/source_data/archives"
+    expertise_file = ""
+    reviewer_mapping_file = ""
+    #reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/neurips20_review_profile_1.csv"
+    if tokenizer_mode == 'scapy':    
+        #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/all_reviewer_paper_data"
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_review/all_reviewer_paper_data"
+
+elif dataset == 'NeurIPS2020_fixed_ac':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/source_data/archives"
+    expertise_file = ""
+    reviewer_mapping_file = ""
+    #reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/neurips20_review_profile_1.csv"
+    if tokenizer_mode == 'scapy':    
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_fixed_ac/all_reviewer_paper_data"
+
+elif dataset == 'NeurIPS2020_final_review':
+    paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/archives"
+    expertise_file = ""
+    reviewer_mapping_file = ""
+    #reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/source_data/neurips20_review_profile_1.csv"
+    if tokenizer_mode == 'scapy':    
+        output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final_review/all_reviewer_paper_data"
+
+elif dataset == 'NeurIPS2020_final':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final/source_data/archives"
     expertise_file = ""
     reviewer_mapping_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2020_final/source_data/neurips20_ac_profile.csv"
@@ -96,7 +124,8 @@ reviewer_d2_real_name = {}
 if len(reviewer_mapping_file) > 0:
     with open(reviewer_mapping_file) as f_in:
         for line in f_in:
-            real_name, or_name = line.strip().split(',')
+            #real_name, or_name = line.strip().split(',')
+            or_name, real_name = line.strip().split(',')
             reviewer_d2_real_name[normalize('NFC',or_name)] = real_name
 
 #print(reviewer_d2_real_name)
@@ -106,7 +135,11 @@ all_files = os.listdir(paper_dir)
 for file_name in all_files:
     author_name = file_name.replace('.jsonl','')
     if len(reviewer_d2_real_name) > 0:
-        author_name = reviewer_d2_real_name[normalize('NFC',author_name)]
+        try:
+            author_name = reviewer_d2_real_name[normalize('NFC',author_name)]
+        except:
+            print(author_name)
+            continue
     expertise = reviewer_d2_expertise.get(author_name,[])
     reviewer_full_name = (author_name + '|' + '+'.join(expertise)).replace(' ','_')
     with open( os.path.join(paper_dir, file_name) ) as f_in:
@@ -129,7 +162,7 @@ for file_name in all_files:
                     author_id_list = [author_name]
                 else:
                     author_id_list = paper_data['content']["authorids"]
-                author_full_str = ','.join(['|'.join(x) for x in zip(author_list, author_id_list)]).replace(' ','_')
+                author_full_str = ','.join(['|'.join(x) for x in zip(author_list, author_id_list)]).replace(' ','_').replace('\t','_')
                 if tokenizer_mode == 'scapy':
                     w_list_title = [w.text for w in nlp.tokenizer( title ) ] + ['<SEP>']
                 elif tokenizer_mode == 'scibert':

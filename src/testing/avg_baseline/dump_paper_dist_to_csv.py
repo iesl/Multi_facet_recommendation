@@ -3,16 +3,43 @@ sys.path.insert(0, sys.path[0]+'/../..')
 import utils
 import numpy as np
 
+import getopt
 
+help_msg = '-d <data_folder> -f <input_file> -s <input_2_file> -a <merge_alpha> -o <output_file>'
 
-data_folder = './data/processed/NeurIPS2020_final_review_gorc_uncased'
+merge_alpha = 0.8
+input_2_file = ''
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "d:f:s:a:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-d"):
+        data_folder = arg
+    elif opt in ("-f"):
+        input_file = arg
+    elif opt in ("-s"):
+        input_2_file = arg
+    elif opt in ("-a"):
+        merge_alpha = float(arg)
+    elif opt in ("-o"):
+        output_file = arg
+
+#data_folder = './data/processed/NeurIPS2020_fixed_review_gorc_uncased'
+#data_folder = './data/processed/NeurIPS2020_fixed_ac_gorc_uncased'
+#data_folder = './data/processed/NeurIPS2020_final_review_gorc_uncased'
+#data_folder = './data/processed/NeurIPS2020_final_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2020_final_gorc_uncased'
 #data_folder = './data/processed/NeurIPS2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
 
-input_2_file = ''
 #input_file = './gen_log/NeurIPS2019_TPMS_dist.np'
 #output_file = './gen_log/to_NeurIPS2019/tpms.csv'
 #input_file = './gen_log/NeurIPS2019_max_cbow_freq_4_dist.np'
@@ -33,7 +60,9 @@ input_2_file = ''
 #output_file = './gen_log/to_NeurIPS2019/multi_fixed.csv'
 #input_file = './/gen_log/NeurIPS2020_final_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
 #output_file = './gen_log/to_NeurIPS2020/multi_fixed.csv'
-#input_file = './/gen_log/NeurIPS2020_final_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#input_file = './/gen_log/NeurIPS2020_fixed_ac_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/multi_fixed_ac.csv'
+#input_file = './/gen_log/NeurIPS2020_fixed_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
 #output_file = './gen_log/to_NeurIPS2020/multi_fixed_review.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_TPMS_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/tpms.csv'
@@ -41,6 +70,12 @@ input_2_file = ''
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_max_agg.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_final_avg_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_ac.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_final_review_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_review.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_fixed_ac_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_fixed_ac.csv'
+#input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2020_fixed_review_avg_cbow_freq_4_dist.np'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2020/cbow_avg_agg_fixed_review.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_avg_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/cbow_avg_agg.csv'
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_avg_cbow_freq_4_dist.np'
@@ -48,10 +83,21 @@ input_2_file = ''
 #input_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_scibert_max_cbow_freq_4_dist.np'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/to_NeurIPS2019/scibert_max_agg.csv'
 #agg_method = 'max'
-agg_method = 'avg'
-input_file = './gen_log/NeurIPS2020_final_review_'+agg_method+'_cbow_freq_4_dist.np'
-input_2_file = './gen_log/NeurIPS2020_final_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
-output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi_review.csv'
+#agg_method = 'avg'
+#input_file = './gen_log/NeurIPS2020_fixed_review_'+agg_method+'_cbow_freq_4_dist.np'
+#input_2_file = './gen_log/NeurIPS2020_fixed_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi_fixed_review.csv'
+#agg_method = 'avg'
+#input_file = './gen_log/NeurIPS2020_final_'+agg_method+'_cbow_freq_4_dist.np'
+#input_2_file = './gen_log/NeurIPS2020_final_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi.csv'
+#agg_method = 'avg'
+#input_file = './gen_log/NeurIPS2020_final_review_'+agg_method+'_cbow_freq_4_dist.np'
+#input_2_file = './gen_log/NeurIPS2020_final_review_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi.csv'
+#input_file = './gen_log/NeurIPS2020_fixed_ac_'+agg_method+'_cbow_freq_4_dist.np'
+#input_2_file = './gen_log/NeurIPS2020_fixed_ac_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__w_freq_single_stable_fix_auto_avg1_alldrop01.np'
+#output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi_fixed_ac.csv'
 #input_file = './/gen_log/NeurIPS2019_'+agg_method+'_cbow_freq_4_dist.np'
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4__sim_w_freq_no_lin_auto_avg1_alldrop01_bid_score.np'
 #output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_single_sim.csv'
@@ -61,7 +107,6 @@ output_file = './gen_log/to_NeurIPS2020/cbow_'+agg_method+'_agg_multi_review.csv
 #input_2_file = './/gen_log/NeurIPS2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4__single_stable_fix_auto_avg1_alldrop01_bid_score.np'
 #output_file = './gen_log/to_NeurIPS2019/cbow_'+agg_method+'_agg_multi_fixed.csv'
 
-merge_alpha = 0.8
 
 paper_dist_1 = np.loadtxt(input_file)
 

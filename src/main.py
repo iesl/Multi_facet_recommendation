@@ -856,6 +856,7 @@ elif args.optimizer == 'Adam':
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
     optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     optimizer_auto = torch.optim.SGD([feature_linear_layer], lr=args.lr_target)#, weight_decay=args.target_l2)# , weight_decay=0.00000001)
+    #optimizer_auto = torch.optim.Adam([feature_linear_layer], lr=args.lr_target)#, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)

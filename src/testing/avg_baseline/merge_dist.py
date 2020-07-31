@@ -21,10 +21,10 @@ merge_alpha = 0.8
 eval_target = 'user'
 tensor_folder_name = 'tensors_cold'
 
-help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir> -t <tensor_folder_name> -e <eval_target>'
+help_msg = '-i <dist_file_1> -j <dist_file_2> -d <testing_dir> -t <tensor_folder_name> -e <eval_target> -a <merge_alpha>'
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:j:d:t:e:")
+    opts, args = getopt.getopt(sys.argv[1:], "i:j:d:t:e:a:")
 except getopt.GetoptError:
     print(help_msg)
     sys.exit(2)
@@ -42,6 +42,8 @@ for opt, arg in opts:
         tensor_folder_name = arg
     elif opt in ("-e"):
         eval_target = arg
+    elif opt in ("-a"):
+        merge_alpha = float(arg)
 
 input_dict_path = testing_dir + "/feature/dictionary_index"
 if eval_target == 'user':
@@ -69,8 +71,14 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #dist_file_1 = "./gen_log/ICLR2020_Carlos_avg.np"
 #dist_file_1 = "./gen_log/ICLR2020_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_bid_score_ELMo_dist.np"
-#dist_file_1 = "./gen_log/ICLR2020_max_cbow_freq_4_dist.np"
-#dist_file_1 = "./gen_log/ICLR2020_avg_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/ICLR2020_new_max_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/ICLR2020_new_avg_cbow_freq_4_dist.np"
+
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_dist_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_dist_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_dist_GRU_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_dist_GRU_w_freq_single_right_type.np"
+
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_w_freq.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_sim_w_freq.np"
@@ -93,8 +101,8 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #dist_file_1 = "./gen_log/UAI2019_TPMS_dist.np"
 #dist_file_1 = "./gen_log/UAI2019_bid_score_ELMo_dist.np"
 #dist_file_1 = "./gen_log/UAI2019_bid_score_TPMS_dist.np"
-#dist_file_1 = "./gen_log/UAI2019_avg_cbow_freq_4_dist.np"
-#dist_file_1 = "./gen_log/UAI2019_max_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/UAI2019_new_avg_cbow_freq_4_dist.np"
+#dist_file_1 = "./gen_log/UAI2019_new_max_cbow_freq_4_dist.np"
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_w_freq.np"
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4.np"
 #dist_file_2 = "./gen_log/UAI2019_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_sim_w_freq.np"
@@ -143,6 +151,9 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #input_dict_path = "./data/processed/UAI2019_old_bid_score_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_old_bid_score_gorc_uncased/user/dictionary_index"
 #submission_data_file = './data/processed/UAI2019_old_bid_score_gorc_uncased/tensors_cold/test.pt'
+#input_dict_path = "./data/processed/UAI2019_bid_score_gorc_uncased/feature/dictionary_index"
+#user_dict_path = "./data/processed/UAI2019_bid_score_gorc_uncased/user/dictionary_index"
+#submission_data_file = './data/processed/UAI2019_bid_score_gorc_uncased/tensors_cold/test.pt'
 
 out_f_path = './gen_log/temp'
 
