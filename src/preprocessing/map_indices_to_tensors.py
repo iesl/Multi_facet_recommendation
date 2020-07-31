@@ -41,6 +41,7 @@ parser.add_argument('--only_first_fold', type=utils.str2bool, nargs='?', default
                     help='Only store the first fold (when the dataset is large)')
 parser.add_argument('--val_size_ratio', type=float, default=0.1,
                     help='The ratio of validation size and all size (train + val + test) ')
+#parser.add_argument('--min_test_user', type=int, default=2,
 parser.add_argument('--min_test_user', type=int, default=5,
                     help='If number of users is smaller than this number, the paper will belong the training data')
 parser.add_argument('--push_to_right', type=utils.str2bool, nargs='?', default=True,
@@ -183,8 +184,9 @@ def squeeze_into_tensors(save_idx, w_ind_corpus, type_corpus, user_corpus, tag_c
             store_right = False
         save_to_tensor(w_ind_corpus_dup[j], tensor_feature, i, store_right)
         if len(type_corpus) > 0:
-            save_to_tensor(type_corpus_dup[j], tensor_type, i)
+            #save_to_tensor(type_corpus_dup[j], tensor_type, i)
             #save_to_tensor(type_corpus_dup[j], tensor_type, i, store_right)
+            save_to_tensor([x+1 for x in type_corpus_dup[j]] , tensor_type, i, store_right)
         if len(bid_score_corpus_dup) > 0:
             save_to_tensor(bid_score_corpus_dup[j], tensor_bid_score, i)
         save_to_tensor(user_corpus_dup[j], tensor_user, i)

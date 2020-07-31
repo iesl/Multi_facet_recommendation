@@ -84,7 +84,7 @@ with open(input_path) as f_in:
         if len(fields) > 4:
             paper_id_list.append(paper_id)
         if len(fields) == 6:
-            print(fields)
+            #print(fields)
             bid_score = bid_score_str.replace(',',' ')
             #bid_score = list(map( int,bid_score_str.split(',') ))
             bid_score_list.append(bid_score)

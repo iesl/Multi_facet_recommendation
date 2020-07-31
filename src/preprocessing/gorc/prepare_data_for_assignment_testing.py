@@ -2,8 +2,8 @@ import numpy as np
 import os
 import json
 
-#tokenizer_mode = 'scapy'
-tokenizer_mode = 'scibert'
+tokenizer_mode = 'scapy'
+#tokenizer_mode = 'scibert'
 
 if tokenizer_mode == 'scapy':
     from spacy.lang.en import English
@@ -21,10 +21,10 @@ user_tag_source = 'bid'
 #user_tag_source = 'assignment'
 
 #dataset = 'UAI2019'
-#dataset = 'ICLR2020'
+dataset = 'ICLR2020'
 #dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
-dataset = 'NeurIPS2019'
+#dataset = 'NeurIPS2019'
 
 if dataset == 'NeurIPS2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/submissions"
@@ -51,13 +51,19 @@ elif dataset == 'UAI2019':
 elif dataset == 'ICLR2020':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
     expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
-    bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
-    #assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
-    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
-    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
-    #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data"
+    if user_tag_source == 'assignment':
+        assignment_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/assignments/assignments.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_scibert"
+    elif user_tag_source == 'bid':
+        bid_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/bids/bids.json"
+        if tokenizer_mode == 'scapy':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data"
+        elif tokenizer_mode == 'scibert':
+            output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data_scibert"
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_high/all_submission_bid_data"
-    output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_score/all_submission_bid_data_scibert"
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020_bid_low/all_submission_bid_data"
 elif dataset == 'ICLR2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2019/source_data/submissions"
