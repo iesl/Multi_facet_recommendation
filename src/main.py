@@ -478,9 +478,9 @@ if args.continue_train:
         if args.tag_w > 0:
             tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
             tag_emb = tag_emb.new_tensor(tag_emb_load)
-        if args.auto_w > 0:
-            auto_emb_load = torch.load(os.path.join(args.save, 'auto_emb.pt'))
-            auto_emb = auto_emb.new_tensor(auto_emb_load)
+        #if args.auto_w > 0:
+        #    auto_emb_load = torch.load(os.path.join(args.save, 'auto_emb.pt'))
+        #    auto_emb = auto_emb.new_tensor(auto_emb_load)
             
             
 
