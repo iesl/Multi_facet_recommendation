@@ -4,6 +4,7 @@ import utils
 import numpy as np
 
 from unicodedata import normalize
+import getopt
 #from chardet import detect
 
 # get file encoding type
@@ -15,19 +16,37 @@ from unicodedata import normalize
 #switch_user_id = True
 switch_user_id = False
 
+help_msg = '-i <score_file> -d <data_folder> -o <output_file>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:d:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        score_file = arg
+    elif opt in ("-d"):
+        data_folder = arg
+    elif opt in ("-o"):
+        output_file = arg
+
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/NeurIPS2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/UAI2019_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_gorc_uncased'
-data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_bid_score_gorc_uncased'
+#data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2020_bid_score_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2019_gorc_uncased'
 #data_folder = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/processed/ICLR2019_bid_score_gorc_uncased'
 test_paper_id_file = data_folder + '/paper_id_test'
 user_dict_file = data_folder + '/user/dictionary_index'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_sim_avg.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_avg_dist.np'
-score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_sim_max.csv'
-output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_max_dist.np'
+#score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_sim_max.csv'
+#output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_max_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_sim_avg.csv'
 #output_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_avg_dist.np'
 #score_file = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_sim_max.csv'

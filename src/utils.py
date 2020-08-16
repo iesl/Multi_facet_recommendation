@@ -473,6 +473,7 @@ def load_corpus(data_path, train_bsz, eval_bsz, device, tensor_folder, training_
 
 def load_emb_file_to_dict(emb_file, lowercase_emb = False, convert_np = True):
     word2emb = {}
+    emb_size = 200
     with open(emb_file) as f_in:
         for line in f_in:
             word_val = line.rstrip().split(' ')

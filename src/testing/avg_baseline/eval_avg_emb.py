@@ -4,7 +4,6 @@ import utils
 import utils_testing
 import torch
 import numpy as np
-import sys
 import getopt
 
 help_msg = '-i <input_dict_path> -u <user_dict_path> -v <submission_data_file> -s <submission_emb_file> -t <reviewer_data_file> -r <reviewer_emb_file> -o <out_dist_path> -m <mode> -d <dist_option>'
@@ -63,8 +62,10 @@ for opt, arg in opts:
 #input_dict_path = "./data/processed/UAI2019_old_gorc_uncased/feature/dictionary_index"
 #user_dict_path = "./data/processed/UAI2019_old_gorc_uncased/user/dictionary_index"
 
-#remove_testing_duplication = True
-remove_testing_duplication = False
+remove_testing_duplication = True
+#remove_testing_duplication = False
+
+remove_training_duplication = True
 
 #only_test_tag = True
 only_test_tag = False
@@ -336,7 +337,7 @@ def load_emb_file(f_in, device):
 with torch.no_grad():
 
     with open(reviewer_data_file, 'rb') as f_in:
-        dataloader_train_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
+        dataloader_train_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True, remove_duplication = remove_training_duplication)
         #feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
         #dataset, all_user_tag = utils.create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [])
     all_user_tag = dataloader_train_info[1]
