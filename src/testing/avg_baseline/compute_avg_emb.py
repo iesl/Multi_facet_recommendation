@@ -14,10 +14,12 @@ remove_duplication = True
 
 use_freq_w = True
 #use_freq_w = False
-emb_file = './resources/cbow_ACM_dim200_gorc_uncased_min_5.txt'
+#emb_file = './resources/cbow_ACM_dim200_gorc_uncased_min_5.txt'
+emb_file = './resources/cbow_ACM_dim200_gorc_fix_uncased_min_5.txt'
 
 #input_dict = "./data/processed/gorc_uncased_min_5/feature/dictionary_index"
-input_dict = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/feature/dictionary_index"
+input_dict = "./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index"
+#input_dict = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/NeurIPS2020_fixed_ac_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/NeurIPS2020_final_review_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/NeurIPS2020_final_gorc_uncased/feature/dictionary_index"
@@ -35,6 +37,10 @@ input_dict = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/feature/dic
 #input_dict = "./data/processed/ICLR2020_bid_high_gorc_uncased/feature/dictionary_index"
 #input_dict = "./data/processed/ICLR2020_bid_low_gorc_uncased/feature/dictionary_index"
 
+#data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/test.pt'
+#output_file = './gen_log/gorc_fix_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
+data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/train.pt'
+output_file = './gen_log/gorc_fix_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
 #data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/test.pt'
 #output_file = './gen_log/gorc_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
@@ -43,8 +49,8 @@ input_dict = "./data/processed/NeurIPS2020_fixed_review_gorc_uncased/feature/dic
 
 #data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/NeurIPS2020_fixed_review_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
-data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/train.pt'
-output_file = './gen_log/NeurIPS2020_fixed_review_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/train.pt'
+#output_file = './gen_log/NeurIPS2020_fixed_review_reviewer_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/NeurIPS2020_fixed_ac_gorc_uncased/tensors_cold/test.pt'
 #output_file = './gen_log/NeurIPS2020_fixed_ac_submission_paper_emb_freq_4_avg_cbow_ACM_dim200.txt'
 #data_file = './data/processed/NeurIPS2020_fixed_ac_gorc_uncased/tensors_cold/train.pt'
