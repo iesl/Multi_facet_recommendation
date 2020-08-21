@@ -1,6 +1,24 @@
 import numpy as np
 import os
 import json
+import sys
+import getopt
+
+help_msg = '-i <paper_dir> -o <output_path>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        paper_dir = arg
+    elif opt in ("-o"):
+        output_path = arg
 
 tokenizer_mode = 'scapy'
 #tokenizer_mode = 'scibert'
@@ -17,14 +35,18 @@ elif tokenizer_mode == 'scibert':
     tokenizer = BertTokenizer.from_pretrained(model_name)
     seg = pysbd.Segmenter(language="en", clean=False)
 
-user_tag_source = 'bid'
-#user_tag_source = 'assignment'
+#user_tag_source = 'bid'
+user_tag_source = 'assignment'
 
+dataset = 'new'
 #dataset = 'UAI2019'
-dataset = 'ICLR2020'
+#dataset = 'ICLR2020'
+#dataset = 'ICLR2020_test'
 #dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
 #dataset = 'NeurIPS2019'
+expertise_file = ""
+assignment_file = ""
 
 if dataset == 'NeurIPS2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/submissions"
@@ -47,7 +69,10 @@ elif dataset == 'UAI2019':
     output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_score/all_submission_bid_data_scibert"
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_low/all_submission_bid_data"
     #output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019_bid_high/all_submission_bid_data"
-
+elif dataset == 'ICLR2020_test':
+    paper_dir = "/iesl/canvas/hschang/code/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
+    output_path = "/iesl/canvas/hschang/code/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_submission_paper_data_test"
+    
 elif dataset == 'ICLR2020':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
     expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"
@@ -133,7 +158,7 @@ if user_tag_source == 'bid':
                 reviewers.append( [ reviewer_full_name, score_map_dict[preference]] )
                 paper_id_d2_reviewers[paper_id] = reviewers
 
-elif user_tag_source == 'assignment':
+elif user_tag_source == 'assignment' and len(assignment_file) > 0:
     with open(assignment_file) as f_in:
         all_assignments = json.load(f_in)
         for reviewer_name in all_assignments:

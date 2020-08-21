@@ -12,8 +12,8 @@ from utils import str2bool
 sys.path.insert(0, sys.path[0]+'/testing/old/sim')
 import SIF_pc_removal as SIF
 import math
-import Sinkhorn
-import ot
+#import Sinkhorn
+#import ot
 from collections import Counter
 from sklearn.metrics import ndcg_score
 

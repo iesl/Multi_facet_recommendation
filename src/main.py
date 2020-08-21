@@ -17,7 +17,7 @@ import model as model_code
 import nsd_loss
 from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file_to_dict, load_emb_file_to_tensor, load_corpus, output_parallel_models, str2bool
 from utils_testing import compute_freq_prob_idx2word
-from transformers import get_linear_schedule_with_warmup
+#from transformers import get_linear_schedule_with_warmup
 
 from scibert.modeling_bert import BertModel
 from scibert.configuration_bert import BertConfig

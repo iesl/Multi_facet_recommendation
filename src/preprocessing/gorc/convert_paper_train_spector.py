@@ -1,14 +1,32 @@
 import csv
 import json
 import os
+import sys
+import getopt
+
+help_msg = '-i <paper_dir> -o <output_file>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        paper_dir = arg
+    elif opt in ("-o"):
+        output_file = arg
 
 ##paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/archives"
 ##output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/paper_data_spector_train.json"
 
 #paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/paper_data_spector_train.json"
-paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
-output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/paper_data_spector.json"
+#paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/submissions"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/paper_data_spector.json"
 
 output_dict = {}
 

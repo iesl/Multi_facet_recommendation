@@ -2,6 +2,7 @@ src/scibert/*
 scibert/*
 resources/*
 gen_log/*
+gen_log_old/*
 eval_log/*
 dataset_testing/*
 temp/*
