@@ -1,4 +1,4 @@
-# Run all codes without testing
+# Run all codes to get only the paper similarity without testing using assignment or bids
 
 ## Download SPECTER
 ```
@@ -20,23 +20,23 @@ conda install filelock
 ```
 
 ## Prepare data
-You will need to prepare and put the data to proper places
-All papers reviewers wrote `data/raw/openreview/ICLR2020/source_data/archives`
-All submission papers `data/raw/openreview/ICLR2020/source_data/submissions`
-Our model `./models/gorc_fix-20200722-104422`
-Our dictionary file `./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index`
+You will need to prepare and put the following data to proper places
+- All papers reviewers wrote `data/raw/openreview/ICLR2020/source_data/archives`
+- All submission papers `data/raw/openreview/ICLR2020/source_data/submissions`
+- Our model `./models/gorc_fix-20200722-104422`
+- Our dictionary file `./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index`
 
 ## Check the configuration
 In `./bin/testing_for_new_conference.sh`
-Modify `SPECTER_FOLDER` to point to your specter repo
-Modify `PY_PATH` to use the python you just prepared
-If you want to put above data into a different folder, change the paths in the INPUT section (but we assume that the folder `TEXT_DATA_DIR` exist)
-If you like, change the output path `OUTPUT_CSV`
-If you want to use CPU instead of GPU, change `CUDA_DEVICE_IDX` to be -1
+- Modify `SPECTER_FOLDER` to point to your specter repo
+- Modify `PY_PATH` to use the python you just prepared
+- If you want to put above data into a different folder, change the paths in the INPUT section (but we assume that the folder `TEXT_DATA_DIR` exist)
+- If you like, change the output path `OUTPUT_CSV`
+- If you want to use CPU instead of GPU, change `CUDA_DEVICE_IDX` to be -1
 
 ## Run the code
 cd to this repo
-`./bin/testing_for_new_conference.sh`
+Run `./bin/testing_for_new_conference.sh`
 
 
 
