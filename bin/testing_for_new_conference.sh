@@ -48,8 +48,8 @@ echo "running spector"
 eval $PY_PATH src/preprocessing/gorc/convert_paper_train_spector.py -i $REVIEWER_DIR -o $SPECTER_TRAIN_FILE
 eval $PY_PATH src/preprocessing/gorc/convert_paper_train_spector.py -i $SUBMISSION_DIR -o $SPECTER_TEST_FILE
 cd $SPECTER_FOLDER #If do not do this, specter will give you the error saying it cannot find data/scibert_scivocab_uncased/scibert.tar.gz, but I cannot find where to change that path
-eval $PY_PATH $SPECTER_FOLDER/scripts/embed.py --py_path $PY_PATH --specter_folder $SPECTER_FOLDER --ids $SAMPLE_ID_TRAIN --metadata $SPECTER_TRAIN_FILE --model $SPECTER_FOLDER/model.tar.gz --output-file $SPECTER_TRAIN_EMB_RAW --vocab-dir $SPECTER_FOLDER/data/vocab/ --batch-size 16 --cuda-device $CUDA_DEVICE_IDX
-eval $PY_PATH $SPECTER_FOLDER/scripts/embed.py --py_path $PY_PATH --specter_folder $SPECTER_FOLDER --ids $SAMPLE_ID_TEST --metadata $SPECTER_TEST_FILE --model $SPECTER_FOLDER/model.tar.gz --output-file $SPECTER_TEST_EMB_RAW --vocab-dir $SPECTER_FOLDER/data/vocab/ --batch-size 16 --cuda-device $CUDA_DEVICE_IDX
+eval $PY_PATH $SPECTER_FOLDER/scripts/embed_abs_path.py --py_path $PY_PATH --specter_folder $SPECTER_FOLDER --ids $SAMPLE_ID_TRAIN --metadata $SPECTER_TRAIN_FILE --model $SPECTER_FOLDER/model.tar.gz --output-file $SPECTER_TRAIN_EMB_RAW --vocab-dir $SPECTER_FOLDER/data/vocab/ --batch-size 16 --cuda-device $CUDA_DEVICE_IDX
+eval $PY_PATH $SPECTER_FOLDER/scripts/embed_abs_path.py --py_path $PY_PATH --specter_folder $SPECTER_FOLDER --ids $SAMPLE_ID_TEST --metadata $SPECTER_TEST_FILE --model $SPECTER_FOLDER/model.tar.gz --output-file $SPECTER_TEST_EMB_RAW --vocab-dir $SPECTER_FOLDER/data/vocab/ --batch-size 16 --cuda-device $CUDA_DEVICE_IDX
 cd -
 DIST_OPT="max"
 eval $PY_PATH src/testing/avg_baseline/doc_sim_to_csv.py -s $SPECTER_TEST_EMB_RAW -r $SPECTER_TRAIN_EMB_RAW -d "sim_${DIST_OPT}" -p $REVIWER_FILE -o $SEPCTER_CSV
@@ -66,9 +66,5 @@ eval $PY_PATH src/recommend_test.py --checkpoint $MODEL_PATH --outf $OUR_SIM --t
 #Combine both
 echo "Merging two methods and dump the results"
 MERGE_ALPHA=0.8
-#DATA_BID_FOLDER="./data/processed/${DATASET}_bid_score_gorc_fix_uncased"
-#TENSOR_FOLDER="tensors_cold"
-#eval $PY_PATH src/testing/avg_baseline/merge_dist.py -i $SEPCTER_SIM -j $OUR_SIM -d $DATA_FOLDER -t $TENSOR_FOLDER -a $MERGE_ALPHA
-#eval $PY_PATH src/testing/avg_baseline/merge_dist.py -i $SEPCTER_SIM -j $OUR_SIM -d $DATA_BID_FOLDER -t $TENSOR_FOLDER -a $MERGE_ALPHA
-eval $PY_PATH src/testing/avg_baseline/dump_paper_dist_to_csv.py -d $DATA_FOLDER -f $SEPCTER_SIM -s $OUR_SIM -a $MERGE_ALPHA -o $OUTPUT_CSV
+eval $PY_PATH src/testing/avg_baseline/dump_paper_dist_to_csv.py -d $PROCESSED_DATA_DIR -f $SEPCTER_SIM -s $OUR_SIM -a $MERGE_ALPHA -o $OUTPUT_CSV
 
