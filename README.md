@@ -16,6 +16,7 @@ conda create --name specter_ours python=3.7 setuptools
 conda activate specter_ours
 conda install pytorch cudatoolkit=10.1 -c pytorch 
 pip install -r requirements.txt
+python setup.py install
 conda install filelock
 ```
 
