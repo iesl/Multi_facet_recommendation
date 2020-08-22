@@ -6,11 +6,11 @@ git clone https://github.com/allenai/specter.git
 cd specter
 wget https://ai2-s2-research-public.s3-us-west-2.amazonaws.com/specter/archive.tar.gz
 tar -xzvf archive.tar.gz
-copy ./src/testing/avg_baseline/embed_abs_path.py in Multi_facet_recommendation to ./scripts/embed_abs_path.py in SPECTER repo
 ```
+copy `./src/testing/avg_baseline/embed_abs_path.py` in Multi_facet_recommendation to `./scripts/embed_abs_path.py` in SPECTER repo
 
 ## Setup python
-After install anaconda3, go to the specter repo
+After install anaconda3, go to the SPECTER repo
 ```
 conda create --name specter_ours python=3.7 setuptools 
 conda activate specter_ours
@@ -23,19 +23,21 @@ conda install filelock
 You will need to prepare and put the following data to proper places
 - All papers reviewers wrote `data/raw/openreview/ICLR2020/source_data/archives`
 - All submission papers `data/raw/openreview/ICLR2020/source_data/submissions`
-- Our model `./models/gorc_fix-20200722-104422`
+- Our model `./models/gorc_fix-20200722-104422` 
 - Our dictionary file `./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index`
+- (the above two files could be found in `/iesl/canvas/hschang/code/Multi_facet_recommendation/`)
 
 ## Check the configuration
 In `./bin/testing_for_new_conference.sh`
-- Modify `SPECTER_FOLDER` to point to your specter repo
+- Modify `SPECTER_FOLDER` to point to your SPECTER repo
 - Modify `PY_PATH` to use the python you just prepared
 - If you want to put above data into a different folder, change the paths in the INPUT section (but we assume that the folder `TEXT_DATA_DIR` exist)
 - If you like, change the output path `OUTPUT_CSV`
 - If you want to use CPU instead of GPU, change `CUDA_DEVICE_IDX` to be -1
 
 ## Run the code
-cd to this repo
+cd to this repo (Multi_facet_recommendation)
+
 Run `./bin/testing_for_new_conference.sh`
 
 
