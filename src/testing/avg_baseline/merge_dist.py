@@ -175,6 +175,7 @@ device = torch.device('cpu')
 
 with open(submission_data_file,'rb') as f_in:
     dataloader_test_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
+    #print(dataloader_test_info[1])
 
 if eval_target == 'user':
     with open(user_dict_path) as f_in:

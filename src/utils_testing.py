@@ -351,6 +351,7 @@ def pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user
         top_prediction_user.append( top_pred_j )
         top_values_user.append( [dist_j[x] for x in top_pred_j] )
         gt_rank_user.append(gt_rank_j)
+        #print(gt_rank_j)
         if len(gt_rank_j) > 0:
             gt_rel = np.zeros( len(dist_j) )
             gt_rel[user_batch_list[j]] = 1
@@ -622,6 +623,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
             
             bsz = feature.size(0)
             user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
+            #print(user_batch_list)
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
             bid_score_batch_list = [all_user_tag[paper_id][2] for paper_id in paper_id_list]
 
@@ -722,6 +724,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
         div_th = recall_at_th
         div_th_str = recall_at_th_str
         if test_user:
+            #print(weight_all_user)
             print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
             user_id_l2_pred_paper_dist = np.sum(paper_user_dist[:,num_special_token:], axis = 0)
             user_id_l2_pred_paper_dist_mean = np.mean(user_id_l2_pred_paper_dist)

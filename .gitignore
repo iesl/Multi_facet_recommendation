@@ -3,6 +3,7 @@ scibert/*
 resources/*
 gen_log/*
 gen_log_old/*
+gen_log_temp/*
 eval_log/*
 dataset_testing/*
 temp/*

@@ -40,7 +40,7 @@ echo "running preprocessing"
 eval $PY_PATH src/preprocessing/gorc/prepare_data_for_reviewer_emb.py -i $REVIEWER_DIR -o $REVIWER_FILE
 eval $PY_PATH src/preprocessing/gorc/prepare_data_for_assignment_testing.py -i $SUBMISSION_DIR -o $SUBMISSION_FILE
 
-./bin/preprocessing_openreview.sh $TEXT_DATA_DIR $REVIWER_FILE $INPUT_FILE_TEST_ALL $PROCESSED_DATA_DIR $INPUT_FEATURE_VOCAB_FILE $PY_PATH
+./bin/preprocessing_openreview.sh $TEXT_DATA_DIR $REVIWER_FILE $SUBMISSION_FILE $PROCESSED_DATA_DIR $INPUT_FEATURE_VOCAB_FILE $PY_PATH
 
 
 #Compute SPECTER similarity
@@ -58,7 +58,7 @@ eval $PY_PATH src/testing/avg_baseline/paper_dist_from_csv.py -i $SEPCTER_CSV -d
 #Compute our similarity
 CBOW_FILE="/dev/null"
 echo "running our methods"
-eval $PY_PATH src/main.py --batch_size 50 --save $MODEL_PATH --de_output_layer single_dynamic --continue_train --data $PROCESSED_DATA_DIR --source_emb_file $CBOW_FILE --de_model TRANS --en_model TRANS --encode_trans_layers 3 --trans_layers 3 --n_basis 1 --seed 111 --epochs 100 --tensor_folder tensors_cold --coeff_opt max --tag_w 1 --user_w 5 --rand_neg_method shuffle --target_norm True --loss_type dist --inv_freq_w True --de_coeff_model TRANS_old --lr 0.0002 --target_emsize 100 --freeze_encoder_decoder True --loading_target_embedding False --always_save_model True --target_embedding_suffix _${DATASET}_test --log_file_name log_${DATASET}_test.txt
+eval $PY_PATH src/main.py --batch_size 50 --save $MODEL_PATH --de_output_layer single_dynamic --continue_train --data $PROCESSED_DATA_DIR --source_emb_file $CBOW_FILE --de_model TRANS --en_model TRANS --encode_trans_layers 3 --trans_layers 3 --n_basis 1 --seed 111 --epochs 100 --tensor_folder tensors_cold --coeff_opt max --tag_w 1 --user_w 5 --rand_neg_method shuffle --target_norm True --loss_type dist --inv_freq_w True --de_coeff_model TRANS_old --lr 0.0002 --target_emsize 100 --freeze_encoder_decoder True --loading_target_embedding False --always_save_model True --target_embedding_suffix _${DATASET}_test --log_file_name log_${DATASET}_test.txt --neg_sample_w 0
 
 eval $PY_PATH src/recommend_test.py --checkpoint $MODEL_PATH --outf $OUR_SIM --tag_emb_file tag_emb_${DATASET}_test_always.pt --user_emb_file user_emb_${DATASET}_test_always.pt --batch_size 50 --n_basis 1 --data $PROCESSED_DATA_DIR --tensor_folder tensors_cold --coeff_opt max --loss_type dist --test_tag False --source_emsize 200 --en_model TRANS --encode_trans_layers 3 --trans_layers 3 --de_coeff_model TRANS_old --de_output_layer single_dynamic --store_dist user
 
