@@ -85,6 +85,8 @@ def predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decod
     #output_emb_last = parallel_encoder(feature)
     output_emb_last, output_emb = parallel_encoder(feature, feature_type)
     basis_pred, basis_pred_tag, basis_pred_auto  =  parallel_decoder(output_emb_last, output_emb)
+    
+    #basis_pred = basis_pred.sum(dim=1).view( (basis_pred_tag.size(0), 1, basis_pred_tag.size(2)) )
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
     
     if normalize_emb:
@@ -211,12 +213,21 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
                 coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_norm_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
             elif coeff_opt == 'max':
                 coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type)
+            elif coeff_opt == 'max_norm_1':
+                coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type, always_norm_one=True)
+            elif coeff_opt == 'avg':
+                n_basis = basis_norm_pred.size(1)
+                coeff_mat_user = torch.ones( (bsz,vocab_size, n_basis) ,device=device)
         
         pred_embeddings_user = torch.bmm(coeff_mat_user, basis_norm_pred)
+        if coeff_opt == 'avg':
+            pred_embeddings_user = pred_embeddings_user / (0.000000000001 + pred_embeddings_user.norm(dim = 2, keepdim=True) )
+        #print(pred_embeddings_user.norm(dim = 2, keepdim=True))
         if loss_type == 'sim' or loss_type == 'sim_norm':
             dist_all_user_tensor = - torch.sum( pred_embeddings_user * target_embeddings, dim = 2 )
         elif loss_type == 'dist':
             dist_all_user_tensor = torch.pow( torch.norm( pred_embeddings_user - target_embeddings, dim = 2 ), 2)
+            #print(dist_all_user_tensor)
         #To exclude <null>, <eos>, <unk>, just give it a super high distance
         dist_all_user_tensor[:,:num_special_token] = 100
         return dist_all_user_tensor.tolist()

@@ -399,6 +399,10 @@ def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w
             coeff_mat = estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_pred.detach(), device, loss_type, not target_norm, always_norm_one)
             #coeff_mat = estimate_coeff_mat_batch_max_iter(target_embeddings, basis_pred.detach(), device)
             coeff_mat_neg = estimate_coeff_mat_batch_max(target_emb_neg.detach(), basis_pred.detach(), device, loss_type, not target_norm, always_norm_one)
+        elif coeff_opt == 'avg':
+            n_basis = basis_pred.size(1)
+            coeff_mat = torch.ones( (n_batch,n_set, n_basis) ,device=device)
+            coeff_mat_neg = torch.ones( (n_batch,n_set, n_basis) ,device=device)
         elif coeff_opt == 'softmax':
             coeff_mat = estimate_coeff_mat_batch_softmax(target_embeddings.detach(), basis_pred.detach(), device, loss_type, not target_norm)
             coeff_mat_neg = estimate_coeff_mat_batch_softmax(target_emb_neg.detach(), basis_pred.detach(), device, loss_type, not target_norm)
@@ -411,6 +415,9 @@ def compute_loss_set(basis_pred, entpair_embs, target_set, L1_losss_B, device, w
     
     pred_embeddings = torch.bmm(coeff_mat, basis_pred)
     pred_embeddings_neg = torch.bmm(coeff_mat_neg, basis_pred)
+    if coeff_opt == 'avg':
+        pred_embeddings = pred_embeddings / (0.000000000001 + pred_embeddings.norm(dim = 2, keepdim=True) )
+        pred_embeddings_neg = pred_embeddings_neg / (0.000000000001 + pred_embeddings_neg.norm(dim = 2, keepdim=True) )
     #pred_embeddings should have dimension (n_batch, n_set, n_emb_size)
     #loss_set = torch.mean( target_freq_inv_norm * torch.norm( pred_embeddings.cuda() - target_embeddings, dim = 2 ) )
     if loss_type == 'sg':
