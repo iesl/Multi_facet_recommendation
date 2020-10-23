@@ -12,8 +12,8 @@ from utils import str2bool
 sys.path.insert(0, sys.path[0]+'/testing/old/sim')
 import SIF_pc_removal as SIF
 import math
-import Sinkhorn
-import ot
+#import Sinkhorn
+#import ot
 from collections import Counter
 from sklearn.metrics import ndcg_score
 
@@ -85,6 +85,8 @@ def predict_batch_simple(feature, feature_type, parallel_encoder, parallel_decod
     #output_emb_last = parallel_encoder(feature)
     output_emb_last, output_emb = parallel_encoder(feature, feature_type)
     basis_pred, basis_pred_tag, basis_pred_auto  =  parallel_decoder(output_emb_last, output_emb)
+    
+    #basis_pred = basis_pred.sum(dim=1).view( (basis_pred_tag.size(0), 1, basis_pred_tag.size(2)) )
     #basis_pred, coeff_pred = nsd_loss.predict_basis(parallel_decoder, n_basis, output_emb_last, predict_coeff_sum = True )
     
     if normalize_emb:
@@ -211,12 +213,21 @@ def compute_all_dist(feature, feature_type, parallel_encoder, parallel_decoder, 
                 coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_opt(target_embeddings.detach(), basis_norm_pred.detach(), L1_losss_B, device, coeff_opt_algo, lr_coeff, iter_coeff)
             elif coeff_opt == 'max':
                 coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type)
+            elif coeff_opt == 'max_norm_1':
+                coeff_mat_user = nsd_loss.estimate_coeff_mat_batch_max(target_embeddings.detach(), basis_norm_pred.detach(), device, loss_type, always_norm_one=True)
+            elif coeff_opt == 'avg':
+                n_basis = basis_norm_pred.size(1)
+                coeff_mat_user = torch.ones( (bsz,vocab_size, n_basis) ,device=device)
         
         pred_embeddings_user = torch.bmm(coeff_mat_user, basis_norm_pred)
+        if coeff_opt == 'avg':
+            pred_embeddings_user = pred_embeddings_user / (0.000000000001 + pred_embeddings_user.norm(dim = 2, keepdim=True) )
+        #print(pred_embeddings_user.norm(dim = 2, keepdim=True))
         if loss_type == 'sim' or loss_type == 'sim_norm':
             dist_all_user_tensor = - torch.sum( pred_embeddings_user * target_embeddings, dim = 2 )
         elif loss_type == 'dist':
             dist_all_user_tensor = torch.pow( torch.norm( pred_embeddings_user - target_embeddings, dim = 2 ), 2)
+            #print(dist_all_user_tensor)
         #To exclude <null>, <eos>, <unk>, just give it a super high distance
         dist_all_user_tensor[:,:num_special_token] = 100
         return dist_all_user_tensor.tolist()
@@ -351,6 +362,7 @@ def pred_per_paper(all_dist_user, user_batch_list, recall_at_th, recall_all_user
         top_prediction_user.append( top_pred_j )
         top_values_user.append( [dist_j[x] for x in top_pred_j] )
         gt_rank_user.append(gt_rank_j)
+        #print(gt_rank_j)
         if len(gt_rank_j) > 0:
             gt_rel = np.zeros( len(dist_j) )
             gt_rel[user_batch_list[j]] = 1
@@ -622,6 +634,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
             
             bsz = feature.size(0)
             user_batch_list = [all_user_tag[paper_id][0] for paper_id in paper_id_list]
+            #print(user_batch_list)
             tag_batch_list = [all_user_tag[paper_id][1] for paper_id in paper_id_list]
             bid_score_batch_list = [all_user_tag[paper_id][2] for paper_id in paper_id_list]
 
@@ -722,6 +735,7 @@ def recommend_test_from_all_dist(dataloader_info, paper_user_dist, paper_tag_dis
         div_th = recall_at_th
         div_th_str = recall_at_th_str
         if test_user:
+            #print(weight_all_user)
             print("\nUser recall per paper at {} is {}, weighted recall is {}, MAP is {}, F1 is {}, AUC is {}, NDCG is {}".format(recall_at_th_str,[np.mean(recall_all_user[m]) for m in range(len(recall_all_user))], [np.average(recall_all_user[m], weights=weight_all_user[m]) for m in range(len(recall_all_user))], np.mean(MAP_all_user), np.mean(F1_all_user), np.mean(AUC_all_user), np.mean(NDCG_all_user) ))
             user_id_l2_pred_paper_dist = np.sum(paper_user_dist[:,num_special_token:], axis = 0)
             user_id_l2_pred_paper_dist_mean = np.mean(user_id_l2_pred_paper_dist)

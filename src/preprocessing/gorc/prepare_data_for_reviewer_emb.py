@@ -3,6 +3,25 @@ import os
 import json
 from unicodedata import normalize
 
+import sys
+import getopt
+
+help_msg = '-i <paper_dir> -o <output_path>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        paper_dir = arg
+    elif opt in ("-o"):
+        output_path = arg
+
 tokenizer_mode = 'scapy'
 #tokenizer_mode = 'scibert'
 
@@ -18,8 +37,11 @@ elif tokenizer_mode == 'scibert':
     tokenizer = BertTokenizer.from_pretrained(model_name)
     seg = pysbd.Segmenter(language="en", clean=False)
 
+expertise_file = ""
+dataset = 'new'
 #dataset = 'UAI2019'
-dataset = 'ICLR2020'
+#dataset = 'ICLR2020'
+#dataset = 'ICLR2020_test'
 #dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
 #dataset = 'NeurIPS2019'
@@ -84,6 +106,10 @@ elif dataset == 'UAI2019':
         output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data"
     elif tokenizer_mode == 'scibert':
         output_path = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/UAI2019/all_reviewer_paper_data_scibert"
+elif dataset == 'ICLR2020_test':
+    paper_dir = "/iesl/canvas/hschang/code/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
+    output_path = "/iesl/canvas/hschang/code/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data_test"
+
 elif dataset == 'ICLR2020':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/archives"
     expertise_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json"

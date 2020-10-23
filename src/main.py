@@ -17,7 +17,7 @@ import model as model_code
 import nsd_loss
 from utils import seed_all_randomness, create_exp_dir, save_checkpoint, load_idx2word_freq, load_emb_file_to_dict, load_emb_file_to_tensor, load_corpus, output_parallel_models, str2bool
 from utils_testing import compute_freq_prob_idx2word
-from transformers import get_linear_schedule_with_warmup
+#from transformers import get_linear_schedule_with_warmup
 
 from scibert.modeling_bert import BertModel
 from scibert.configuration_bert import BertConfig
@@ -340,7 +340,7 @@ else:
 
 num_special_token = 3
 
-def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
+def load_ext_emb(emb_file, target_emb_sz, idx2word_freq, freeze_encoder_decoder):
     num_w = len(idx2word_freq)
     if len(emb_file) > 0:
         if emb_file[-3:] == '.pt':
@@ -366,6 +366,8 @@ def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
                     OOV_freq += idx2word_freq[i][1]
             print("OOV word type percentage: {}%".format( OOV_type/float(num_w)*100 ))
             print("OOV token percentage: {}%".format( OOV_freq/float(total_freq)*100 ))
+    #elif freeze_encoder_decoder:
+    #    target_emb = torch.ones(num_w, target_emb_sz, device = device, requires_grad = False)
     else:
         target_emb = torch.randn(num_w, target_emb_sz, device = device, requires_grad = False)
     #if args.coeff_opt != 'prod':
@@ -373,9 +375,9 @@ def load_ext_emb(emb_file, target_emb_sz, idx2word_freq):
     target_emb.requires_grad = True
     return target_emb, target_emb_sz
 
-user_emb, target_emb_sz = load_ext_emb(args.user_emb_file, args.target_emsize, user_idx2word_freq)
+user_emb, target_emb_sz = load_ext_emb(args.user_emb_file, args.target_emsize, user_idx2word_freq, args.freeze_encoder_decoder)
 if args.tag_w > 0:
-    tag_emb, target_emb_sz_tag = load_ext_emb(args.tag_emb_file, args.target_emsize, tag_idx2word_freq)
+    tag_emb, target_emb_sz_tag = load_ext_emb(args.tag_emb_file, args.target_emsize, tag_idx2word_freq, args.freeze_encoder_decoder)
 else:
     tag_emb = torch.zeros(0)
     target_emb_sz_tag = target_emb_sz
@@ -559,6 +561,7 @@ def evaluate(dataloader, current_coeff_opt):
                     input_basis = basis_pred_tag
                 else:
                     input_basis = basis_pred
+
                 loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(input_basis, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
             else:
                 loss_set_user = torch.tensor(0)
@@ -683,7 +686,11 @@ def train_one_epoch(dataloader_train, lr, current_coeff_opt, split_i):
                 input_basis = basis_pred_tag
             else:
                 input_basis = basis_pred
-            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(input_basis, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm)
+            always_norm_one = False
+            if args.freeze_encoder_decoder:
+                always_norm_one = True
+            
+            loss_set_user, loss_set_neg_user, loss_set_div, loss_set_reg, loss_set_div_target_user = nsd_loss.compute_loss_set(input_basis, user_emb, user, args.L1_losss_B, device, user_uniform, user_freq, repeat_num, user_len, current_coeff_opt, args.loss_type, compute_target_grad, args.coeff_opt_algo, args.rand_neg_method, args.target_norm, always_norm_one = always_norm_one)
             if torch.isnan(loss_set_user):
                 sys.stdout.write('user nan, ')
                 continue

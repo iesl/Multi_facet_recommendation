@@ -317,6 +317,7 @@ def create_data_loader(f_in, bsz, device, want_to_shuffle = True, deduplication 
     else:
         feature, feature_type, user, tag, repeat_num, user_len, tag_len, bid_score = fields #torch.load(f_in, map_location='cpu')
     #feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
+    #print(user)
     #print(feature)
     #print(target)
     if not remove_duplication:
