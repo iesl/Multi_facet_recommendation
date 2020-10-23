@@ -31,7 +31,7 @@ class BertConfig(object):
                  hidden_act="gelu",
                  hidden_dropout_prob=0.1,
                  attention_probs_dropout_prob=0.1,
-                 type_vocab_size=2,
+                 type_vocab_size=3,
                  initializer_range=0.02):
         """Constructs BertConfig.
         Args:

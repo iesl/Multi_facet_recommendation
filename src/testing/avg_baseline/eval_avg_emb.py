@@ -4,6 +4,44 @@ import utils
 import utils_testing
 import torch
 import numpy as np
+import getopt
+
+help_msg = '-i <input_dict_path> -u <user_dict_path> -v <submission_data_file> -s <submission_emb_file> -t <reviewer_data_file> -r <reviewer_emb_file> -o <out_dist_path> -m <mode> -d <dist_option>'
+
+mode = 'save_dist'
+#mode = 'run_eval'
+
+#dist_option = 'emb_avg'
+#dist_option = 'sim_avg'
+dist_option = 'sim_max'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:u:v:s:t:r:o:m:d:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        input_dict_path = arg
+    elif opt in ("-u"):
+        user_dict_path = arg
+    elif opt in ("-v"):
+        submission_data_file = arg
+    elif opt in ("-s"):
+        submission_emb_file = arg
+    elif opt in ("-t"):
+        reviewer_data_file = arg
+    elif opt in ("-r"):
+        reviewer_emb_file = arg
+    elif opt in ("-m"):
+        mode = arg
+    elif opt in ("-d"):
+        dist_option = arg
+    elif opt in ("-o"):
+        out_dist_path = arg
 
 
 
@@ -45,9 +83,9 @@ only_test_tag = False
 #input_dict_path = "./data/processed/gorc_uncased_min_5/feature/dictionary_index"
 #user_dict_path = "./data/processed/gorc_uncased_min_5/tag/dictionary_index"
 #user_dict_path = "./data/processed/gorc_uncased_min_5/user/dictionary_index"
-input_dict_path = "./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index"
+#input_dict_path = "./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index"
 #user_dict_path = "./data/processed/gorc_fix_uncased_min_5/tag/dictionary_index"
-user_dict_path = "./data/processed/gorc_fix_uncased_min_5/user/dictionary_index"
+#user_dict_path = "./data/processed/gorc_fix_uncased_min_5/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/feature/word_freq"
 #user_dict_path = "./data/processed/ICLR2018_bid_score_scibert_gorc_uncased/user/dictionary_index"
 #input_dict_path = "./data/processed/ICLR2018_scibert_gorc_uncased/feature/word_freq"
@@ -154,8 +192,8 @@ user_dict_path = "./data/processed/gorc_fix_uncased_min_5/user/dictionary_index"
 #submission_emb_file = './gen_log/ICLR2018_bid_score_scibert_submission_paper_emb_freq_4_avg.txt'
 #submission_data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/test.pt'
 #submission_emb_file = './gen_log/gorc_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
-submission_data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/test.pt'
-submission_emb_file = './gen_log/gorc_fix_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#submission_data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/test.pt'
+#submission_emb_file = './gen_log/gorc_fix_test_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
 
 #reviewer_data_file = './data/processed/NeurIPS2020_fixed_review_gorc_uncased/tensors_cold/train.pt'
@@ -220,11 +258,12 @@ submission_emb_file = './gen_log/gorc_fix_test_emb_freq_4_avg_cbow_ACM_dim200.tx
 #reviewer_data_file = './data/processed/gorc_uncased_min_5/tensors_cold_0/train.pt'
 #reviewer_emb_file = './gen_log/gorc_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
-reviewer_data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/train.pt'
-reviewer_emb_file = './gen_log/gorc_fix_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
+#reviewer_data_file = './data/processed/gorc_fix_uncased_min_5/tensors_cold_0/train.pt'
+#reviewer_emb_file = './gen_log/gorc_fix_train_emb_freq_4_avg_cbow_ACM_dim200.txt'
 
 #mode = 'save_dist'
 mode = 'run_eval'
+
 
 if mode == 'save_dist':
     #out_dist_path = './gen_log/NeurIPS2020_fixed_review_avg_cbow_freq_4_dist.np'
@@ -264,6 +303,7 @@ if mode == 'save_dist':
     #out_dist_path = './gen_log/ICLR2018_avg_cbow_freq_4_dist_bid_score.np'
     #out_dist_path = './gen_log/ICLR2018_max_cbow_freq_4_dist_bid_score.np'
 elif mode == 'run_eval':
+    #pass
     #out_f_path = './gen_log/UAI2019_bid_high_avg_cbow_freq_4_baseline'
     #out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_freq_4_baseline'
     #out_f_path = './gen_log/UAI2019_bid_low_avg_cbow_uni_baseline'
@@ -280,9 +320,6 @@ elif mode == 'run_eval':
     #out_f_path = './gen_log/ICLR2020_bid_low_avg_cbow_uni_baseline'
     #out_f_path = './gen_log/ICLR2020_bid_low_max_cbow_uni_baseline'
 
-#dist_option = 'emb_avg'
-dist_option = 'sim_avg'
-#dist_option = 'sim_max'
 
 
 def load_idx_d2_word_freq(f_in):
@@ -310,7 +347,7 @@ def load_emb_file(f_in, device):
 with torch.no_grad():
 
     with open(reviewer_data_file, 'rb') as f_in:
-        dataloader_train_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True)
+        dataloader_train_info = utils.create_data_loader(f_in, eval_bsz, device, want_to_shuffle = False, deduplication = True, remove_duplication = remove_training_duplication)
         #feature, feature_type, user, tag, repeat_num, user_len, tag_len = torch.load(f_in, map_location='cpu')
         #dataset, all_user_tag = utils.create_uniq_paper_data(feature, feature_type, user, tag, device, user_subsample_idx = [], tag_subsample_idx= [])
     all_user_tag = dataloader_train_info[1]

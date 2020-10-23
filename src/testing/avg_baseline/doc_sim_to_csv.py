@@ -5,15 +5,39 @@ import sys
 #dist_option = 'sim_avg'
 dist_option = 'sim_max'
 
+import getopt
+
+help_msg = '-s test_emb_file -r train_emb_file -p paper_to_reviewer_file -d dist_option -o output_file'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "s:r:p:o:d:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-s"):
+        test_emb_file = arg
+    elif opt in ("-r"):
+        train_emb_file = arg
+    elif opt in ("-p"):
+        paper_to_reviewer_file = arg
+    elif opt in ("-d"):
+        dist_option = arg
+    elif opt in ("-o"):
+        output_file = arg
+
 #test_emb_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw.jsonl"
 #train_emb_file ="/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw_train_duplicate.jsonl"
 #paper_to_reviewer_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/all_reviewer_paper_data"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_spector_"+dist_option+".csv"
 
-test_emb_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw.jsonl"
-train_emb_file ="/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw_train_duplicate.jsonl"
-paper_to_reviewer_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data"
-output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_"+dist_option+".csv"
+#test_emb_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw.jsonl"
+#train_emb_file ="/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw_train_duplicate.jsonl"
+#paper_to_reviewer_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/ICLR2020/all_reviewer_paper_data"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_spector_"+dist_option+".csv"
 
 
 device = torch.device('cpu')

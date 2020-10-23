@@ -1,12 +1,30 @@
 import json
 import numpy as np
+import sys
+import getopt
+
+help_msg = '-i <input> -o <output>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        input_file = arg
+    elif opt in ("-o"):
+        output_file = arg
 
 #input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw.jsonl"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_norm.txt"
 #input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw_train.jsonl"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_train_norm.txt"
-input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw_train_duplicate.jsonl"
-output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_train_duplicate_norm.txt"
+#input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_raw_train_duplicate.jsonl"
+#output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/NeurIPS2019_emb_spector_train_duplicate_norm.txt"
 #input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw.jsonl"
 #output_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_norm.txt"
 #input_file = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/gen_log/ICLR2020_emb_spector_raw_train.jsonl"

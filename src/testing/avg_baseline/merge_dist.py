@@ -73,6 +73,12 @@ submission_data_file = testing_dir + '/'+tensor_folder_name+'/test.pt'
 #dist_file_1 = "./gen_log/ICLR2020_bid_score_ELMo_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_new_max_cbow_freq_4_dist.np"
 #dist_file_1 = "./gen_log/ICLR2020_new_avg_cbow_freq_4_dist.np"
+
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_dist_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_dist_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_dist_GRU_w_freq_single_right_type.np"
+#dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4_dist_GRU_w_freq_single_right_type.np"
+
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_w_freq.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n1_shuffle_uni_max_lr2e-4.np"
 #dist_file_2 = "./gen_log/ICLR2020_rec_test_trans_bsz50_n5_shuffle_uni_max_lr2e-4_sim_w_freq.np"

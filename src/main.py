@@ -478,9 +478,9 @@ if args.continue_train:
         if args.tag_w > 0:
             tag_emb_load = torch.load(os.path.join(args.save, 'tag_emb.pt'))
             tag_emb = tag_emb.new_tensor(tag_emb_load)
-        if args.auto_w > 0:
-            auto_emb_load = torch.load(os.path.join(args.save, 'auto_emb.pt'))
-            auto_emb = auto_emb.new_tensor(auto_emb_load)
+        #if args.auto_w > 0:
+        #    auto_emb_load = torch.load(os.path.join(args.save, 'auto_emb.pt'))
+        #    auto_emb = auto_emb.new_tensor(auto_emb_load)
             
             
 
@@ -856,6 +856,7 @@ elif args.optimizer == 'Adam':
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr, weight_decay=args.wdecay)
     optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr_target, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     optimizer_auto = torch.optim.SGD([feature_linear_layer], lr=args.lr_target)#, weight_decay=args.target_l2)# , weight_decay=0.00000001)
+    #optimizer_auto = torch.optim.Adam([feature_linear_layer], lr=args.lr_target)#, weight_decay=args.target_l2)# , weight_decay=0.00000001)
     #optimizer_t = torch.optim.Adam([user_emb, tag_emb], lr=args.lr/5)
 else:
     optimizer_e = torch.optim.AdamW(encoder.parameters(), lr=args.lr)

@@ -14,6 +14,20 @@ print(bert_vocab_size)
 bert_emb_size = bert_config.hidden_size
 print(bert_emb_size)
 
+def print_parameters(model, excluding_prefix = None):
+    parameter_sum = 0
+    for name, param in model.named_parameters():
+        if excluding_prefix is not None and excluding_prefix == name[:len(excluding_prefix)]:
+            print("Skipping ", name, param.numel())
+            continue
+        if param.requires_grad:
+            print(name, param.numel())
+            parameter_sum += param.numel()
+    return parameter_sum
+
+#print("SciBERT after filtering ", print_parameters(encoder))
+#exit()
+
 CLS_idx = 102
 SEP_idx = 103
 
