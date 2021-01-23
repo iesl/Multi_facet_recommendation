@@ -1,5 +1,5 @@
 #!/bin/bash
-module load python3/current
+#module load python3/current
 echo "code is running"
 
 ENCODER="TRANS"

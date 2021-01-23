@@ -4,10 +4,17 @@ import json
 import sys
 import getopt
 
-help_msg = '-i <paper_dir> -o <output_path>'
+help_msg = '-i <paper_dir> -e <expertise_file> -s <user_tag_source> -a <assignment_file> -b <bid_file> -o <output_path>'
+
+expertise_file = ""
+assignment_file = ""
+bid_file = ""
+
+#user_tag_source = 'bid'
+user_tag_source = 'assignment'
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "i:o:")
+    opts, args = getopt.getopt(sys.argv[1:], "i:e:s:a:b:o:")
 except getopt.GetoptError:
     print(help_msg)
     sys.exit(2)
@@ -17,6 +24,14 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("-i"):
         paper_dir = arg
+    elif opt in ("-e"):
+        expertise_file = arg
+    elif opt in ("-s"):
+        user_tag_source = arg
+    elif opt in ("-a"):
+        assignment_file = arg
+    elif opt in ("-b"):
+        bid_file = arg
     elif opt in ("-o"):
         output_path = arg
 
@@ -35,8 +50,6 @@ elif tokenizer_mode == 'scibert':
     tokenizer = BertTokenizer.from_pretrained(model_name)
     seg = pysbd.Segmenter(language="en", clean=False)
 
-#user_tag_source = 'bid'
-user_tag_source = 'assignment'
 
 dataset = 'new'
 #dataset = 'UAI2019'
@@ -45,8 +58,6 @@ dataset = 'new'
 #dataset = 'ICLR2019'
 #dataset = 'ICLR2018'
 #dataset = 'NeurIPS2019'
-expertise_file = ""
-assignment_file = ""
 
 if dataset == 'NeurIPS2019':
     paper_dir = "/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/openreview/NeurIPS2019/source_data/submissions"

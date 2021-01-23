@@ -3,9 +3,28 @@ import pandas as pd
 import os
 import sys
 import csv
+import getopt
 
-#tokenizer_mode = 'scapy'
-tokenizer_mode = 'scibert'
+help_msg = '-i <paper_data_path> -m <meta_ml_path> -o <output_path>'
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "i:m:o:")
+except getopt.GetoptError:
+    print(help_msg)
+    sys.exit(2)
+for opt, arg in opts:
+    if opt == '-h':
+        print(help_msg)
+        sys.exit()
+    elif opt in ("-i"):
+        paper_data_path = arg
+    elif opt in ("-m"):
+        meta_ml_path = arg
+    elif opt in ("-o"):
+        output_path = arg
+
+tokenizer_mode = 'scapy'
+#tokenizer_mode = 'scibert'
 
 if tokenizer_mode == 'scapy':
     from spacy.lang.en import English
@@ -19,13 +38,13 @@ else:
 
 csv.field_size_limit(sys.maxsize)
 
-meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext.tsv'
-paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext.json'
+#meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext.tsv'
+#paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext.json'
 #output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_data'
-output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_data_scibert'
-#meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext_org.tsv'
-#paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext_org.json'
-#output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_org_data'
+##output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_data_scibert'
+##meta_ml_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/metadata_ml_ext_org.tsv'
+##paper_data_path = '/iesl/data/word_embedding/gorc/s2-gorc/gorc/paper_data_ml_ext_org.json'
+##output_path = '/iesl/canvas/hschang/recommendation/Multi_facet_recommendation/data/raw/gorc/all_paper_org_data'
 
 def parse_list_str(list_in):
     return list_in.replace('[','').replace(']','').replace("'",'').replace('"','').split(', ')

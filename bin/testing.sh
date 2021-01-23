@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 echo "code is running"
+
+PY_PATH="~/anaconda3/bin/python"
+
+##INPUT
 DATASET="ICLR2020"
-
-PY_PATH="~/anaconda3/envs/specter_ours/bin/python"
-
-#INPUT
 TEXT_DATA_DIR="data/raw/openreview/${DATASET}"
 REVIEWER_DIR="${TEXT_DATA_DIR}/source_data/archives"
 SUBMISSION_DIR="${TEXT_DATA_DIR}/source_data/submissions"
@@ -14,10 +14,26 @@ INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_fix_uncased_min_5/feature/dictio
 SPECTER_FOLDER="/iesl/canvas/hschang/recommendation/specter"
 CUDA_DEVICE_IDX="0" #Required by SPECTER
 
-#OUTPUT
+OLD_CONFERENCE="Y"
+#OLD_CONFERENCE="N"
+if [ $OLD_CONFERENCE == "Y" ]; then
+    ASSIGNMENT_FILE="${TEXT_DATA_DIR}/source_data/assignments/assignments.json"
+    BID_FILE="${TEXT_DATA_DIR}/source_data/bids/bids.json"
+    TENSOR_FOLDER="tensors_cold"
+    TEXT_DATA_BID_DIR="${TEXT_DATA_DIR}_bid_score"
+    SUBMISSION_BID_FILE="${TEXT_DATA_BID_DIR}/all_submission_bid_data"
+    PROCESSED_BID_DATA_DIR="./data/processed/${DATASET}_bid_score_gorc_fix_uncased"
+else
+    ASSIGNMENT_FILE=""
+fi
+
+#EXPERTISE_FILE=""
+EXPERTISE_FILE="${TEXT_DATA_DIR}/source_data/profiles_expertise/profiles_expertise.json"
+
+##OUTPUT
 OUTPUT_CSV="gen_log/${DATASET}_specter_ours_sim.csv"
 
-#Path for intermediate files
+##Path for intermediate files
 REVIWER_FILE="${TEXT_DATA_DIR}/all_reviewer_paper_data"
 SUBMISSION_FILE="${TEXT_DATA_DIR}/all_submission_paper_data"
 PROCESSED_DATA_DIR="./data/processed/${DATASET}_gorc_fix_uncased"
@@ -37,8 +53,8 @@ SEPCTER_SIM="./gen_log/${DATASET}_spector_dist.np"
 mkdir -p gen_log
 
 echo "running preprocessing"
-eval $PY_PATH src/preprocessing/gorc/prepare_data_for_reviewer_emb.py -i $REVIEWER_DIR -o $REVIWER_FILE
-eval $PY_PATH src/preprocessing/gorc/prepare_data_for_assignment_testing.py -i $SUBMISSION_DIR -o $SUBMISSION_FILE
+eval $PY_PATH src/preprocessing/gorc/prepare_data_for_reviewer_emb.py -i $REVIEWER_DIR -e $EXPERTISE_FILE -o $REVIWER_FILE
+eval $PY_PATH src/preprocessing/gorc/prepare_data_for_assignment_testing.py -i $SUBMISSION_DIR -e $EXPERTISE_FILE -a $ASSIGNMENT_FILE -o $SUBMISSION_FILE
 
 ./bin/preprocessing_openreview.sh $TEXT_DATA_DIR $REVIWER_FILE $SUBMISSION_FILE $PROCESSED_DATA_DIR $INPUT_FEATURE_VOCAB_FILE $PY_PATH
 
@@ -68,3 +84,9 @@ echo "Merging two methods and dump the results"
 MERGE_ALPHA=0.8
 eval $PY_PATH src/testing/avg_baseline/dump_paper_dist_to_csv.py -d $PROCESSED_DATA_DIR -f $SEPCTER_SIM -s $OUR_SIM -a $MERGE_ALPHA -o $OUTPUT_CSV
 
+if [ $OLD_CONFERENCE == "Y" ]; then
+    eval $PY_PATH src/preprocessing/gorc/prepare_data_for_assignment_testing.py -i $SUBMISSION_DIR -e $EXPERTISE_FILE -s "bid" -b $BID_FILE -o $SUBMISSION_BID_FILE
+    ./bin/preprocessing_openreview_bid_score.sh ${TEXT_DATA_BID_DIR} $REVIWER_FILE $SUBMISSION_BID_FILE $PROCESSED_BID_DATA_DIR $INPUT_FEATURE_VOCAB_FILE $PY_PATH
+    eval $PY_PATH src/testing/avg_baseline/merge_dist.py -i $SEPCTER_SIM -j $OUR_SIM -d $PROCESSED_DATA_DIR -t $TENSOR_FOLDER -a $MERGE_ALPHA
+    eval $PY_PATH src/testing/avg_baseline/merge_dist.py -i $SEPCTER_SIM -j $OUR_SIM -d $PROCESSED_BID_DATA_DIR -t $TENSOR_FOLDER -a $MERGE_ALPHA
+fi

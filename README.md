@@ -1,4 +1,20 @@
-# Run all codes to get only the paper similarity without testing using assignment or bids
+# Train the model
+
+Could be skipped by downloading the pretrained model here
+
+## Prepare the training data
+
+- Download S2ORC from AI2 (https://github.com/allenai/s2orc)
+- Download embeddings-basic-cbow.txt from [here](https://drive.google.com/file/d/1q1vVMwT7EiwpGBQlNI3SYX462geXjA0Z/view?usp=sharing)
+- Update the input (and output) paths of `./bin/collect_filter_gorc.sh`, and run the code to collect the papers related to machine learning from S2ORC
+- Update the input (and output) paths of `./bin/preprocessing_gorc_clean.sh`, and run the code to convert the tokenize the inputs. 
+
+## Train
+
+- Update the input (and output) paths of `./bin/training.sh`, and run the code on a machine with a GPU with at least 11GB memory to train a model
+
+
+# Estimate the Paper Similarity (and Performing Quantitative Evaluation Using Assignment or Bids)
 
 ## Download SPECTER
 ```
@@ -21,76 +37,32 @@ conda install filelock
 ```
 
 ## Prepare data
-You will need to prepare and put the following data to proper places
-- All papers reviewers wrote `data/raw/openreview/ICLR2020/source_data/archives`
-- All submission papers `data/raw/openreview/ICLR2020/source_data/submissions`
+Due to the sensitivity of bidding and paper assignment information, we cannot release the actual review data. In order to let the users understand the input format this repo expects, we fabricate some small examples in the `data_sample_example` folder.
+
+For a new conference, you will need to prepare and put the following data to proper places
+- All papers reviewers wrote (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/archives`)
+- All submission papers (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/submissions`)
 - Our model `./models/gorc_fix-20200722-104422` 
 - Our dictionary file `./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index`
-- (the above two files could be found in `/iesl/canvas/hschang/code/Multi_facet_recommendation/`)
+- (the above two items could be downloaded from [here](https://drive.google.com/file/d/1q1vVMwT7EiwpGBQlNI3SYX462geXjA0Z/view?usp=sharing))
+
+For a old conference, if you want to evaluate the performance, prepare the following two additional files
+- All bidding record (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/bids/bids.json)
+- All paper-reviewer assignment record (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/assignments/assignments.json)
+
+Optionally, you can also input the expertise keywords of authors to make visualization/debugging easier
+- Expertise keywords (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json)
+
 
 ## Check the configuration
-In `./bin/testing_for_new_conference.sh`
+In `./bin/testing.sh`
 - Modify `SPECTER_FOLDER` to point to your SPECTER repo
 - Modify `PY_PATH` to use the python you just prepared
 - If you want to put above data into a different folder, change the paths in the INPUT section (but we assume that the folder `TEXT_DATA_DIR` exist)
+- If you have bidding files and assignment files, you can set `OLD_CONFERENCE="Y"` to get the quantitative evaluation
 - If you like, change the output path `OUTPUT_CSV`
-- If you want to use CPU instead of GPU, change `CUDA_DEVICE_IDX` to be -1
 
 ## Run the code
 cd to this repo (Multi_facet_recommendation)
 
-Run `./bin/testing_for_new_conference.sh`
-
-
-
-# Run all codes with testing (old)
-Assuming you want to run ICLR2020
-
-## Preprocessing:
-You will need 
-- `data/raw/openreview/ICLR2020/source_data/archives`
-- `data/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json`
-- `data/raw/openreview/ICLR2020/source_data/submissions`
-- `data/raw/openreview/ICLR2020/source_data/assignments/assignments.json`
-- `data/raw/openreview/ICLR2020/source_data/bids/bids.json`
-
-Run (modify user_tag_source and the path if necessary)
-```
-src/preprocessing/gorc/prepare_data_for_reviewer_emb.py
-src/preprocessing/gorc/prepare_data_for_assignment_testing.py #(user_tag_source = 'assignment')
-src/preprocessing/gorc/prepare_data_for_assignment_testing.py #(user_tag_source = 'bid')
-```
-
-You will need 
-- `./data/raw/openreview/ICLR2020/all_reviewer_paper_data` (The output files generated above)
-- `./data/raw/openreview/ICLR2020/all_submission_paper_data` (The output files generated above)
-- `data/processed/gorc_fix_uncased_min_5/feature/dictionary_index` (The model file is on gypsum. download from  `/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/data/processed/gorc_fix_uncased_min_5/feature/dictionary_index` )
-
-Run (modify the path if necessary)
-```
-bin/preprocessing_openreview.sh
-bin/preprocessing_openreview_bid_score.sh
-```
-
-## SPECTER:
-Change the path and run the following two codes
-```
-src/preprocessing/gorc/convert_paper_train_spector.py
-/iesl/canvas/hschang/recommendation/specter/run.sh #The code is on blake2. Need to download specter repository from https://github.com/allenai/specter
-```
-
-
-## PREDICT:
-You will need 
-- `./data/raw/openreview/ICLR2020/all_reviewer_paper_data` (from preprocessing)
-- `./data/processed/ICLR2020_fix_gorc_uncased` (from preprocessing)
-- `./data/processed/ICLR2020_bid_score_fix_gorc_uncased` (from preprocessing)
-- `./gen_log/ICLR2020_emb_spector_raw.jsonl` (from SPECTER)
-- `./gen_log/ICLR2020_emb_spector_raw_train.jsonl` (from SPECTER)
-- `./models/gorc_fix-20200722-104422` (The model file is on gypsum. download from `/mnt/nfs/scratch1/hschang/recommend/Multi_facet_recommendation/models/gorc_fix-20200722-104422` )
-
-Run (modify the path if necessary)
-```
-bin/testing_for_ICLR2020.sh
-```
-
+Run `./bin/testing.sh` on a machine with a GPU with at least 11GB memory

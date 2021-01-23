@@ -1,0 +1,43 @@
+{
+    "~Haw-Shiuan_Chang1": [
+        {
+            "keywords": [
+                "Natural language processing"
+            ],
+            "start": 2016,
+            "end": null
+        },
+        {
+            "keywords": [
+                "Active Learning"
+            ],
+            "start": 2015,
+            "end": null
+        },
+        {
+            "keywords": [
+                "Unsupervised learning"
+            ],
+            "start": 2013,
+            "end": null
+        },
+        {
+            "keywords": [
+                "Computer Vision"
+            ],
+            "start": 2013,
+            "end": 2015
+        }
+    ],
+    "~Samy_Bengio1": [
+        {
+            "start": null,
+            "end": null,
+            "keywords": [
+                "deep learning",
+                "sequence modeling",
+                "large scale learning"
+            ]
+        }
+    ]
+}
