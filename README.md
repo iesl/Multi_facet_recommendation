@@ -1,4 +1,4 @@
-# Train the model
+# Train the Model
 
 Could be skipped by downloading the pretrained model [here](https://drive.google.com/file/d/1q1vVMwT7EiwpGBQlNI3SYX462geXjA0Z/view?usp=sharing)
 
@@ -14,7 +14,7 @@ Could be skipped by downloading the pretrained model [here](https://drive.google
 - Update the input (and output) paths of `./bin/training.sh`, and run the code on a machine with a GPU with at least 11GB memory to train a model
 
 
-# Estimate the Paper Similarity (and Performing Quantitative Evaluation Using Assignment or Bids)
+# Running the Method we used for ICLR 2021, including the Paper-Reviewer Affinity Estimation (and Quantitative Evaluation Using Assignment or Bids)
 
 ## Download SPECTER
 ```

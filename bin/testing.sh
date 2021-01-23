@@ -14,8 +14,8 @@ INPUT_FEATURE_VOCAB_FILE="./data/processed/gorc_fix_uncased_min_5/feature/dictio
 SPECTER_FOLDER="/iesl/canvas/hschang/recommendation/specter"
 CUDA_DEVICE_IDX="0" #Required by SPECTER
 
-OLD_CONFERENCE="Y"
-#OLD_CONFERENCE="N"
+#OLD_CONFERENCE="Y"
+OLD_CONFERENCE="N"
 if [ $OLD_CONFERENCE == "Y" ]; then
     ASSIGNMENT_FILE="${TEXT_DATA_DIR}/source_data/assignments/assignments.json"
     BID_FILE="${TEXT_DATA_DIR}/source_data/bids/bids.json"
@@ -27,8 +27,8 @@ else
     ASSIGNMENT_FILE=""
 fi
 
-#EXPERTISE_FILE=""
-EXPERTISE_FILE="${TEXT_DATA_DIR}/source_data/profiles_expertise/profiles_expertise.json"
+EXPERTISE_FILE=""
+#EXPERTISE_FILE="${TEXT_DATA_DIR}/source_data/profiles_expertise/profiles_expertise.json"
 
 ##OUTPUT
 OUTPUT_CSV="gen_log/${DATASET}_specter_ours_sim.csv"
