@@ -1,6 +1,6 @@
 # Train the model
 
-Could be skipped by downloading the pretrained model here
+Could be skipped by downloading the pretrained model [here](https://drive.google.com/file/d/1q1vVMwT7EiwpGBQlNI3SYX462geXjA0Z/view?usp=sharing)
 
 ## Prepare the training data
 
@@ -46,23 +46,21 @@ For a new conference, you will need to prepare and put the following data to pro
 - Our dictionary file `./data/processed/gorc_fix_uncased_min_5/feature/dictionary_index`
 - (the above two items could be downloaded from [here](https://drive.google.com/file/d/1q1vVMwT7EiwpGBQlNI3SYX462geXjA0Z/view?usp=sharing))
 
-For a old conference, if you want to evaluate the performance, prepare the following two additional files
-- All bidding record (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/bids/bids.json)
-- All paper-reviewer assignment record (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/assignments/assignments.json)
+For an old conference, if you want to evaluate the performance, prepare the following two additional files
+- All bidding records (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/bids/bids.json`)
+- All paper-reviewer assignment records (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/assignments/assignments.json`)
 
 Optionally, you can also input the expertise keywords of authors to make visualization/debugging easier
-- Expertise keywords (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json)
+- Expertise keywords (see an example in `data_sample_example/raw/openreview/ICLR2020/source_data/profiles_expertise/profiles_expertise.json`)
 
 
 ## Check the configuration
 In `./bin/testing.sh`
 - Modify `SPECTER_FOLDER` to point to your SPECTER repo
 - Modify `PY_PATH` to use the python you just prepared
-- If you want to put above data into a different folder, change the paths in the INPUT section (but we assume that the folder `TEXT_DATA_DIR` exist)
+- If you want to put above data into a different folder, change the paths in the INPUT section 
 - If you have bidding files and assignment files, you can set `OLD_CONFERENCE="Y"` to get the quantitative evaluation
 - If you like, change the output path `OUTPUT_CSV`
 
 ## Run the code
-cd to this repo (Multi_facet_recommendation)
-
 Run `./bin/testing.sh` on a machine with a GPU with at least 11GB memory
